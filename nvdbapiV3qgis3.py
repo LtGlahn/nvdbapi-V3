@@ -4,7 +4,7 @@ Klasser og funksjoner for å føye NVDB vegnett og fagdata til QGIS 3
 
 """
 from qgis.core import QgsProject,  QgsVectorLayer, QgsFeature, QgsGeometry, QgsPoint, QgsLineString
-from nvdbapi import nvdbVegnett, nvdbFagdata, nvdbFagObjekt, finnid
+from nvdbapiv3 import nvdbVegnett, nvdbFagdata, nvdbFagObjekt, finnid
 
 
 class memlayerwrap(): 
@@ -96,12 +96,12 @@ def egenskaptype2qgis( egenskaptype):
 
     """
     defstring = egenskaptype['navn']
-    if 'Tall' in egenskaptype['datatype_tekst']:
+    if 'Tall' in egenskaptype['egenskapstype']:
         if 'desimaler' in egenskaptype.keys() and egenskaptype['desimaler'] > 0:  
             defstring += ':double'
         else: 
             defstring += ':int' 
-    elif 'Dato' == egenskaptype['datatype_tekst']:
+    elif 'Dato' == egenskaptype['egenskapstype']:
         defstring += ':date'  
     else: 
         defstring += ':string' 
