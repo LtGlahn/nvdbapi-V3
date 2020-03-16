@@ -41,7 +41,7 @@ import sys
 nvdblibrary = 'C:/Data/test/github/nvdbapi-V3'
 # nvdblibrary = '/home/jan/Documents/jobb/nvdbapi-V3'
 
-if not [ k for k in sys.path if 'nvdbapi-V2' in k]: 
+if not [ k for k in sys.path if 'nvdbapi-V3' in k]: 
     print( 'Føyer', nvdblibrary, 'til søkestien') 
     sys.path.append(nvdblibrary)
 
