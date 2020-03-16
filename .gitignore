@@ -32,6 +32,9 @@ var/
 # Make up your own X-Client / X-kontaktperson details, please! 
 nvdbapi-clientinfo.json
 
+# Lokale tilpasninger for QGIS 
+qgis3script-importernvdbdata_LOKAL.py
+
 # The rest is as recommended, without modifications  from  
 #  https://github.com/github/gitignore/blob/e287eac7617fc65e49cf6e9d61ba23ff64e5994e/Python.gitignore 
 # 
