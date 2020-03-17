@@ -7,6 +7,7 @@ from warnings import warn
 import os
 from copy import deepcopy
 import apiforbindelse
+from time import sleep
 #import pdb
 
 # Uncomment to silent those unverified https-request warnings
@@ -41,7 +42,7 @@ class nvdbVegnett:
     """
     
     
-    def __init__( self, miljo=None):
+    def __init__( self, miljo=None, debug=False):
         
         
         self.geofilter = {}
@@ -74,6 +75,8 @@ class nvdbVegnett:
             miljo = 'prod'
         self.miljo( miljo)
 
+        self.debug = debug
+
 
     def nestePaginering(self):
         """ = True | False. Blar videre til neste oppslag (side) i pagineringen.
@@ -97,8 +100,12 @@ class nvdbVegnett:
                                     '       N.objektType(45)')))
         if isinstance( self, nvdbFagdata) and not self.antall: 
            self.statistikk()
+
+        if self.debug: 
+            print( 'Debug: Paginering')
         
-        if self.paginering['initielt']: 
+        if self.paginering['initielt']:
+
         
             if isinstance( self, nvdbFagdata): 
                 parametre = merge_dicts(    self.geofilter, 
@@ -116,6 +123,11 @@ class nvdbVegnett:
 
             self.paginering['initielt'] = False
 
+            if self.debug: 
+                print( 'debug Initiell paginering, anroper API', self.sisteanrop) 
+                print( 'debug metadata', self.data['metadata'])
+
+
             if self.data['metadata']['antall'] > 0: 
                 return True
             else: 
@@ -124,6 +136,10 @@ class nvdbVegnett:
                 
         elif self.paginering['meredata']:
             self.data = self.anrope( self.data['metadata']['neste']['href'] ) 
+
+            if self.debug: 
+                print( 'debug', 'Paginering, anroper API', self.sisteanrop) 
+                print( 'debug', 'metadata', self.data['metadata'])            
             
             if self.data['metadata']['returnert'] > 0: 
                 return True
@@ -155,8 +171,8 @@ class nvdbVegnett:
             self.statistikk()
 
         antObjLokalt = len(self.data['objekter'])
-        if debug: 
-            print( "Paginering?", self.paginering) 
+        if self.debug or debug: 
+            print( "debug nesteForekomst: Pagineringsdata", self.paginering) 
             
         if self.paginering['dummy']:
             # Noen har faket et søkeobjekt og dytta inn data der...
@@ -260,9 +276,10 @@ class nvdbVegnett:
             warn("Input argument to add_request_arguments should be dict")
     
 
-    def anrope(self, path, parametre=None, debug=False, silent=False, logganrop=False): 
+    def anrope(self, path, parametre=None, debug=False, silent=False, logganrop=False, iterasjontelling = 0): 
     
         logganrop = False # Logger alle anrop til fil
+        maks_iterasjoner = 5
     
         if not self.apiurl in path: 
             url = ''.join(( self.apiurl, path)) 
@@ -296,7 +313,13 @@ class nvdbVegnett:
                     f.write( '\n' )  
                 
             return r.json()
-        
+        elif r.status_code == 504 and iterasjontelling < maks_iterasjoner: # Gateway timeout
+            iterasjontelling += 1
+            print( 'Http error, prøver om igjen', str( iterasjontelling), 'av', str( maks_iterasjoner), 'ganger om bittelita stund: '+str(r.status_code) +' '+r.url +
+                            '\n' + r.text )
+            sleep( 15 )
+            self.anrope( path, parametre=parametre, debug=debug, silent=silent, logganrop=logganrop, iterasjontelling=iterasjontelling )
+
         else:
             if not silent: 
                 print( 'Http error: '+str(r.status_code) +' '+r.url +
@@ -416,7 +439,7 @@ class nvdbFagdata(nvdbVegnett):
     
     
     
-    def __init__( self, objTypeID, miljo=None):
+    def __init__( self, objTypeID, miljo=None, debug=False):
 
 
         self.headers =   { 'accept' : 'application/vnd.vegvesen.nvdb-v3-rev1+json', 
@@ -450,6 +473,9 @@ class nvdbFagdata(nvdbVegnett):
             miljo = 'prod'
         self.miljo( miljo)
         self.forbindelse.velgmiljo( 'prodles')
+
+        self.debug = debug
+
 
         # Standardverdier for responsen
         self.respons  = { 'inkluder' :  ['alle'] # Komma-separert liste
@@ -797,10 +823,19 @@ class nvdbFagObjekt():
         """Returns the property VALUE with ID or NAME (navn) = id_or_navn
         Just a convenient wraper around the egenskap - method, so you just 
         get the data value (and not all metadata, with ID's and definitions)
+
+        Nytt i NVDB api V3: Stedfesting på vegnett og assossiasjon (relasjon mellom objekter) 
+        er også egenskaper. Hvis du eksplisitt ber om disse så får du en tekst-representasjon av 
+        denne datastrukturen(json.dumps)
         """ 
         egenskap = self.egenskap( id_or_navn, empty=empty)
-        if egenskap and egenskap != empty: 
+
+        stedfesting_eller_assosiasjon = [ 'Stedfesting', 'Liste' ]
+
+        if egenskap and egenskap != empty and egenskap['egenskapstype'] not in stedfesting_eller_assosiasjon: 
             return egenskap['verdi']
+        elif egenskap and egenskap != empty and egenskap['egenskapstype'] in stedfesting_eller_assosiasjon:
+            return json.dumps( egenskap, indent=4, ensure_ascii=False)
         else: 
             return egenskap
 

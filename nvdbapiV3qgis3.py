@@ -5,6 +5,7 @@ Klasser og funksjoner for å føye NVDB vegnett og fagdata til QGIS 3
 """
 from qgis.core import QgsProject,  QgsVectorLayer, QgsFeature, QgsGeometry, QgsPoint, QgsLineString
 from nvdbapiv3 import nvdbVegnett, nvdbFagdata, nvdbFagObjekt, finnid
+from copy import deepcopy
 
 
 class memlayerwrap(): 
@@ -36,8 +37,8 @@ class memlayerwrap():
         success = self.layer.addFeature( feat )
         if not success: 
             print( "Klarte ikke føye til feature") 
-            print( egenskaper[0:5], '...') 
-            print( wktgeometri[0:50], '...'  ) 
+            print( 'egenskaper:', egenskaper ) 
+            print( 'geometri', qgisgeom ) 
         
         
         return( success ) 
@@ -71,7 +72,13 @@ def lagQgisDakat(  sokeobjekt):
         egIds.append( eg['id'] ) 
         qgisEg.append( egenskaptype2qgis( eg) ) 
         
-    
+    # Føyer på placeholder for vegsystemreferanse: 
+    qgisEg.append( 'vegsystemreferanse:string')
+
+    # Føyer på placeholder for stedfesting
+    qgisEg.append( 'stedfesting:string')
+
+
     qgisDakat = '&field='.join( qgisEg )
     
     return egIds, qgisEg, qgisDakat
@@ -342,6 +349,10 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
             flategeom = mittobj.egenskapverdi( flatenavn)
             linjegeom = mittobj.egenskapverdi( linjenavn)
             punktgeom = mittobj.egenskapverdi( punktnavn)
+
+            # Datastruktur (liste) for vegsystemreferanse og stedfesting
+            vrefliste   = [ ]
+            stedfesting = [ ]
             
                           
             if gt in [ 'alle', 'flate', 'beste' ]: 
@@ -384,8 +395,35 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
                 if debug: 
                     print( mittobj.id, "Henter vegnettsgeometri") 
                 for segment in mittobj.vegsegmenter: 
-                    mygeoms.append( QgsGeometry.fromWkt(
-                                        segment['geometri']['wkt'] ))
+                    # Tar kun med vegsegmenter gyldige i dag:
+                    if 'geometri' in segment.keys() and not 'sluttdato' in segment.keys():
+
+                        mygeoms.append( QgsGeometry.fromWkt(
+                                            segment['geometri']['wkt'] ))
+
+                        if 'vegsystemreferanse' in segment.keys() and 'kortform' in segment['vegsystemreferanse'].keys(): 
+                            vrefliste.append( segment['vegsystemreferanse']['kortform'])
+                        else: 
+                            vrefliste.append( 'MANGLER VEGSYSTEMREFERANSE')
+
+                        stedfeststring = 'Mangler??'
+                        if 'relativPosisjon' in segment.keys() and 'veglenkesekvensid' in segment.keys():
+                            stedfeststring = str(  segment['relativPosisjon'] ) + '@' + str( segment['veglenkesekvensid'] )
+                        elif 'startposisjon' in segment.keys() and 'sluttposisjon' in segment.keys() and 'veglenkesekvensid' in segment.keys():
+                            stedfeststring =  str(  segment['startposisjon'] ) + '-' + str(  segment['sluttposisjon'] ) + '@' + str( segment['veglenkesekvensid'] )
+
+                        stedfesting.append( stedfeststring )
+
+            else: 
+                # Føyer til vegsystem-referanse 
+                allevref = ','.join( [ v['kortform'] for v in mittobj.lokasjon['vegsystemreferanser' ] if 'kortform' in v ] )
+                if allevref: 
+                    vrefliste.append( allevref )
+                else: 
+                    vrefliste.append( 'MANGLER vegsystemreferanse')
+
+                # Føyer til stedfesting 
+                stedfesting.append( 'Kun for vegsegmenter')
 
            # Advarsel 
             if len( mygeoms ) == 0:
@@ -393,7 +431,7 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
                'geometritype=', gt, 'inkludervegnett=', inkludervegnett) 
  
             # Legger alle geometri-representasjonene i Qgis kart
-            for mygeom in mygeoms:                             
+            for geomcount, mygeom in enumerate(mygeoms):                       
             
                 allwkt = mygeom.asWkt().lower()
                 mylist = allwkt.split()
@@ -401,28 +439,32 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
                 if debug: 
                     print( "WKT med små bokstaver:",  mywkt) 
 
+                segmentegenskaper = deepcopy( egenskaper ) 
+                segmentegenskaper.append(  vrefliste[geomcount] )
+                segmentegenskaper.append( stedfesting[geomcount] )
+
                 if 'pointz' == mywkt: 
-                    punktlag.addFeature( egenskaper, mygeom )
+                    punktlag.addFeature( segmentegenskaper, mygeom )
                 elif 'point' == mywkt: 
-                    punktlag2d.addFeature( egenskaper, mygeom )
+                    punktlag2d.addFeature( segmentegenskaper, mygeom )
                 elif 'multipoint' == mywkt: 
-                    multipunktlag.addFeature( egenskaper, mygeom)            
+                    multipunktlag.addFeature( segmentegenskaper, mygeom)            
                 elif 'linestringz' == mywkt: 
-                    linjelag.addFeature( egenskaper, mygeom)
+                    linjelag.addFeature( segmentegenskaper, mygeom)
                 elif 'linestring' == mywkt: 
-                    linjelag2d.addFeature( egenskaper, mygeom)
+                    linjelag2d.addFeature( segmentegenskaper, mygeom)
                 elif 'multilinestringz' == mywkt: 
-                    multilinjelag.addFeature( egenskaper, mygeom)            
+                    multilinjelag.addFeature( segmentegenskaper, mygeom)            
                 elif 'multilinestring' == mywkt: 
-                    multilinjelag2d.addFeature( egenskaper, mygeom)            
+                    multilinjelag2d.addFeature( segmentegenskaper, mygeom)            
                 elif 'polygonz' == mywkt:
-                    flatelag3d.addFeature( egenskaper, mygeom) 
+                    flatelag3d.addFeature( segmentegenskaper, mygeom) 
                 elif 'polygon' == mywkt:
-                    flatelag.addFeature( egenskaper, mygeom) 
+                    flatelag.addFeature( segmentegenskaper, mygeom) 
                 elif 'multipolygon' == mywkt:
-                    multiflatelag.addFeature( egenskaper, mygeom) 
+                    multiflatelag.addFeature( segmentegenskaper, mygeom) 
                 elif 'featurecollection' == mywkt:
-                    collectionlag.addFeature( egenskaper, mygeom) 
+                    collectionlag.addFeature( segmentegenskaper, mygeom) 
                 else:
                     print( mittobj.id, 'Ukjent geometritype:', mywkt)
                 

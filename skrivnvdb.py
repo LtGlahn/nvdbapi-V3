@@ -21,7 +21,7 @@ endringssett - Klasse som håndterer alle steg i skriveprosessen:
  - startskriving
  - sjekkfremdrift 
  
-Selve endringssettet - de data som skal skrives / endres / slettes / korrigeres / oppdateres - 
+Selve endringssettet - de data som skal skrives / endres / lukkes / korrigeres / oppdateres - 
 er en python-dict i endringssett.data  - attributten. Du kan legge data dit 
 automatisk ved å sende dem inn som argument når du oppretter endringssett-objektet
 
@@ -69,214 +69,12 @@ EKSEMPEL, fullstending løype
 """
 import requests
 import json
+from datetime import datetime
 import getpass
-import copy
+import pdb 
+# from copy import deepcopy 
+
 import apiforbindelse
-
-# class apiskrivforbindelse():
-#     """
-#     Håndterer innlogging og kommunikasjon mot skriveAPI.
-#     """
-    
-#     def __init__( self, miljo='nvdbdocker', content='json'):
-#         """
-#         Oppretter en instans av apiskrivforbindelse
-        
-#         Arguments: 
-#             None 
-#         Keywords: 
-#             miljo: string, 'nvdbdocker' | 'utv' | 'test' | 'prod'
-#                     (Kan droppes, men settes da ved innlogging)
-#             content: string 'json' (default) | 'xml'
-                
-#         """ 
-        
-#         self.headers = {  "Content-Type" : "application/json", 
-#                             "Accept" : "application/json", 
-#                             "X-Client" : "PythonNvdbskriv" 
-#                               }
-                              
-#         if content== 'xml': 
-#             self.headers["Content-Type"] = 'application/xml'
-                              
-#         self.proxies = {} 
-#         self.tokenId = ''
-                              
-#     def login(self, miljo='nvdbdocker', proxies=False, username='jajens', 
-#               pw=None, klient=None): 
-#         """
-#         Logger inn i skriveAPI.
-        
-#         Arguments: 
-#             None
-            
-#         Keywords: 
-#             miljo : string, en av 'nvdbdocker' (default), 'utv', 'test', 'prod'
-            
-#             proxies : Boolean True | False (default) 
-#                 angir om vi skal prøve SVV-interrne proxy
-        
-#         """
-        
-#         if miljo == 'nvdbdocker': 
-            
-#             if proxies: 
-#                 self.proxies = {'http': 'proxy.vegvesen.no:8080', 
-#                                 'https': 'proxy.vegvesen.no:8080'} 
-
-            
-#             self.apiurl = 'http://164.132.107.230:8080'
-#             bruker = 'root00'
-            
-#             self.requestsession = requests.session()
-#             self.loginrespons = self.requestsession.post( url=self.apiurl + '/login', 
-#                                          proxies=self.proxies, 
-#                                          headers=self.headers, 
-#                                          data = { 'user-id' : bruker })
-            
-#         else: 
-#             if miljo == 'utv': 
-#                 self.apiurl = 'https://www.utv.vegvesen.no' 
-#                 openAMurl = 'https://www.utv.vegvesen.no/openam/json/authenticate' 
-#                 openAmNavn = 'iPlanetDirectoryProOAMutv'
-            
-#             elif miljo == 'test': 
-#                 self.apiurl = 'https://www.test.vegvesen.no' 
-#                 openAMurl = 'https://www.test.vegvesen.no/openam/json/authenticate' 
-#                 openAmNavn = 'iPlanetDirectoryProOAMTP'
-                
-                
-#             elif miljo == 'prod': 
-#                 self.apiurl = 'https://www.vegvesen.no' 
-#                 openAMurl = 'https://www.vegvesen.no/openam/json/authenticate'
-#                 openAmNavn = 'iPlanetDirectoryProOAM'
-                
-#             else:
-#                 print( 'Miljø finnes ikke! utv, test eller prod - eller nvdbdocker')
-
-#             headers = self.SVVpassord( username=username, pw=pw )
-            
-#             self.requestsession = requests.session()
-#             self.loginrespons = self.requestsession.post( url=openAMurl, 
-#                                          headers=headers, 
-#                                          params = { 'realm' : 'External', 
-#                                                  'authIndexType' : 'module', 
-#                                                  'authIndexValue' : 'LDAP'})
-            
-#             if self.loginrespons.ok:
-#                 temp = self.loginrespons.json()
-#                 if 'tokenId' in temp.keys():
-                    
-#                     self.headers['Cookie'] = openAmNavn + '= ' + temp['tokenId']
-                    
-#                 else: 
-#                     print( 'Fikk ikke logget på - ingen tokenId :(' )
-                    
-#             else: 
-#                 print( "Fikk ikke logget på :( " )
-        
-#         # Setter sporbar http header X-Client 
-#         if klient: 
-#             self.klientinfo(klient)
-        
-#     def loggut(self): 
-#         """
-#         Logger ut av skriveAPI.
-        
-#         Arguments: 
-#             None 
-#         """ 
-        
-#         if 'vegvesen' in self.apiurl: 
-#             self.debug = self.requestsession.get( self.apiurl + '/openam/UI/Logout') 
-#         else: 
-#             self.debug = self.requestsession.get( self.apiurl + '/logout')
-        
-#     def SVVpassord( self, username=None, pw=None): 
-        
-#         if not username: 
-#             username = input( 'Username: ' )
-#         if not pw: 
-#             pw = getpass.getpass( username+"'s Password: ")
-#         headers = copy.deepcopy( self.headers )
-#         headers['X-OpenAM-Username'] = username
-#         headers['X-OpenAM-Password'] = pw
-        
-#         return headers
-    
-#     def klientinfo( self, klientinfo):
-#         """
-#         Få bedre sporbarhet / enklere søk i skriveapi-GUI! 
-        
-#         Via http headeren X-Client kan du angi noe som er unikt for det problemet
-#         du jobber med akkurat nå, f.eks. fikse bomstasjon-takster. 
-        
-        
-#         Endringssett-objektets egenskap headers['X-Client'] settes lik klientinfo
-        
-#         Arguments: 
-#             klientinfo TEKST - det du vil hete! 
-            
-#         Keywords: NONE
-        
-#         Returns: NONE
-            
-#         """
-#         self.headers['X-Client'] = str( klientinfo )
-    
-#     def skrivtil( self, path, data, **kwargs): 
-#         """
-#         Poster data til NVDB api skriv.
-        
-#         Arguments:
-#             path : URL, enten relativt til /apiskriv, eller fullstendig adresse
-            
-#             data : Datastrukturen som skal postes. Enten json (default) 
-#                     eller xml (angis i så fall med content-argumentet ved 
-#                     opprettelse av endringssett-objektet, eller ved å sette 
-#                     manuelt 
-#                     endringsett.headers["Content-Type"] = 'application/xml')
-                    
-#         Keywords: 
-#             Eventuelle nøkkelord-argumenter sendes til python request-modulen
-
-#         """
-        
-#         if path[0:4] == 'http': 
-#             url = path
-#         else: 
-#             url = self.apiurl + path
-        
-#         if self.headers['Content-Type'] == 'applcation/xml': 
-#             return self.requestsession.post( url=url, 
-#                                      proxies=self.proxies, 
-#                                      headers=self.headers, 
-#                                      data = data, **kwargs)
-#         elif self.headers['Content-Type'] == 'application/json': 
-#             return self.requestsession.post( url=url, 
-#                                     proxies=self.proxies, 
-#                                     headers=self.headers, 
-#                                     json = data, **kwargs)
-#         else: 
-#             print( "Sjekk CONTENT-TYPE på api-forbindelse objektet")
-#             return None
-        
-#     def les( self, path, **kwargs): 
-#         """
-#         Http GET requests til NVDB REST skriveapi
-        
-#         Arguments:
-#             path : URL, enten relativt til /apiskriv, eller fullstendig 
-            
-#         Keywords: 
-#             Eventuelle nøkkelord-argumenter sendes til python request-modulen
-#         """
-        
-#         if path[0:4] == 'http': 
-#             url = path
-#         else: 
-#             url = self.apiurl + path
-        
         
 #         """Leser data fra NVDB api"""
 #         return self.requestsession.get( url=url, 
@@ -326,8 +124,7 @@ class endringssett():
     e1 = endringssett()
     e1.data = <dine skriveklare data>
     
-    e1.lag_forbindelse()
-    e1.forbindelse.login(username='deg', pw='dittPw', miljo='docker')
+    e1.forbindelse.login(username='deg', pw='dittPw', miljo='utvskriv')
     # Gjør det enklere å søke / filtrere i kontrollpanelet
     e1.forbindelse.klientinfo('Tekststreng for å skille / gruppere dine endringssett')
     e1.registrer()
@@ -348,11 +145,8 @@ class endringssett():
         # Initialiser attributter med False 
         self.forbindelse = False
         self.minlenke = False
-        self.startlenke = False
-        self.kansellerlenke = False
-        self.statuslenke = False
-        self.fremdriftlenke = False 
         self.validertresultat = False
+        self.lag_forbindelse()
     
     def lag_forbindelse( self, apiskriv=None): 
         """
@@ -401,7 +195,7 @@ class endringssett():
         # datakeys = set( self.data.keys())
         # if 'delvisOppdater' in self.data.keys():
         harnvdbid =  { 'oppdater', 'delvisOppdater', 
-                                   'korriger', 'delvisKorriger', 'slett' }
+                                   'korriger', 'delvisKorriger', 'slett', 'lukk' }
         bb = harnvdbid.intersection( set( self.data.keys()))
         if bb: 
             bb_str = bb.pop() # Henter tekst fra set - mengden. Skal kun være 1 - en 
@@ -528,3 +322,224 @@ class endringssett():
     
 
 
+def endringssett_mal( datakatalogversjon=None, operasjon='delvisOppdater'): 
+    """
+    Tomt endringssett som så kan fylles med vegobjekter
+
+    ARGUMENTS: NONE
+
+    KEYWORDS:
+        datakatalogversjon: None eller tekststreng med datakatalog-versjon, eksempel '2.19' 
+
+        operasjon - hva slags skriveoperasjon vi ønsker. Mulige verdier: 
+            'delvisOppdater' (DEFAULT), 'registrer', 'oppdater',  'korriger', 'delvisKorriger', 'lukk' 
+
+    RETURNS 
+        dictionary med skjelett for endringssett (tom liste med vegobjekter)
+    """
+    if not datakatalogversjon: 
+        r = requests.get( 'https://www.vegvesen.no/nvdb/api/v3/status.json')
+        status = r.json()
+        datakatalogversjon = status['datagrunnlag']['datakatalog']['versjon'] 
+
+    operasjoner = [ 'delvisOppdater', 'registrer', 'oppdater', 'korriger', 'delvisKorriger', 'lukk' ]
+    if not operasjon in operasjoner: 
+        raise ValueError( 'operasjon må være en av: ' + ', '.join( operasjoner ))
+
+    try: 
+        float( datakatalogversjon )
+    except ValueError: 
+        raise ValueError( "datakatalogversjon må våre tekst med flyttall, for eksempel '2.19' " )
+
+    mal = {     
+                "datakatalogversjon": datakatalogversjon
+            }
+    mal[operasjon] =  {  "vegobjekter": [ ] }
+
+    return mal 
+
+
+def fagdata2skrivemal( liste_eller_forekomst, operasjon='delvisOppdater', 
+            ignorerAlleEgenskaper=False, kunDisseEgenskapene=None, ignorerStedfesting=False, effektDato=None,
+            datakatalogversjon=None, slettegenskaper=False, kaskadelukking="JA" ): 
+    """
+    Konstruerer mal for skriving til NVDB skriveAPI ut fra (liste med) NVDB fagdata fra NVDB api LES V3
+
+    Med nøkkeord styrer man hvilke egenskap(er) som evt skal inkluderes, eller om vi skal inkludere objektenes stedfesting. 
+
+    TODO
+        - Håndtering av relasjoner (liste med relasjoner)
+
+    ARGUMENTS:
+        liste_eller_forekomst: (liste med, eller enkelt-forekomst av) dictionary (json) med NVDB fagdata fra NVDB api LES V3
+
+    KEYWORDS: 
+        operasjon - hva slags skriveoperasjon vi ønsker. Mulige verdier: 
+            'delvisOppdater' (DEFAULT), 'registrer', 'oppdater',  'korriger', 'delvisKorriger', 'lukk' 
+
+
+        ignorerAlleEgenskaper=False
+
+        kunDisseEgenskapene=None | [ liste med egenskap ID] 
+
+        ignorerStedfesting=False (default) eller True. 
+
+        effektDato=None (default) eller ISO-tekststreng på formen '2020-03-23'. Bruker dagens dato hvis du ikke angir annet. 
+
+        datakatalogversjon: None eller tekststreng med datakatalog-versjon, eksempel '2.19' 
+
+        slettegenskaper=False (default) eller True I kombinasjonen delvisOppdater/delvisKorriger kan du velge om egenskapene skal slettes. 
+                                                Gjerne i kombinasjon med nøkkelordet kunDisseEgenskapene=[ liste med egenskap ID]
+
+        kaskadelukking: "JA" (default) eller "NEI". Ved lukking av objekter kan man velge å også lukke datterobjekter (assosierte objekt)
+
+    RETURNS
+        dictionary: Endringssett du kan sende til NVDB skriveapi (evt etter å ha justert på det)
+    """
+
+    if isinstance( liste_eller_forekomst, list): 
+        liste = liste_eller_forekomst
+    else: 
+        liste = [  liste_eller_forekomst ]
+
+
+    if not effektDato: 
+        effektDato = datetime.today().strftime('%Y-%m-%d')
+
+    endringssett = endringssett_mal( operasjon=operasjon, datakatalogversjon=datakatalogversjon)
+
+    
+    for count, ettobj in enumerate( liste): 
+        
+        relasjoner = [ ]
+        stedfestinger = None
+        egenskaper = [ ]
+        skrivobj = { 'typeId' : ettobj['metadata']['type']['id']    }
+
+        for eg in ettobj['egenskaper']: 
+            if 'lokasjonsattributt' in eg['navn'] or 'PunktTilknytning' in eg['navn']: 
+                stedfestinger = eg
+            elif 'Assosierte' in eg['navn']: 
+                relasjoner.append( eg )
+            else:   
+
+                if (not ignorerAlleEgenskaper) and  ((kunDisseEgenskapene and eg['id'] in kunDisseEgenskapene) or not kunDisseEgenskapene): 
+                    if slettegenskaper: 
+                        egenskaper.append( egenskap2skriv(eg , operasjon='slett' ))
+                    else: 
+                        egenskaper.append( egenskap2skriv(eg, operasjon=operasjon))
+
+        if len( egenskaper ) > 0: 
+            skrivobj['egenskaper'] = egenskaper
+
+
+        if operasjon == 'registrer':
+            skrivobj['gyldighetsperiode'] =  { "startdato": effektDato }
+            skrivobj['tempId'] = str( -1 * (count+1) )
+
+        else: 
+            skrivobj['nvdbId'] = ettobj['id']
+            skrivobj['versjon'] : ettobj['metadata']['versjon']
+
+        if 'ppdater' in operasjon or 'orriger' in operasjon: 
+            skrivobj['gyldighetsperiode'] =  { "startdato": effektDato }
+
+        elif operasjon == 'lukk':
+            skrivobj['lukkedato'] = effektDato 
+            skrivobj['kaskadelukking'] : kaskadelukking
+            
+
+        endringssett[operasjon]['vegobjekter'].append( skrivobj )
+
+    return endringssett
+
+def lokasjon2skriv( lokasjonsegenskap, operasjon='delvisOppdater', ignorerSideposisjon=False, ignorerFelt=False ):
+    """
+    Lager lokasjonselement til apiskriv basert på data fra apiles (egenskapen "Liste av lokasjonsattributt")
+    """ 
+    if 'punkt' in lokasjonsegenskap['navn'].lower(): 
+        loktype = 'punkt'
+
+        mal = { 'punkt': [ { 'veglenkesekvensNvdbId' :  lokasjonsegenskap['veglenkesekvensid'], 
+                              'posisjon' :              lokasjonsegenskap['relativPosisjon'],
+                              'retning' :               lokasjonsegenskap['retning']
+                            }   
+                        ]}
+        if len( lokasjonsegenskap['kjørefelt']) > 0 and not ignorerFelt: 
+            mal['punkt'][0]['kjørefelt'] = lokasjonsegenskap['kjørefelt']
+
+        if 'sideposisjon' in lokasjonsegenskap and not ignorerSideposisjon: 
+            mal['punkt'][0]['sideposisjon'] = lokasjonsegenskap['sideposisjon']
+
+        if 'delvis' in operasjon: 
+            mal['punkt'][0]['operasjon'] = 'ny'
+
+
+    elif lokasjonsegenskap['navn'] == 'Liste av lokasjonsattributt': 
+        loktype = 'linje'
+        mal = { 'linje' : [ ] }
+
+        for ll in lokasjonsegenskap['innhold']:
+            l2 = { 'veglenkesekvensNvdbId' : ll['veglenkesekvensid'], 
+                              'fra' :       ll['startposisjon'],
+                              'til' :       ll['sluttposisjon'],
+                              'retning' :   ll['retning']
+                            } 
+
+        if len( ll['kjørefelt']) > 0 and not ignorerFelt: 
+            l2['kjørefelt'] = lokasjonsegenskap['kjørefelt']
+
+        if 'sideposisjon' in lokasjonsegenskap and not ignorerSideposisjon: 
+            l2['sideposisjon'] = lokasjonsegenskap['sideposisjon']
+
+        if 'delvis' in operasjon: 
+            l2['operasjon'] = 'ny'
+
+        mal['linje'].append( l2 )
+
+    else: 
+        raise ValueError( 'Fant ikke ut av dette lokasjonsobjektet??? Skal være punkt eller linje?')
+
+    
+    return mal 
+
+def egenskap2skriv(egenskap, operasjon='delvisOppdater' ): 
+    """
+    Omsetter en egenskapverdi fra NVDB api LES v3 til den datastrukturen apiskriv forventer 
+
+    Takler IKKE lokasjon- og relasjonsegenskaper, dem har du filtrert vekk på forhånd 
+
+    ARGUMENTS 
+        egenskap: dictionary med egenskapverdi, hentet direkte fra NVDB apiles V3 
+
+    KEYWORDS
+       operasjon - hva slags skriveoperasjon vi ønsker. Mulige verdier: 
+            'delvisOppdater' (DEFAULT), 'registrer', 'oppdater',  'korriger', 'delvisKorriger', 'lukk', 'slett' 
+            NB! Slett er kun gyldig operasjon for sletting av egenskapverdier. Sletting av objekter er enten lukking  (sluttdato) eller fjerning (hard sletting)
+    
+    RETURNS 
+        dictionary med egenskapverdi som kan inngå i endringssett til NVDB apiskriv
+    """ 
+
+
+    mal = { "typeId": egenskap['id'] } 
+    
+    if 'slett' in operasjon or 'lukk' in operasjon: 
+        mal['operasjon'] = 'slett'
+    else: 
+        mal['verdi'] = [ str( egenskap['verdi']  )  ]
+
+    if 'delvis' in operasjon: 
+        mal['operasjon'] = 'oppdater'
+
+    return mal 
+
+
+
+def splittMultippelStedfesting( ettNvdbObjekt  ): 
+    """
+    Splitter ett NVDB objekt med multipppel stedfesting i flere
+
+    Dvs objekt A med stedfesting ->1,2,3 => Objekt A får oppdatert sin stedfesting til =1, 
+        og vi oppretter nye objekt objekt B med stedfesting 2, C med stedfesting 3 
+    """
