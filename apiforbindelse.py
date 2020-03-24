@@ -271,10 +271,10 @@ class apiforbindelse( ):
         
     def les( self, path, headers={}, **kwargs): 
         """
-        Http GET requests til NVDB REST skriveapi
+        Http GET requests til NVDB REST skriveapi eller leseapi 
         
         Arguments:
-            path : URL, enten relativt til /apiskriv, eller fullstendig 
+            path : URL, enten relativt til rot-endepunt for API, eller fullstendig 
             
         Keywords: 
             Eventuelle nøkkelord-argumenter sendes til python request-modulen
@@ -294,3 +294,44 @@ class apiforbindelse( ):
                                        headers=myheaders, 
                                        **kwargs)
         
+    def finnid( self, objektid, kunvegnett=False, kunfagdata=False, miljo=False): 
+        """Henter NVDB objekt (enten veglenke eller fagdata) ut fra objektID.
+        Bruk nøkkelord kunvegnett=True eller kunfagdata=True for å avgrense til 
+        vegnett og/eller fagdata (vi har betydelig overlapp på ID'er mellom vegnett 
+        og fagdata)
+
+        Fagdata returnerer en DICT
+        Vegnett returnerer en LISTE med alle vegnettselementene for veglenka
+
+        """
+
+        # Henter fagdata    
+        if kunfagdata or (not kunvegnett): 
+            try:
+                res = self.les( self.apiurl +  '/vegobjekt', params = { 'id' : objektid } )
+                res = res.json()
+
+            except ValueError: 
+                pass
+
+            else:
+                # Må hente fagobjektet på ny for å få alle segmenter (inkluder=alle)
+                res = self.les( res['href'], params = { 'inkluder' : 'alle' } ) 
+                res = res.json()
+
+        # Henter vegnett
+        if kunvegnett or (not kunfagdata) or (not res and not kunfagdata): 
+            try: 
+                res = self.les( self.apiurl + '/vegnett/veglenkesekvenser/segmentert/' + str(objektid))
+                res = res.json()            
+            except ValueError: 
+                pass
+
+            # Sikrer at vi alltid returnerer liste med vegsegmenter - selv om vi kun har ett segment
+            if isinstance( res, dict): 
+                res = [ res ]
+
+        if not res: 
+            print( "Fant intet NVDB objekt eller vegnett med ID = " + str(objektid))
+            
+        return res

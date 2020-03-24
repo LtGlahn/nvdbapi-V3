@@ -697,52 +697,12 @@ class nvdbFagdata(nvdbVegnett):
             if count == 1000 or count == 5000 or count % 10000 == 0: 
                 print( 'Objekt', count, 'av', self.antall)
 
-
             # Ignorerer dem med tomt geometrielement, ref 
             # https://github.com/LtGlahn/diskusjon_diverse/tree/master/debug_nvdbapilesv3/vegobjekter 
             if 'geometri' in feat.keys():
 
-                meta = { }
-                
-                meta['objekttype']  = feat['metadata']['type']['id']
-                meta['nvdbId'] = feat['id']
-                meta['versjon'] = feat['metadata']['versjon']
-                # meta['metadata'] = feat['metadata']
-
-                egenskaper = egenskaper2records( feat['egenskaper'], relasjoner=relasjoner, geometri=geometri )
-                egenskaper = merge_dicts( meta, egenskaper)
-
-                if vegsegmenter: 
-                    for seg in feat['vegsegmenter']:
-                        if not 'sluttdato' in seg.keys():
-                            s2 = {  'veglenkesekvensid' : seg['veglenkesekvensid'], 
-                                    'startposisjon'     : seg['startposisjon'], 
-                                    'sluttposisjon'     : seg['sluttposisjon'], 
-                                    'lengde'            : seg['lengde'],
-                                    'detaljnivå'        : seg['detaljnivå'],
-                                    'typeVeg'           : seg['typeVeg'],
-                                    'kommune'           : seg['kommune'], 
-                                    'fylke'             : seg['fylke'],
-                                    'vref'              : seg['vegsystemreferanse']['kortform']   }
-
-                            delkeys = [ 'strekning', 'kryssdel', 'sideanlegg']
-                            for hvaslag in delkeys: 
-                                if  hvaslag in seg['vegsystemreferanse'].keys(): 
-                                    s2['trafikantgruppe'] = seg['vegsystemreferanse'][hvaslag]['trafikantgruppe']
-                                
-                            s2['geometri'] = seg['geometri']['wkt']
-                            egenskaper_kopi = deepcopy( egenskaper )
-                            egenskaper_kopi = merge_dicts( egenskaper_kopi, s2)
-                            mydata.append( egenskaper_kopi )
-                else: 
-                    egenskaper['vegsystemreferanser'] = ','.join([ d['kortform'] for d in feat['lokasjon']['vegsystemreferanser'] ] )
-                    egenskaper['stedfestinger']       = ','.join([ d['kortform'] for d in feat['lokasjon']['stedfestinger'] ] )
-                    egenskaper['vegsegmenter']        = feat['vegsegmenter']
-                    if 'geometri' in feat.keys():
-                        egenskaper['geometri']  = feat['geometri']['wkt']
-                    egenskaper['lengde'] = feat['lokasjon']['lengde']
-                    mydata.append( egenskaper )
-
+                featureliste = nvdbfagobjekt2records( feat, vegsegmenter=vegsegmenter, relasjoner=relasjoner, geometri=geometri, debug=debug )
+                mydata.extend( featureliste )
             else: 
                 nvdbid_manglergeom.append( feat['id'])
 
@@ -931,6 +891,109 @@ class nvdbFagObjekt():
             raise ValueError('Function relasjon: Keyword argument relasjon must be int or string' )
             
             
+def nvdbfagobjekt2records( feature_eller_liste, vegsegmenter=True, relasjoner=False, geometri=False, debug=False ): 
+    """
+    Gjør om (liste med) nvdb objekt til records, dvs de-normalisert til dictionaries med enkel struktur. 
+
+    Denne brukes av funksjonen nvdbFagobjekt.to_records(), men er skilt ut fordi den er nyttig for alle
+    som har en liste med NVDB objekter :) 
+
+    Eksporterer til en liste med dictionaries med struktur 
+    "objekttype" : INT,
+    "objektId" : INT, 
+    "versjon" : INT,
+    "metadata" : metadata-element (dictionary)
+    "egenskapnavn1" : verdi,
+    "egenskapnavn2" : geometri,
+        ...
+    "geometri" : "WELL KNOWN TEXT" 
+    "vref" : Kortform vegsystemreferanse. Hvis det er fler enn ett element blir dette en 
+                kommaseparert liste.  
+    "vegsystemreferanser : [ liste med vegsystemreferanse-dictionary ]
+    "vegsegmenter" : [ liste med vegsegmenter ]
+
+    Parameter vegsegmenter=True de-normaliserer, dvs hvis et objekt har N vegsegmenter 
+    får du returnert N forekomster av objektet, ett for hver unike vegsegment. Videre 
+    blir egenskapene vegsystemreferanse og vegsegmenter ikke lister, men dictionaries 
+
+    NB! Når vi returnerer individuelle vegsegmenter tar vi med vegsegmenter gyldige i dag,
+    dvs åpen sluttdato.
+
+    Paramter relasjoner=False: Tar ikke med liste over relasjoner til andre objekter
+
+    Parameter geometri=False: Tar ikke med s.k. egengeometri(er)
+
+    """
+    if not isinstance( feature_eller_liste, list): 
+        feature_eller_liste = [ feature_eller_liste ]
+
+    mydata = [ ]
+
+    nvdbid_manglergeom = []
+    terskler = [ 1000, 10000]
+
+
+    for count, feat in enumerate(feature_eller_liste): 
+        
+        if 'geometri' in feat.keys():
+
+            meta = { }
+            
+            meta['objekttype']  = feat['metadata']['type']['id']
+            meta['nvdbId'] = feat['id']
+            meta['versjon'] = feat['metadata']['versjon']
+            # meta['metadata'] = feat['metadata']
+
+            egenskaper = egenskaper2records( feat['egenskaper'], relasjoner=relasjoner, geometri=geometri )
+            egenskaper = merge_dicts( meta, egenskaper)
+
+            if vegsegmenter: 
+                for seg in feat['vegsegmenter']:
+                    if not 'sluttdato' in seg.keys():
+                        s2 = {  'veglenkesekvensid' : seg['veglenkesekvensid'], 
+                                'detaljnivå'        : seg['detaljnivå'],
+                                'typeVeg'           : seg['typeVeg'],
+                                'kommune'           : seg['kommune'], 
+                                'fylke'             : seg['fylke'],
+                                'vref'              : seg['vegsystemreferanse']['kortform']   }
+
+                        if 'startposisjon' in seg.keys() and 'sluttposisjon' in seg.keys():
+                            s2['startposisjon'] = seg['startposisjon'] 
+                            s2['sluttposisjon'] = seg['sluttposisjon']
+                            s2['lengde']        = seg['lengde']
+                        elif 'relativPosisjon' in seg.keys(): 
+                            s2['relativPosisjon'] = seg['relativPosisjon']
+                        else: 
+                            print( 'Snål feil, mangler posisjon langs lenkesekvens???', feat['id'])
+
+
+                        delkeys = [ 'strekning', 'kryssdel', 'sideanlegg']
+                        for hvaslag in delkeys: 
+                            if  hvaslag in seg['vegsystemreferanse'].keys(): 
+                                s2['trafikantgruppe'] = seg['vegsystemreferanse'][hvaslag]['trafikantgruppe']
+                            
+                        s2['geometri'] = seg['geometri']['wkt']
+                        egenskaper_kopi = deepcopy( egenskaper )
+                        egenskaper_kopi = merge_dicts( egenskaper_kopi, s2)
+                        mydata.append( egenskaper_kopi )
+            else: 
+                egenskaper['vegsystemreferanser'] = ','.join([ d['kortform'] for d in feat['lokasjon']['vegsystemreferanser'] ] )
+                egenskaper['stedfestinger']       = ','.join([ d['kortform'] for d in feat['lokasjon']['stedfestinger'] ] )
+                egenskaper['vegsegmenter']        = feat['vegsegmenter']
+                if 'geometri' in feat.keys():
+                    egenskaper['geometri']  = feat['geometri']['wkt']
+                egenskaper['lengde'] = feat['lokasjon']['lengde']
+                mydata.append( egenskaper )
+
+        else: 
+            nvdbid_manglergeom.append( feat['id'])
+
+    if len( nvdbid_manglergeom ) > 0: 
+        print( 'nvdbfagobjekt2records: Manglet geometri for', len(nvdbid_manglergeom ), 'av', len(feature_eller_liste ), 'objekter')
+
+    return mydata 
+
+
 def finnid(objektid, kunvegnett=False, kunfagdata=False, miljo=False): 
     """Henter NVDB objekt (enten veglenke eller fagdata) ut fra objektID.
     Bruk nøkkelord kunvegnett=True eller kunfagdata=True for å avgrense til 
