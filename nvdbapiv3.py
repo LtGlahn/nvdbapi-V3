@@ -281,7 +281,8 @@ class nvdbVegnett:
         logganrop = False # Logger alle anrop til fil
         maks_iterasjoner = 5
     
-        if not self.apiurl in path: 
+        # if not self.apiurl in path: 
+        if not 'http' in path: 
             url = ''.join(( self.apiurl, path)) 
         else: 
             url = path 
