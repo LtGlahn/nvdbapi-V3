@@ -13,6 +13,7 @@ import requests
 import json
 import copy 
 import pdb
+from time import sleep
 
 
 class apiforbindelse( ):
@@ -289,11 +290,22 @@ class apiforbindelse( ):
         myheaders = { **self.headers, **headers}
 
         """Leser data fra NVDB api"""
-        return self.requestsession.get( url=url, 
+        try:
+            r = self.requestsession.get( url=url, 
                                        proxies=self.proxies,
                                        headers=myheaders, 
                                        **kwargs)
+        except SSLError as e:
+            venteperiode = 5
+            print( 'Feilmelding ved henting av data, prøver på ny om', venteperiode, 'sekunder', e)
+            sleep( 5 )
+            r = self.requestsession.get( url=url, 
+                                       proxies=self.proxies,
+                                       headers=myheaders, 
+                                       **kwargs)        
         
+        return r 
+
     def finnid( self, objektid, kunvegnett=False, kunfagdata=False, miljo=False): 
         """Henter NVDB objekt (enten veglenke eller fagdata) ut fra objektID.
         Bruk nøkkelord kunvegnett=True eller kunfagdata=True for å avgrense til 
