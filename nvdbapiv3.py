@@ -8,7 +8,7 @@ import os
 from copy import deepcopy
 import apiforbindelse
 from time import sleep
-#import pdb
+import pdb
 
 # Uncomment to silent those unverified https-request warnings
 requests.packages.urllib3.disable_warnings() 
@@ -223,25 +223,41 @@ class nvdbVegnett:
             return self.data['objekter'][self.paginering['hvilken']-1]
 
         
-    def addfilter_geo(self, *arg):
-        """Get or set GEO filters to your search. 
-        Input argument is a dict with area- or road network filter, which are 
-        appended to existing values. 
-
+    def addfilter_geo(self, *args):
+        """
+        DEPRECEATED: replaced with addfilter - function
         
+        addfilter_geo, addfilter_egenskap and addfilter_overlapp are now obsolete and 
+        replaced with the generic addfilter function 
+        """
+        warn( "addfilter_geo is depreceated, please use the generic addfilter function")
+
+
+        if len( args) == 0: 
+            data = self.addfilter( ) 
+        else: 
+            data = self.addfilter( self, *args )
+        return data
+
+    def addfilter(self, *arg, **kwargs):
+        """Get or set filters to your search. 
+        Input argument is a dict with one or more filter(s). Any pre-existing values
+        are modified (if the keys match) or kept unchanged. 
+
+
         See 
-        https://www.vegvesen.no/nvdb/apidokumentasjon/#/parameter/lokasjonsfilter 
-        for a list of possible values. 
+        http://api.vegdata.no  
+        for a list of possible filters and their values. 
         
         Example 
         p = nvdb.nvdbFagdata(809)
-        p.addfilter_geo( { 'vegreferanse' : 'Ev39' }
-        p.addfilter_geo( { 'fylke' : [3,4] }
-        p.addfilter_geo() # Returns the current value of this filter 
+        p.addfilter( { 'vegreferanse' : 'Ev39' }
+        p.addfilter( { 'fylke' : [3,4] }
+        p.addfilter() # Returns the current value of this filter 
         
-        addfilter_geo with no arguments returns the current filter. 
+        addfilter with no arguments returns the current filter. 
         
-        Input empty dict {} or string to clear all GEO - filters
+        Input empty dict {} or string to clear all filters
         
         """ 
         
