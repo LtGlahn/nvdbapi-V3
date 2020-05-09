@@ -301,10 +301,14 @@ class nvdbVegnett:
                 print( '\n',  data['metadata'], '\n' ) 
                 
             if logganrop: 
-                loggfil = 'D:/Brukere/Jan/jobb/nvdbapi-V2/logganrop.txt'
+                loggfil = 'logganrop.txt'
                 if not os.path.exists( loggfil): 
                     with open( loggfil, 'w' ) as f2: 
                         f2.write( 'Logger alle anrop mot NVDB api V2 fra nvdbapi.py\n' ) 
+                        f.write( r.url ) 
+                        f.write( '\n' ) 
+                        f.write( json.dumps( data, indent=4, ensure_ascii=False) )
+                        f.write( '\n' )                          
             
                 with open(loggfil, 'a', encoding='utf-8' ) as f: 
                     f.write( '\n==========================\n' ) 
@@ -312,14 +316,17 @@ class nvdbVegnett:
                     f.write( '\n' ) 
                     f.write( json.dumps( data, indent=4, ensure_ascii=False) )
                     f.write( '\n' )  
-                
-            return r.json()
+
+            # Normalsituasjon, returnerer JSON-data    
+            return data 
+
         elif r.status_code == 504 and iterasjontelling < maks_iterasjoner: # Gateway timeout
             iterasjontelling += 1
             print( 'Http error, prøver om igjen', str( iterasjontelling), 'av', str( maks_iterasjoner), 'ganger om bittelita stund: '+str(r.status_code) +' '+r.url +
                             '\n' + r.text )
             sleep( 15 )
-            self.anrope( path, parametre=parametre, debug=debug, silent=silent, logganrop=logganrop, iterasjontelling=iterasjontelling )
+            data = self.anrope( path, parametre=parametre, debug=debug, silent=silent, logganrop=logganrop, iterasjontelling=iterasjontelling )
+            return data 
 
         else:
             if not silent: 
