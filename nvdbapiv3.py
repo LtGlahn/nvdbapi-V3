@@ -8,7 +8,7 @@ import os
 from copy import deepcopy
 import apiforbindelse
 from time import sleep
-#import pdb
+import pdb
 
 # Uncomment to silent those unverified https-request warnings
 requests.packages.urllib3.disable_warnings() 
@@ -709,10 +709,23 @@ class nvdbFagdata(nvdbVegnett):
             # https://github.com/LtGlahn/diskusjon_diverse/tree/master/debug_nvdbapilesv3/vegobjekter 
             if 'geometri' in feat.keys():
 
-                featureliste = nvdbfagobjekt2records( feat, vegsegmenter=vegsegmenter, relasjoner=relasjoner, geometri=geometri, debug=debug )
+                featureliste = nvdbfagobjekt2records( feat, vegsegmenter=vegsegmenter, relasjoner=False, geometri=geometri, debug=debug )
+
+                if relasjoner and 'relasjoner' in feat.keys(): 
+
+                    for enforekomst in featureliste: 
+                        enforekomst.update( { 'relasjoner' : feat['relasjoner'] } )
+
+                    # tmp = deepcopy( featureliste )
+                    # featureliste = []
+                    # for enfeature in tmp: 
+                    #     enfeature['relasjoner'] = feat['relasjoner']
+
+            
                 mydata.extend( featureliste )
             else: 
                 nvdbid_manglergeom.append( feat['id'])
+
 
             feat = self.nesteForekomst()
 
@@ -1064,11 +1077,13 @@ def egenskaper2records( egenskaper, relasjoner=False, geometri=False ):
     data = {}
 
     for eg in egenskaper: 
-        if eg['id'] < 100000 or relasjoner: 
+        if eg['id'] < 100000: 
 
             if geometri or not 'geometri' in eg['navn'].lower(): 
                 data[eg['navn']] = eg['verdi']
         
+    if relasjoner: 
+        warn( 'Uthenting av relasjoner fra egenskapverdier er ikke implementert (ennå)')
 
     return data 
             
