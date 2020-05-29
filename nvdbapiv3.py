@@ -1079,7 +1079,12 @@ def egenskaper2records( egenskaper, relasjoner=False, geometri=False ):
     for eg in egenskaper: 
         if eg['id'] < 100000: 
 
-            if geometri or not 'geometri' in eg['navn'].lower(): 
+            if eg['navn'] == 'Vedlegg':
+                print( 'Har lite erfaring med håndtering av vedlegg, beware!')
+                print( json.dumps( eg, indent=4))
+                data[eg['navn']] = eg['href']
+
+            elif geometri or not 'geometri' in eg['navn'].lower(): 
                 data[eg['navn']] = eg['verdi']
         
     if relasjoner: 
