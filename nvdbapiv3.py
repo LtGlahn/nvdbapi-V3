@@ -1083,15 +1083,16 @@ def egenskaper2records( egenskaper, relasjoner=False, geometri=False ):
                 print( 'Har lite erfaring med håndtering av vedlegg, beware!')
                 print( json.dumps( eg, indent=4))
                 vedleggnavn = eg['navn']
-                count = 0: 
+                count = 0 
                 # Legger til rette for at vi kan ha en liste med vedlegg (vedlegg1, vedlegg2, ...)
                 # Bør testes før vi stoler 100% på denne funksjonen, gjetter
                 # litt i blinde her. 
                 while vedleggnavn in data.keys():
                     count += 1
                     vedleggnavn = eg['navn'] + str( count )
+                    print( "Flere vedlegg (eksperimentelt!", vedleggnavn)
 
-                data[eg[vedleggnavn]] = eg['href']
+                data[vedleggnavn] = eg['href']
 
             elif geometri or not 'geometri' in eg['navn'].lower(): 
                 data[eg['navn']] = eg['verdi']
