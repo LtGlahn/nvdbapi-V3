@@ -425,8 +425,41 @@ class nvdbVegnett:
         
         # if not silent: 
         # print( "Bruker ", self.apiurl)
-     
-            
+
+
+    def info(self): 
+
+
+        if isinstance( self, nvdbFagdata): 
+
+            print( 'nvdbFagdata: Søkeobjekt for vegobjekter fra NVDB api V3')
+
+            if self.objektTypeId: 
+                print( 'ObjektType:', 
+                    str(self.objektTypeId), self.objektTypeDef['navn'] )
+        
+            else: 
+                print( 'Ikke definert noen objekttype ennå') 
+                print( 'Bruk: x = nvdbFagdatID) eller\n', ' x = nvdbFagdata()\n', 
+                        'x.objektType(ID)\n', 
+                        'hvor ID er objekttypens ID, eks bomstasjon = 45\n\n') 
+                
+        elif isinstance( self, nvdbVegnett):
+            print( 'nvdbVegnett: Søkeobjekt for vegnett fra NVDB api V3')
+
+
+    
+        print( 'Filtere')
+        print( json.dumps( self.filterdata, indent=4))
+        print( 'Parametre som styrer responsen:' ) 
+        print( json.dumps( self.respons, indent=4))
+        if isinstance( self, nvdbFagdata):         
+            print( 'Statistikk fra NVDB api V3') 
+            print( json.dumps( self.statistikk(), indent = 4))
+
+        print( 'Pagineringsinfo: Antall objekt i databuffer=', len( self.data['objekter']))
+        print( json.dumps( self.paginering, indent = 4)) 
+                
 class nvdbFagdata(nvdbVegnett): 
     """Søkeobjekt - dvs klasse for spørringer mot NVDB ang en spesifikk objekttype. 
     Jobber dynamisk mot NVDB api for å hente statistikk, laste ned data etc.
@@ -536,26 +569,6 @@ class nvdbFagdata(nvdbVegnett):
             self.antall = None
             self.strekningslengde = None
             return { 'antall' : None, 'strekningslengde' : None }
-
-
-    def info(self): 
-        if self.objektTypeId: 
-            print( 'ObjektType:', 
-                str(self.objektTypeId), self.objektTypeDef['navn'] )
-    
-        else: 
-            print( 'Ikke definert noen objekttype ennå') 
-            print( 'Bruk: x = nvdbFagdatID) eller\n', ' x = nvdbFagdata()\n', 
-                    'x.objektType(ID)\n', 
-                    'hvor ID er objekttypens ID, eks bomstasjon = 45\n\n') 
-    
-        print( 'Filtere')
-        print( json.dumps( self.filterdata, indent=4))
-        print( 'Parametre som styrer responsen:' ) 
-        print( json.dumps( self.respons, indent=4))
-        print( 'Statistikk') 
-        print( json.dumps( self.statistikk(), indent = 4))
-
 
     def egenskaper(self, *arg):
         """Skriver ut definisjonen av angitt egenskapstype (ID, heltall). 
