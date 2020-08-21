@@ -508,7 +508,7 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
                         { "detaljnivå": "string" },
                         { "typeVeg": "string" },
                         { "feltoversikt": "string" }, # NB! Spesialbehandling! Liste => tekst
-                        { "lengde": "int" },
+                        { "lengde": "double" },
                         { "fylke": "int" },
                         { "kommune": "int" }
                     ]
@@ -578,7 +578,7 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
                     egVerdier.append( mittobj['metadata']['startdato'] )
                 elif egNavn == "sluttdato" and 'sluttdato' in mittobj['metadata'].keys():
                     egVerdier.append( mittobj['metadata']['sluttdato'] )
-                elif egNavn == "feltoversikt":
+                elif egNavn == "feltoversikt" and egNavn in mittobj.keys():
                     egVerdier.append( ', '.join(  mittobj['feltoversikt'] ) )
                 elif egNavn in mittobj.keys(): 
                     egVerdier.append( mittobj[egNavn]) 
@@ -598,7 +598,7 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
             # Legger til egenskapverdier fra vegsystemreferanse-strekning
             for egenskap in vegref_strekningDef: 
                 egNavn = list( egenskap.keys())[0]
-                if egNavn == 'arm':
+                if egNavn == 'arm' and 'arm' in mittobj['vegsystemreferanse']['strekning'].keys():
                     egVerdier.append( str( mittobj['vegsystemreferanse']['strekning']['arm'] ) )
                 elif egNavn in mittobj['vegsystemreferanse']['strekning'].keys(): 
                     egVerdier.append( mittobj['vegsystemreferanse']['strekning'][egNavn]) 
@@ -627,7 +627,7 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
             # Ferdig med ett veglenke-objekt, klart for det neste
             mittobj = sokeobjekt.nesteForekomst()
 
-        # Tomme lag forsvinner, resten havner i Qgis kartlagsliste og kart
+        # Tomme lag forsvinner, resten havner i Qgis kartlagsliste og kartflate
         punktlag.ferdig()
         linjelag.ferdig()
         linjelag2d.ferdig()
