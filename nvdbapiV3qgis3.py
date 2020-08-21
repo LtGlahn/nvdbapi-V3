@@ -168,7 +168,7 @@ def nvdb2kart( nvdbref, iface, kunfagdata=True, kunvegnett=False,
         kartutsnitt = str(ext.xMinimum()) + ',' + \
             str(ext.yMinimum()) + ',' + str(ext.xMaximum()) + \
             ',' + str(ext.yMaximum()) 
-        nvdbref.addfilter_geo( { 'kartutsnitt' : kartutsnitt }) 
+        nvdbref.filter( { 'kartutsnitt' : kartutsnitt }) 
         
         nvdbsok2qgis( nvdbref, **kwargs )
         
@@ -214,15 +214,10 @@ def nvdb2kart( nvdbref, iface, kunfagdata=True, kunvegnett=False,
 
 def nvdbsok2qgis( sokeobjekt, lagnavn=None, 
             geometritype='beste', inkludervegnett='beste', debug=False): 
-    """
-    Første spede begynnelse på nvdb2qgis. 
-    
+    """   
     Vil ta et søkeobjekt fra  nvdbapi-v2 biblioteket (nvdbFagdata eller 
     nvdbVegnett) og hente tilhørende data fra NVDB-api V2. 
-    
-    UMODENT: TODO
-        - B
-    
+        
     Arguments: 
         sokeobjekt: Søkeobjekt fra nvdbapi.nvdbVegnett eller
                                                     nvdbapi.nvdbFagdata
@@ -498,47 +493,50 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
       
 
         # Egenskaper for vegnett
-        egNavnDef = [   { "veglenkeid" : 'int'},
-                        { "startdato" : 'date' },
-                        { "kortform_veglenke": "string" },
+        egNavnDef = [   { "veglenkesekvensid" : 'int'},
+                        { "startdato" : 'date' }, # Spesialbehandling, metadata-element
+                        { "sluttdato" : 'date' }, # Spesialbehandling, metadata-elemept
+                        { "kortform_lenkepos": "string" },
                         { "startposisjon" : 'double' },
                         { "sluttposisjon" : 'double' },
-                        { "strekningslengde": "int" },
+                        { "veglenkenummer": "int" },
+                        { "segmentnummer": "int" },
+                        { "startnode": "string" },
+                        { "sluttnode": "string" },
+                        { "referanse": "string" },
+                        { "type": "string" },
+                        { "detaljnivå": "string" },
                         { "typeVeg": "string" },
-                        { "topologinivå" : 'int'},
-                        { "topologinivå_tekst": "string"},
-                        { "felt": "string" },
-                        { "medium": "string" },
-                        { "temakode": 7012 },
-                        { "konnekteringslenke": "string" },
-                        { "region": "int"},
+                        { "feltoversikt": "string" }, # NB! Spesialbehandling! Liste => tekst
+                        { "lengde": "int" },
                         { "fylke": "int" },
-                        { "vegavdeling": "int" },
-                        { "kommune": "int" },
+                        { "kommune": "int" }
                     ]
 
-        vegRefDef = [   { "532fylke": "int" },
-                        { "532kommune": "int" },
-                        { "kategori": "string" },
-                        { "status": "string" },
-                        { "nummer": "int" },
-                        { "hp": "int" },
-                        { "fra_meter": "int" },
-                        { "til_meter": "int" },
-                        { "vegrefkort": "string" }
+        vegref_vegsystemDef = [   
+                        { "vegrefkort": "string" }, # Spesialbehandling 
+                        { "vegkategori": "string" }, 
+                        { "fase": "string" }, 
+                        { "nummer": "int" }
                     ]
  
-        geomKvalDef = [ { "metode": "int" },
-                        {  "nøyaktighet": "int"},
-                        {  "høydenøyaktighet": "int"},
-                        {  "toleranse": "int"},
-                        {  "synlighet": "int" },
-                        {  "datafangstdato": "date" } 
-                    ] 
+
+        vegref_strekningDef = [   
+                        { "trafikantgruppe": "string" }, 
+                        { "strekning": "int" }, 
+                        { "delstrekning": "int" }, 
+                        { "arm": "string" }, # Spesialbehandling True / False
+                        { "adskilte_løp": "string" }, 
+                        { "fra_meter": "int" }, 
+                        { "til_meter": "int" }, 
+                        { "retning": "string" } 
+                    ]
+
+
          
         # Konstruerer Qgis egenskapsdefinisjon 
         vegnettEgenskaper = ''
-        for egliste in [ egNavnDef, vegRefDef, geomKvalDef ]: 
+        for egliste in [ egNavnDef, vegref_vegsystemDef, vegref_strekningDef ]: 
             for egenskap in egliste: 
                 myKey = list(egenskap.keys())[0]
                 vegnettEgenskaper +=  '&field=' +                     \
@@ -575,34 +573,35 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
             for egenskap in egNavnDef:
                 egNavn = list( egenskap.keys())[0]
                 if egNavn == 'kortform_veglenke': 
-                    egVerdier.append( mittobj['kortform'] )
+                    egVerdier.append( mittobj['vegsystemref']['kortform'] )
                 elif egNavn == "startdato":
                     egVerdier.append( mittobj['metadata']['startdato'] )
+                elif egNavn == "sluttdato" and 'sluttdato' in mittobj['metadata'].keys():
+                    egVerdier.append( mittobj['metadata']['sluttdato'] )
+                elif egNavn == "feltoversikt":
+                    egVerdier.append( ', '.join(  mittobj['feltoversikt'] ) )
                 elif egNavn in mittobj.keys(): 
                     egVerdier.append( mittobj[egNavn]) 
                 else: 
                     egVerdier.append( None ) 
                                         
-            # Legger til egenskapverdier fra vegreferanse-listen
-            for egenskap in vegRefDef: 
+            # Legger til egenskapverdier fra vegsystem
+            for egenskap in vegref_vegsystemDef: 
                 egNavn = list( egenskap.keys())[0]
                 if egNavn == 'vegrefkort': 
-                    egVerdier.append( mittobj['vegreferanse']['kortform']) 
-                elif egNavn == "532fylke":
-                    egVerdier.append( mittobj['vegreferanse']['fylke'] )
-                elif egNavn == "532kommune":
-                    egVerdier.append( mittobj['vegreferanse']['kommune'] ) 
-                elif egNavn in mittobj['vegreferanse'].keys(): 
-                    egVerdier.append( mittobj['vegreferanse'][egNavn]) 
+                    egVerdier.append( mittobj['vegsystemreferanse']['kortform']) 
+                elif egNavn in mittobj['vegsystemreferanse']['vegsystem'].keys(): 
+                    egVerdier.append( mittobj['vegsystemreferanse']['vegsystem'][egNavn]) 
                 else: 
                     egVerdier.append( None ) 
 
-            # Legger til egenskapverdier fra geometrikvalitet-listen
-            for egenskap in geomKvalDef: 
+            # Legger til egenskapverdier fra vegsystemreferanse-strekning
+            for egenskap in vegref_strekningDef: 
                 egNavn = list( egenskap.keys())[0]
-                if 'kvalitet' in mittobj['geometri'].keys() and \
-                            egNavn in mittobj['geometri']['kvalitet'].keys(): 
-                    egVerdier.append( mittobj['geometri']['kvalitet'][egNavn]) 
+                if egNavn == 'arm':
+                    egVerdier.append( str( mittobj['vegsystemreferanse']['strekning']['arm'] ) )
+                elif egNavn in mittobj['vegsystemreferanse']['strekning'].keys(): 
+                    egVerdier.append( mittobj['vegsystemreferanse']['strekning'][egNavn]) 
                 else: 
                     egVerdier.append( None ) 
 
