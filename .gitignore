@@ -97,8 +97,9 @@ ENV/
 # Rope project settings
 .ropeproject
 
-# Credentials
+# Credentials and client info 
 credentials.py
+nvdbapi-clientinfo.json
 
 # VS code
 .vscode/
