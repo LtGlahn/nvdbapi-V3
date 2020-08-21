@@ -396,7 +396,7 @@ class nvdbVegnett:
         """Kun internt på vegvesen-nettet!
         Kan endre hvilket miljø vi går mot.
         Parametre: 
-            ingen - skriver lenken til NVDB api
+            ingen - skriver ut hvilken URL vi bruker for å hente data fra NVDB api
             'utv' - bruker UTVIKLINGSmiljøet (ATLAS)
             'test' - bruker TESTmiljø (ATLAS)
             'prod' - går mot PRODUKSJON (ATLAS)
@@ -983,7 +983,7 @@ def nvdbfagobjekt2records( feature_eller_liste, vegsegmenter=True, relasjoner=Fa
 
 
 def finnid(objektid, kunvegnett=False, kunfagdata=False, miljo=False): 
-    """Henter NVDB objekt (enten veglenke eller fagdata) ut fra objektID.
+    """Henter NVDB objekt (enten lenkesekvens eller fagdata) ut fra objektID.
     Bruk nøkkelord kunvegnett=True eller kunfagdata=True for å avgrense til 
     vegnett og/eller fagdata (vi har betydelig overlapp på ID'er mellom vegnett 
     og fagdata)

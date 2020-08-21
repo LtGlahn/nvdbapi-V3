@@ -20,7 +20,7 @@ Hovedrutinen *nvdbapiv3.py* er skrevet i python3, men burde også fungere med py
 
 1. Et _*søkeobjekt*_ håndterer all mikk-makk rundt spørringer mot NVDB api, paginering etc. 
 1. Vi har to typer søkeobjekter
-    * nvdbVegnett - henter veglenker
+    * nvdbVegnett - henter vegnett (lenksekvenser og tilhørende lenker) 
     * nvdbFagdata - henter en av de 400 fagdatatypene vi har definert i [NVDB datakatalog](https://datakatalogen.vegdata.no/)
 2. Søkeobjektene har funksjoner for å avgrense søk, og hente ut alle data som tilfredssstiller søket. 
 3. Noen funksjoner _(f.eks. nvdb2geojson)_ tar et slik søkeobjekt og transformerer til andre datastrukturer, tabulære data m.m.
@@ -34,7 +34,7 @@ Hovedrutinen *nvdbapiv3.py* er skrevet i python3, men burde også fungere med py
    
 ## nvdbVegnett 
 
-Søkeobjekt for å hente veglenker fra NVDB api. 
+Søkeobjekt for å hente segmentert vegnett fra NVDB api. 
 
 ## nvdbFagdata(objektTypeId) 
 
@@ -115,7 +115,7 @@ klassen [nvdbFagObjekt](https://github.com/LtGlahn/nvdbapi-V2#nvdbfagobjekt)
 
 ### statistikk()
 
-Sjekker hvor mange forekomster som finnes med angitte filtre. Returnerer dict med antall treff 
+Spør NVDB api hvor mange forekomster som finnes med angitte filtre. Returnerer dict med antall treff 
 og  strekningslengde (antall meter). Strekningslengde er 0 for punktobjekter. 
 
 
@@ -174,10 +174,8 @@ TODO: Sjekk ut syntaks for overlapp mot flere objekttyper samtidig.
 | sisteanrop | Siste kall som gikk mot NVDB API |
 | objektTypeID | ID til objekttypen (ikke nvdbVegnett) |
 | objektTypeDef | Datakatalogdefinisjon for objekttypen (ikke nvdbVegnett) |
-| egenskapsfilter | Filter for egenskapsverdier (ikke nvdbVegnett) |
-| overlappfilter | Filter for overlapp mot andre fagdata (ikke nvdbVegnett) |
-|antall | Antall objekter i NVDB som tilfredsstiller kriteriene (ikke nvdbVegnett) |
-| strekningslengde | Total lengde på objektene i NVDB som tilfredsstiller søkekriteriene (ikke nvdbVegnett) |
+|antall | Antall objekter i NVDB som tilfredsstiller kriteriene, hentes fra statistikkspørring mot API (ikke nvdbVegnett) |
+| strekningslengde | Total lengde på objektene i NVDB som tilfredsstiller søkekriteriene, hentes fra statistikkspørring mot API (ikke nvdbVegnett) |
 
 # nvdbFagObjekt
 
@@ -254,16 +252,17 @@ barn = ettlop.relasjon(relasjon='barn')
 ```
 # finnid - finn fagdata eller vegnett ut fra NVDB Id
 
-Stand-alone funksjonen ```finnid(objektid)``` søker etter NVDB objekter og veglenker med angitt objektid. 
+Hjelpefunksjonen ```finnid(objektid)``` søker etter NVDB objekter og lenkesekvens med angitt objektid. 
 
 ```
-fart = nvdbapi.finnid(85288328) # python-dict
-fartobj = nvdbFagObjekt(fart)   # Objektorientert representasjon, med metoder som angitt over. 
+fart = nvdbapi.finnid(85288328, kunfagdata=True) # python-dict
+fartobj = nvdbFagObjekt(fart)   # Objektorientert representasjon, se definisjonen nvdbFagobjekt
 
-v = nvdbapi.finnid(521218)   # Veglenke
+
+v = nvdbapi.finnid(521218, kunvegnett=True)   # Liste med lenker som finnes på lenkesekvens 521218
 ```
 
 For fagdata returneres en DICT for angjeldende objekt. Denne kan gjøres om til et nvdbFagObjekt. 
 
-For vegnett returneres en liste med de veglenke-delene som inngår i denne veglenka.  
+For vegnett returneres en liste med de veglenke-delene som inngår i denne lenkesekvensen.  
  
