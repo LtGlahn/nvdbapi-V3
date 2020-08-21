@@ -1,4 +1,19 @@
 # -*- coding: utf-8 -*-
+"""Bibliotek for å hente data fra NVDB api V3 (og senere versjoner)
+Har 2 klasser: 
+    - nvdbVegnett: Søkeobjekt for å søke og laste ned vegnett
+    - nvdbFagdata: Søkeobjekt for å søke og laste ned vegobjekter 
+
+Har disse hjelpefunksjonene:
+    - finnid: Henter vegobjekt og/eller lenkesekvens med angitt ID
+    - nvdbfagobjekt2records: Flater ut NVDB-vegobjekt (direkte fra NVDB api) til enklere (forutsigbar) dictionary-struktur
+    - egenskaper2records: Oversetter liste med egenskapverdier til dictionary 
+
+Sjekk README.md for detaljer
+
+UFERDIG, holder på å skrive om til NVDB api V3... Gjenstår: https://github.com/LtGlahn/nvdbapi-V3/issues
+
+"""
 
 import six # python 2 vs 3 compability library
 import json
@@ -13,11 +28,6 @@ import pdb
 # Uncomment to silent those unverified https-request warnings
 requests.packages.urllib3.disable_warnings() 
 
-"""Bibliotek for å hente data fra NVDB api V3 (og senere versjoner)
-Har 2 klasser, nvdbVegnett og nvdbFagdata
-
-UFERDIG, holder på å skrive om til V3... 
-"""
 
 class nvdbVegnett: 
     """Klasse for spørringer mot NVDB for å hente segmentert vegnett. 
@@ -45,7 +55,8 @@ class nvdbVegnett:
     def __init__( self, miljo=None, debug=False):
         
         
-        self.geofilter = {}
+        self.filterdata = {}
+        self.geofilter = {} # DEPRECEATED
         self.headers =   { 'accept' : 'application/vnd.vegvesen.nvdb-v3-rev1+json', 
                             'X-Client' : 'nvdbapi.py',
                             'X-Kontaktperson' : 'jan.kristian.jensen@vegvesen.no'}
@@ -108,17 +119,12 @@ class nvdbVegnett:
 
         
             if isinstance( self, nvdbFagdata): 
-                parametre = merge_dicts(    self.geofilter, 
-                                            self.overlappfilter, 
-                                            self.egenskapsfilter, 
-                                            self.respons, 
-                        { 'antall' :  self.paginering['antall'] } )
+                parametre = merge_dicts(  self.filterdata, self.respons )
                 self.data = self.anrope( '/'.join(('vegobjekter', str(self.objektTypeId) )), 
                     parametre=parametre ) 
                     
             elif isinstance( self, nvdbVegnett): 
-                parametre = merge_dicts( self.geofilter, 
-                        { 'antall' : self.paginering['antall'] } )
+                parametre = self.filterdata
                 self.data = self.anrope( 'vegnett/veglenkesekvenser/segmentert', parametre=parametre )
 
             self.paginering['initielt'] = False
@@ -185,17 +191,12 @@ class nvdbVegnett:
         elif self.paginering['initielt']: 
         
             if isinstance( self, nvdbFagdata): 
-                parametre = merge_dicts(    self.geofilter, 
-                                            self.overlappfilter, 
-                                            self.egenskapsfilter, 
-                                            self.respons, 
-                        { 'antall' :  self.paginering['antall'] } )
+                parametre = merge_dicts(  self.filterdata, self.respons )
                 self.data = self.anrope( '/'.join(('vegobjekter', str(self.objektTypeId) )), 
                     parametre=parametre ) 
                     
             elif isinstance( self, nvdbVegnett): 
-                parametre = merge_dicts( self.geofilter, 
-                        { 'antall' : self.paginering['antall'] } )
+                parametre = self.filterdata
                 self.data = self.anrope( 'vegnett/veglenkesekvenser/segmentert', parametre=parametre )
 
             self.paginering['initielt'] = False
@@ -223,45 +224,58 @@ class nvdbVegnett:
             return self.data['objekter'][self.paginering['hvilken']-1]
 
         
-    def addfilter_geo(self, *arg):
-        """Get or set GEO filters to your search. 
-        Input argument is a dict with area- or road network filter, which are 
-        appended to existing values. 
+    def addfilter_geo(self, *args):
+        """
+        DEPRECEATED: replaced with addfilter - function
+        
+        addfilter_geo, addfilter_egenskap and addfilter_overlapp are now obsolete and 
+        replaced with the generic addfilter function 
 
-        
+        For now, any arguments to addfilter_geo is simply 
+        passed on to the addfilter - function
+        """
+        warn( "addfilter_geo is depreceated, please use the generic addfilter function", DeprecationWarning)
+
+
+        if len( args) > 0: 
+            data = self.filter( self, *args )
+
+    def filter(self, *arg, **kwargs):
+        """Get or set filters to your search. 
+        Input argument is a dict with one or more filter(s). 
+        Previous added filters are unchanged unless the dictionary keys
+        are identical, in which case the old values are overwritten 
+        are modified (if the keys match) or kept unchanged. 
+
+
         See 
-        https://www.vegvesen.no/nvdb/apidokumentasjon/#/parameter/lokasjonsfilter 
-        for a list of possible values. 
+        http://api.vegdata.no  or this repository README-file 
+        https://github.com/LtGlahn/nvdbapi-V3/blob/master/README.md 
+        for a list of possible filters and their values. 
+                
+        addfilter with no arguments returns the current filter. 
         
-        Example 
-        p = nvdb.nvdbFagdata(809)
-        p.addfilter_geo( { 'vegreferanse' : 'Ev39' }
-        p.addfilter_geo( { 'fylke' : [3,4] }
-        p.addfilter_geo() # Returns the current value of this filter 
-        
-        addfilter_geo with no arguments returns the current filter. 
-        
-        Input empty dict {} or string to clear all GEO - filters
-        
+        Input empty dict {} or string to clear all filters
         """ 
         
         if len( arg) == 1: 
             if isinstance( arg[0], dict) and arg[0]: 
-                self.geofilter.update( arg[0]) 
+                self.filterdata.update( arg[0]) 
             elif isinstance( arg[0], dict) and not arg[0]: 
-                self.geofilter = {} 
+                self.filterdata = {} 
             elif isinstance( arg[0], str): 
-                self.geofilter = {} 
+                self.filterdata = {} 
 
             else:
-                warn('Wrong input to addfilter_geo. Should be dict') 
+                warn('Wrong input to addfilter. Should be dict') 
         else:
-            return self.geofilter
+            return self.filterdata
 
     def add_request_arguments( self, parameters): 
-        """Appends (or updates) key-value parameters to the data retrieval request
+        """Appends (or updates) key-value parameters to the data retrieval request (but not "statistikk"-queries)
         Input argument is a dict. 
-        This modifies the response 
+
+        Typically usage: Keywords that modifies the response, but isn't part of the search query
         
         Example
         p = nvdbFagdata(45)
@@ -382,7 +396,7 @@ class nvdbVegnett:
         """Kun internt på vegvesen-nettet!
         Kan endre hvilket miljø vi går mot.
         Parametre: 
-            ingen - skriver lenken til NVDB api
+            ingen - skriver ut hvilken URL vi bruker for å hente data fra NVDB api
             'utv' - bruker UTVIKLINGSmiljøet (ATLAS)
             'test' - bruker TESTmiljø (ATLAS)
             'prod' - går mot PRODUKSJON (ATLAS)
@@ -411,14 +425,47 @@ class nvdbVegnett:
         
         # if not silent: 
         # print( "Bruker ", self.apiurl)
-     
-            
+
+
+    def info(self): 
+
+
+        if isinstance( self, nvdbFagdata): 
+
+            print( 'nvdbFagdata: Søkeobjekt for vegobjekter fra NVDB api V3')
+
+            if self.objektTypeId: 
+                print( 'ObjektType:', 
+                    str(self.objektTypeId), self.objektTypeDef['navn'] )
+        
+            else: 
+                print( 'Ikke definert noen objekttype ennå') 
+                print( 'Bruk: x = nvdbFagdatID) eller\n', ' x = nvdbFagdata()\n', 
+                        'x.objektType(ID)\n', 
+                        'hvor ID er objekttypens ID, eks bomstasjon = 45\n\n') 
+                
+        elif isinstance( self, nvdbVegnett):
+            print( 'nvdbVegnett: Søkeobjekt for vegnett fra NVDB api V3')
+
+
+    
+        print( 'Filtere')
+        print( json.dumps( self.filterdata, indent=4))
+        print( 'Parametre som styrer responsen:' ) 
+        print( json.dumps( self.respons, indent=4))
+        if isinstance( self, nvdbFagdata):         
+            print( 'Statistikk fra NVDB api V3') 
+            print( json.dumps( self.statistikk(), indent = 4))
+
+        print( 'Pagineringsinfo: Antall objekt i databuffer=', len( self.data['objekter']))
+        print( json.dumps( self.paginering, indent = 4)) 
+                
 class nvdbFagdata(nvdbVegnett): 
-    """Klasse for spørringer mot NVDB ang en spesifikk objekttype. 
+    """Søkeobjekt - dvs klasse for spørringer mot NVDB ang en spesifikk objekttype. 
     Jobber dynamisk mot NVDB api for å hente statistikk, laste ned data etc.
     Holder alle parametre som inngår i dialogen med NVDB api. 
 
-    Grovt sett skal vi ha disse komponentene / funksjonene: 
+    Grovt sett har vi disse funksjonene: 
         - Enkle metoder for å sette søkekriterier
         (geografisk filter, egenskapsfilter m.m.) 
 
@@ -432,9 +479,9 @@ class nvdbFagdata(nvdbVegnett):
 
         - Statistikk for dette søket  
 
-    n = nvdb() # Tomt objekt, klart til å få verdi
-    n = nvdb(45) # Objekttypen er nå satt lik 45 (Bomstasjon) 
-    n.addfilter_egenskap( '1820>=20') 
+    # EKSEMPEL    
+    n = nvdb(45) # Søkeobjekt for objekttype 45, dvs Bomstasjon
+    n.filter( { 'egenskap' :  '1820>=20' } ) # Filterer bomstasjoner med takst liten bil >= 20kr. 
     
     # EKSEMPEL: Iterer over alle bomstasjoner
     n = nvdbFagdata(45) 
@@ -473,9 +520,10 @@ class nvdbFagdata(nvdbVegnett):
         self.objektTypeDef = None
         self.antall = None
         self.strekningslengde = None
-        self.geofilter = {}
-        self.egenskapsfilter = {}
-        self.overlappfilter = {} 
+        self.filterdata = {}
+        self.geofilter = {}         # DEPRECEATED
+        self.egenskapsfilter = {}   # DEPRECEATED
+        self.overlappfilter = {}    # DEPRECEATED
         self.forbindelse = apiforbindelse.apiforbindelse()
         if not miljo: 
             miljo = 'prod'
@@ -503,7 +551,7 @@ class nvdbFagdata(nvdbVegnett):
     def statistikk(self): 
         if self.objektTypeId: 
         
-            parametre = deepcopy( self.allfilters() )
+            parametre =  self.filterdata
             
             # Fjerner parametre som ikke gir mening (men feilmelding) for statistikk-kall
             forbud = [ 'antall', 'start', 'inkluder', 'geometritoleranse', 'projeksjon', 'dybde' ]
@@ -521,26 +569,6 @@ class nvdbFagdata(nvdbVegnett):
             self.antall = None
             self.strekningslengde = None
             return { 'antall' : None, 'strekningslengde' : None }
-
-
-    def info(self): 
-        if self.objektTypeId: 
-            print( 'ObjektType:', 
-                str(self.objektTypeId), self.objektTypeDef['navn'] )
-    
-        else: 
-            print( 'Ikke definert noen objekttype ennå') 
-            print( 'Bruk: x = nvdbFagdatID) eller\n', ' x = nvdbFagdata()\n', 
-                    'x.objektType(ID)\n', 
-                    'hvor ID er objekttypens ID, eks bomstasjon = 45\n\n') 
-    
-        print( 'Filtere')
-        print( json.dumps( self.allfilters(), indent=4))
-        print( 'Parametre som styrer responsen:' ) 
-        print( json.dumps( self.respons, indent=4))
-        print( 'Statistikk') 
-        print( json.dumps( self.statistikk(), indent = 4))
-
 
     def egenskaper(self, *arg):
         """Skriver ut definisjonen av angitt egenskapstype (ID, heltall). 
@@ -571,87 +599,39 @@ class nvdbFagdata(nvdbVegnett):
                 data[eg['navn']] = missing
                 
         return data
-        
-        
-    def allfilters( self): 
-        """Returns a dict with all current filters""" 
-        return merge_dicts( self.geofilter, self.egenskapsfilter, 
-                        self.overlappfilter) 
-        
+               
     def addfilter_overlapp( self, *arg): 
-        """Get or set overlapp filters to your search. 
-        Input argument is a text string with overlapp ilters, which is added to 
-        existing filter. 
-        NB! If you want to add to an EXISTING filter, care must be taken to 
-        construct valid expressions using AND, OR and (if needed) parantheses. 
+        """
+        DEPRECEATED: replaced with addfilter - function
+        
+        addfilter_geo, addfilter_egenskap and addfilter_overlapp are now obsolete and 
+        replaced with the generic addfilter function 
 
-        
-        See 
-        https://www.vegvesen.no/nvdb/apidokumentasjon/#/parameter/overlappfilter
-        for explanation. 
-        
-        Example 
-        p = nvdb.nvdbFagdata(570) # Trafikkulykke
-        p.addfilter_overlapp( '67'  ) # Trafikkulykke in tunnels (tunnelløp)
-        p.addfilter_overlapp( '105(2021=2738)'  ) # Ulykke where speed limit =80
-        
-        p.addfilter_overlapp( '' ) # Clears all values
-        
-        addfilter_overlapp with no arguments returns the current filter. 
-        
-        Input empty string to clear the filter
-        
+        For now, any addfilter_overlap-arguments are simply passed to 
+        the addfilter function: filter( {'overlapp' : 'YOUR ARGUMENT HERE'})
         """ 
-        
+        warn( "addfilter_geo is depreceated, please use the generic addfilter function", DeprecationWarning)
         
         if len( arg) == 1 and arg[0]: 
-            self.overlappfilter.update( { 'overlapp' : arg[0] } ) 
-        elif len(arg) == 1 and not arg[0]: 
-            self.overlappfilter = {} 
-        else:
-            return self.overlappfilter
-
+            self.filter( { 'overlapp' : arg[0] } ) 
         
     def addfilter_egenskap( self, *arg): 
-        """Get or set property filters (egenskapsfilter) to your search. 
-        Input argument is a text string with property filters, which is added to 
-        existing filter. 
-        NB! If you want to add to an EXISTING filter, care must be taken to 
-        construct valid expressions using AND, OR and (if needed) parantheses. 
+        """
+        DEPRECEATED: replaced with addfilter - function
+        
+        addfilter_geo, addfilter_egenskap and addfilter_overlapp are now obsolete and 
+        replaced with the generic addfilter function 
 
-        
-        See 
-        https://www.vegvesen.no/nvdb/apidokumentasjon/#/parameter/egenskapsfilter
-        for explanation. 
-        
-        Example 
-        p = nvdb.nvdbFagdata(45)
-        p.addfilter_egenskap( '1820=20'  ) # takst = 20 kr
-        p.addfilter_egenskap( 'OR 1820=50'  ) # is now "1820=20 OR 1820=50"
-        
-        p.addfilter_egenskap( '' ) # Clears all values
-        
-        addfilter_egenskap with no arguments returns the current filter. 
-        
-        Input empty string to clear the filter
-        
+        For now, any addfilter_egenskap-arguments are simply passed to 
+        the addfilter function: filter( {'egenskap' : 'YOUR ARGUMENT HERE'})
+
         """ 
         
+        warn( "addfilter_egenskap is depreceated, please use the generic addfilter function", DeprecationWarning)
         
         if len( arg) == 1 and arg[0]: 
-            self.egenskapsfilter.update( { 'egenskap' : arg[0] } ) 
-            
-            # Warning users about a bug in NVDB api
-            if '*' in arg[0]:
-                warn( "Warning - \nbug in NVDB api for wildcard (*) text" + \
-                        "matching.\n" +  
-                        "You'll probably find ZERO features with this filter") 
-            
-        elif len(arg) == 1 and not arg[0]: 
-            self.egenskapsfilter = {} 
-        else:
-            return self.egenskapsfilter
-
+            self.filter( { 'egenskap' : arg[0] } ) 
+                        
     def nesteNvdbFagObjekt( self ): 
         fagdata = self.nesteForekomst()
         if fagdata: 
@@ -731,7 +711,7 @@ class nvdbFagdata(nvdbVegnett):
 
         if len( nvdbid_manglergeom ) > 0: 
             print( 'Manglende geometri-element for', len( nvdbid_manglergeom), 'vegobjekter fra dette søket')
-            print( json.dumps( self.allfilters(), indent=4)  )
+            print( json.dumps( self.filterdata, indent=4)  )
             print( 'fra miljø', self.apiurl )
             if debug: 
                 print( nvdbid_manglergeom )
@@ -1016,7 +996,7 @@ def nvdbfagobjekt2records( feature_eller_liste, vegsegmenter=True, relasjoner=Fa
 
 
 def finnid(objektid, kunvegnett=False, kunfagdata=False, miljo=False): 
-    """Henter NVDB objekt (enten veglenke eller fagdata) ut fra objektID.
+    """Henter NVDB objekt (enten lenkesekvens eller fagdata) ut fra objektID.
     Bruk nøkkelord kunvegnett=True eller kunfagdata=True for å avgrense til 
     vegnett og/eller fagdata (vi har betydelig overlapp på ID'er mellom vegnett 
     og fagdata)
