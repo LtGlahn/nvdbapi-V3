@@ -21,13 +21,15 @@ import requests
 from warnings import warn
 import os
 from copy import deepcopy
-import apiforbindelse
 from time import sleep
 import pdb
+from datetime import datetime
+import dateutil.parser
+
+import apiforbindelse
 
 # Uncomment to silent those unverified https-request warnings
 requests.packages.urllib3.disable_warnings() 
-
 
 class nvdbVegnett: 
     """Klasse for spørringer mot NVDB for å hente segmentert vegnett. 
@@ -640,7 +642,7 @@ class nvdbFagdata(nvdbVegnett):
         else: 
             return None
         
-    def to_records(self, vegsegmenter=True, relasjoner=False, geometri=False, debug=False ): 
+    def to_records(self, vegsegmenter=True, relasjoner=False, geometri=False, debug=False, tidspunkt=None ): 
         """
         Eksporterer til en liste med dictionaries med struktur 
         "objekttype" : INT,
@@ -667,6 +669,27 @@ class nvdbFagdata(nvdbVegnett):
 
         Parameter geometri=False: Tar ikke med s.k. egengeometri(er)
 
+
+        ARGUMENTS
+            feature_eller_liste Dictionary eller liste med dictionies med NVDB fagdata slik de kommer fra NVDB api V3
+
+        KEYWORDS 
+            vegsegmenter=True (default) | False : Gi en forekomst (av objektet) per unike vegsegment
+            
+            relasjoner=False (default) | True : Ta med mer detaljer om objektets relasjoner 
+            
+            geometri=False (default) | True : Hent geometri fra objektets vegtilknytning, evt bruk objektets 
+                                            egengeometri (hvis den finnes, vegtilknytning er alltid fallback) 
+            
+            debug=False (default) | True : Detaljert debug-informasjon 
+            
+            tidspunkt=None | tekst på formatet '2010-01-01'. Angi tidspunkt som brukes til å filtrere hvilke vegsegmenter som tas med. 
+                             NB! Bør utelates - vi sjekker hvilket tidspunkt som evt er angitt som filter i spørringen mot NVDB api, 
+                             og DETTE tidspunktet vil vi bruke med mindre du aktivt overstyrer... 
+
+        RETURNS
+            liste med dictionaries (NVDB-objekt fra NVDB api LES v3 i utflatet struktur)
+
         """
 
         mydata = []
@@ -675,6 +698,11 @@ class nvdbFagdata(nvdbVegnett):
 
         if self.antall and self.antall > 10000: 
             print( 'Eksport av', self.antall, 'objekter kommer til å ta tid...')
+
+        # Sjekker om vi jobber med historiske data:
+        if not tidspunkt: 
+            if 'tidspunkt' in self.filterdata.keys():
+                tidspunkt = self.filterdata['tidspunkt']
 
         count = 0
         nvdbid_manglergeom = []
@@ -689,7 +717,7 @@ class nvdbFagdata(nvdbVegnett):
             # https://github.com/LtGlahn/diskusjon_diverse/tree/master/debug_nvdbapilesv3/vegobjekter 
             if 'geometri' in feat.keys():
 
-                featureliste = nvdbfagobjekt2records( feat, vegsegmenter=vegsegmenter, relasjoner=False, geometri=geometri, debug=debug )
+                featureliste = nvdbfagobjekt2records( feat, vegsegmenter=vegsegmenter, relasjoner=False, geometri=geometri, debug=debug, tidspunkt=tidspunkt )
 
                 if relasjoner and 'relasjoner' in feat.keys(): 
 
@@ -892,7 +920,7 @@ class nvdbFagObjekt():
             raise ValueError('Function relasjon: Keyword argument relasjon must be int or string' )
             
             
-def nvdbfagobjekt2records( feature_eller_liste, vegsegmenter=True, relasjoner=False, geometri=False, debug=False ): 
+def nvdbfagobjekt2records( feature_eller_liste, vegsegmenter=True, relasjoner=False, geometri=False, debug=False, tidspunkt=None ): 
     """
     Gjør om (liste med) nvdb objekt til records, dvs de-normalisert til dictionaries med enkel struktur. 
 
@@ -913,22 +941,45 @@ def nvdbfagobjekt2records( feature_eller_liste, vegsegmenter=True, relasjoner=Fa
     "vegsystemreferanser : [ liste med vegsystemreferanse-dictionary ]
     "vegsegmenter" : [ liste med vegsegmenter ]
 
-    Parameter vegsegmenter=True de-normaliserer, dvs hvis et objekt har N vegsegmenter 
-    får du returnert N forekomster av objektet, ett for hver unike vegsegment. Videre 
-    blir egenskapene vegsystemreferanse og vegsegmenter ikke lister, men dictionaries 
+    Parameter vegsegmenter=True vil gi deg en forekomst av objektet per vegsegment, 
+    dvs hvis et objekt har N vegsegmenter får du returnert N forekomster av objektet, 
+    ett for hver unike vegsegment. Videre blir egenskapene vegsystemreferanse og vegsegmenter 
+    ikke lister, men dictionaries 
 
     NB! Når vi returnerer individuelle vegsegmenter tar vi med vegsegmenter gyldige i dag,
-    dvs åpen sluttdato.
+    dvs åpen sluttdato. Dette kan overstyres med nøkkeord tidspunkt (se under)
 
     Paramter relasjoner=False: Tar ikke med liste over relasjoner til andre objekter
 
     Parameter geometri=False: Tar ikke med s.k. egengeometri(er)
+
+    ARGUMENTS
+        feature_eller_liste Dictionary eller liste med dictionies med NVDB fagdata slik de kommer fra NVDB api V3
+
+    KEYWORDS 
+        vegsegmenter=True (default) | False : Gi en forekomst (av objektet) per unike vegsegment
+        
+        relasjoner=False (default) | True : Ta med mer detaljer om objektets relasjoner 
+        
+        geometri=False (default) | True : Hent geometri fra objektets vegtilknytning, evt bruk objektets 
+                                          egengeometri (hvis den finnes, vegtilknytning er alltid fallback) 
+        
+        debug=False (default) | True : Detaljert debug-informasjon 
+        
+        tidspunkt=None | tekst på formatet '2010-01-01'. Angi tidspunkt som brukes til å filtrere hvilke vegsegmenter som tas med
+
+    RETURNS
+        liste med dictionaries (vegobjekt fra NVDB api LES i flatere dictionary-struktur)
+
 
     """
     if not isinstance( feature_eller_liste, list): 
         feature_eller_liste = [ feature_eller_liste ]
 
     mydata = [ ]
+
+    if tidspunkt: 
+        gyldigdato = dateutil.parser.parse( tidspunkt )
 
     nvdbid_manglergeom = []
     terskler = [ 1000, 10000]
@@ -950,7 +1001,10 @@ def nvdbfagobjekt2records( feature_eller_liste, vegsegmenter=True, relasjoner=Fa
 
             if vegsegmenter: 
                 for seg in feat['vegsegmenter']:
-                    if not 'sluttdato' in seg.keys():
+                    if not 'sluttdato' in seg.keys() or (tidspunkt  and \
+                        dateutil.parser.parse( seg['startdato'] ) <= gyldigdato and \
+                        dateutil.parser.parse( seg['sluttdato'] ) > gyldigdato ):
+
                         s2 = {  'veglenkesekvensid' : seg['veglenkesekvensid'], 
                                 'detaljnivå'        : seg['detaljnivå'],
                                 'typeVeg'           : seg['typeVeg'],

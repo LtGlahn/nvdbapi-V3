@@ -508,6 +508,7 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
                         { "detaljnivå": "string" },
                         { "typeVeg": "string" },
                         { "feltoversikt": "string" }, # NB! Spesialbehandling! Liste => tekst
+                        { "kjøreretning": "string"},  # Utleder kjøreretning relativt til lenkeretning ut fra feltoversikt
                         { "lengde": "double" },
                         { "fylke": "int" },
                         { "kommune": "int" }
