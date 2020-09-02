@@ -928,7 +928,8 @@ def nvdbfagobjekt2records( feature_eller_liste, **kwargs):
 
     warn( 'nvdbfagobjekt2records har byttet navn => nvdbfagdata2records', category=DeprecationWarning, stacklevel=2)
 
-    nvdbfagdata2records( feature_eller_liste, **kwargs) 
+    data = nvdbfagdata2records( feature_eller_liste, **kwargs) 
+    return data 
 
 def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=False, geometri=False, debug=False, tidspunkt=None ): 
     """
