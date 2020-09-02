@@ -1,17 +1,16 @@
 # -*- coding: utf-8 -*-
 """Bibliotek for å hente data fra NVDB api V3 (og senere versjoner)
-Har 2 klasser: 
+Har 3 klasser: 
     - nvdbVegnett: Søkeobjekt for å søke og laste ned vegnett
     - nvdbFagdata: Søkeobjekt for å søke og laste ned vegobjekter 
+    - nvdbFagObjekt: Har metoder for å hente ut egenskapverdi(er) og relasjoner for et NVDB objekt
 
 Har disse hjelpefunksjonene:
     - finnid: Henter vegobjekt og/eller lenkesekvens med angitt ID
-    - nvdbfagobjekt2records: Flater ut NVDB-vegobjekt (direkte fra NVDB api) til enklere (forutsigbar) dictionary-struktur
+    - nvdbfagdata2records: Flater ut NVDB-vegobjekt (direkte fra NVDB api) til enklere (forutsigbar) dictionary-struktur
     - egenskaper2records: Oversetter liste med egenskapverdier til dictionary 
 
-Sjekk README.md for detaljer
-
-UFERDIG, holder på å skrive om til NVDB api V3... Gjenstår: https://github.com/LtGlahn/nvdbapi-V3/issues
+Sjekk README.md for detaljer, og https://github.com/LtGlahn/nvdbapi-V3/issues for kjente feil og mangler. 
 
 """
 
@@ -717,7 +716,7 @@ class nvdbFagdata(nvdbVegnett):
             # https://github.com/LtGlahn/diskusjon_diverse/tree/master/debug_nvdbapilesv3/vegobjekter 
             if 'geometri' in feat.keys():
 
-                featureliste = nvdbfagobjekt2records( feat, vegsegmenter=vegsegmenter, relasjoner=False, geometri=geometri, debug=debug, tidspunkt=tidspunkt )
+                featureliste = nvdbfagdata2records( feat, vegsegmenter=vegsegmenter, relasjoner=False, geometri=geometri, debug=debug, tidspunkt=tidspunkt )
 
                 if relasjoner and 'relasjoner' in feat.keys(): 
 
@@ -919,10 +918,21 @@ class nvdbFagObjekt():
             # Raise error
             raise ValueError('Function relasjon: Keyword argument relasjon must be int or string' )
             
-            
-def nvdbfagobjekt2records( feature_eller_liste, vegsegmenter=True, relasjoner=False, geometri=False, debug=False, tidspunkt=None ): 
+
+def nvdbfagobjekt2records( feature_eller_liste, **kwargs): 
     """
-    Gjør om (liste med) nvdb objekt til records, dvs de-normalisert til dictionaries med enkel struktur. 
+    DEPRECEATED, bruk nvdbfagdata2records
+
+    Navnebytte å unngå navneforvirring med vår egen pythonklasse  "nvdbFagobjekt" 
+    """
+
+    warn( 'Bruk nvdbfagdata2records', category=DeprecationWarning, stacklevel=2)
+
+    nvdbfagdata2records( feature_eller_liste, **kwargs) 
+
+def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=False, geometri=False, debug=False, tidspunkt=None ): 
+    """
+    Gjør om (liste med) nvdb fagdata fra NVDB api LES til records, dvs de-normalisert til dictionaries med enkel struktur. 
 
     Denne brukes av funksjonen nvdbFagobjekt.to_records(), men er skilt ut fordi den er nyttig for alle
     som har en liste med NVDB objekter :) 
@@ -1044,7 +1054,7 @@ def nvdbfagobjekt2records( feature_eller_liste, vegsegmenter=True, relasjoner=Fa
             nvdbid_manglergeom.append( feat['id'])
 
     if len( nvdbid_manglergeom ) > 0: 
-        print( 'nvdbfagobjekt2records: Manglet geometri for', len(nvdbid_manglergeom ), 'av', len(feature_eller_liste ), 'objekter')
+        print( 'nvdbfagdata2records: Manglet geometri for', len(nvdbid_manglergeom ), 'av', len(feature_eller_liste ), 'objekter')
 
     return mydata 
 

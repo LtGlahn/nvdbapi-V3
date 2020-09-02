@@ -29,7 +29,7 @@ Hovedrutinen *nvdbapiv3.py* er skrevet i python3, men burde også fungere med py
     2. Eller som et _*nvdbFagObjekt*_, som har en del fiffige funksjoner for å hente ut egenskapverdier m.m. 
 7. I tillegg til søkeobjekten har vi en del hjelpefunksjoner
    1. finnid: Henter vegobjekt og/eller lenkesekvens med angitt ID
-   2. nvdbfagobjekt2records: Flater ut NVDB-vegobjekt (direkte fra NVDB api) til enklere (forutsigbar) dictionary-struktur
+   2. nvdbfagdata2records: Flater ut NVDB-vegobjekt (direkte fra NVDB api) til enklere (forutsigbar) dictionary-struktur
    3. egenskaper2records: Oversetter liste med egenskapverdier til dictionary 
    
 ## nvdbVegnett 
@@ -179,7 +179,8 @@ TODO: Sjekk ut syntaks for overlapp mot flere objekttyper samtidig.
 
 # nvdbFagObjekt
 
-Klasse for objektorientert behandling av fagdata. 
+Klasse for objektorientert behandling av fagdata. Har for eksempel gode metoder for å 
+spørre etter egenskapverdier. 
 
 ### egenskap( id_or_navn, empty=None)
 
