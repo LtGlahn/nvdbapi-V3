@@ -926,7 +926,7 @@ def nvdbfagobjekt2records( feature_eller_liste, **kwargs):
     Navnebytte å unngå navneforvirring med vår egen pythonklasse  "nvdbFagobjekt" 
     """
 
-    warn( 'Bruk nvdbfagdata2records', category=DeprecationWarning, stacklevel=2)
+    warn( 'nvdbfagobjekt2records har byttet navn => nvdbfagdata2records', category=DeprecationWarning, stacklevel=2)
 
     nvdbfagdata2records( feature_eller_liste, **kwargs) 
 
