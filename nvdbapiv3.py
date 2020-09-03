@@ -411,13 +411,13 @@ class nvdbVegnett:
         
         if args and isinstance( args[0], str): 
             
-            if args[0].lower() == 'utv': 
+            if 'utv' in  args[0].lower(): 
                 self.apiurl = 'https://nvdbapiles-v3.utv.atlas.vegvesen.no/'
                 self.forbindelse.velgmiljo('utvles')
-            elif args[0].lower() == 'test': 
+            elif 'test' in args[0].lower(): 
                 self.apiurl = 'https://nvdbapiles-v3.test.atlas.vegvesen.no/'
                 self.forbindelse.velgmiljo('testles')
-            elif args[0].lower() == 'prod': 
+            elif 'prod' in args[0].lower(): 
                 self.apiurl = 'https://nvdbapiles-v3.atlas.vegvesen.no/'
                 self.forbindelse.velgmiljo('prodles')
             else: 
