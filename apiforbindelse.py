@@ -14,7 +14,7 @@ import json
 import copy 
 import pdb
 from time import sleep
-
+from  requests.exceptions import SSLError
 
 class apiforbindelse( ):
     """
