@@ -392,6 +392,7 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
                 for segment in mittobj.vegsegmenter: 
                     # Tar kun med vegsegmenter gyldige i dag:
                     if 'geometri' in segment.keys() and not 'sluttdato' in segment.keys():
+                        # TODO - legge inn historikkstøtte! 
 
                         mygeoms.append( QgsGeometry.fromWkt(
                                             segment['geometri']['wkt'] ))

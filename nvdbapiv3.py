@@ -1016,12 +1016,19 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=Fals
                         dateutil.parser.parse( seg['startdato'] ) <= gyldigdato and \
                         dateutil.parser.parse( seg['sluttdato'] ) > gyldigdato ):
 
+
                         s2 = {  'veglenkesekvensid' : seg['veglenkesekvensid'], 
                                 'detaljnivå'        : seg['detaljnivå'],
                                 'typeVeg'           : seg['typeVeg'],
                                 'kommune'           : seg['kommune'], 
                                 'fylke'             : seg['fylke'],
                                 'vref'              : seg['vegsystemreferanse']['kortform']   }
+
+                        if 'vegsystem' in seg.keys():
+                            s2['vegkategori'] = seg['vegsystem']['vegkategori']
+                            s2['fase'] = seg['vegsystem']['fase']
+                            s2['nummer'] = seg['vegsystem']['nummer']
+
 
                         if 'startposisjon' in seg.keys() and 'sluttposisjon' in seg.keys():
                             s2['startposisjon'] = seg['startposisjon'] 
@@ -1038,6 +1045,7 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=Fals
                             if  hvaslag in seg['vegsystemreferanse'].keys(): 
                                 s2['trafikantgruppe'] = seg['vegsystemreferanse'][hvaslag]['trafikantgruppe']
                             
+
                         s2['geometri'] = seg['geometri']['wkt']
                         egenskaper_kopi = deepcopy( egenskaper )
                         egenskaper_kopi = merge_dicts( egenskaper_kopi, s2)
