@@ -1005,6 +1005,10 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=Fals
             meta['objekttype']  = feat['metadata']['type']['id']
             meta['nvdbId'] = feat['id']
             meta['versjon'] = feat['metadata']['versjon']
+            meta['startdato'] = feat['metadata']['startdato']
+            if 'sluttdato' in meta.keys():
+                meta['sluttdato'] = feat['metadata']['sluttdato']
+
             # meta['metadata'] = feat['metadata']
 
             egenskaper = egenskaper2records( feat['egenskaper'], relasjoner=relasjoner, geometri=geometri )
@@ -1027,6 +1031,7 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=Fals
                         if 'vegsystem' in seg.keys():
                             s2['vegkategori'] = seg['vegsystem']['vegkategori']
                             s2['fase'] = seg['vegsystem']['fase']
+                            s2['adskilte_lop'] = seg['vegsystem']['adskilte_løp']
                             s2['nummer'] = seg['vegsystem']['nummer']
 
 
