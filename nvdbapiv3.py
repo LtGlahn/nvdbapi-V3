@@ -1006,7 +1006,7 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=Fals
             meta['nvdbId'] = feat['id']
             meta['versjon'] = feat['metadata']['versjon']
             meta['startdato'] = feat['metadata']['startdato']
-            if 'sluttdato' in meta.keys():
+            if 'sluttdato' in feat['metadata'].keys():
                 meta['sluttdato'] = feat['metadata']['sluttdato']
 
             # meta['metadata'] = feat['metadata']
@@ -1028,11 +1028,11 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=Fals
                                 'fylke'             : seg['fylke'],
                                 'vref'              : seg['vegsystemreferanse']['kortform']   }
 
-                        if 'vegsystem' in seg.keys():
-                            s2['vegkategori'] = seg['vegsystem']['vegkategori']
-                            s2['fase'] = seg['vegsystem']['fase']
-                            s2['adskilte_lop'] = seg['vegsystem']['adskilte_løp']
-                            s2['nummer'] = seg['vegsystem']['nummer']
+                        vr = 'vegsystemreferanse'
+                        if 'vegsystem' in seg[vr].keys():
+                            s2['vegkategori'] = seg[vr]['vegsystem']['vegkategori']
+                            s2['fase'] = seg[vr]['vegsystem']['fase']
+                            s2['nummer'] = seg[vr]['vegsystem']['nummer']
 
 
                         if 'startposisjon' in seg.keys() and 'sluttposisjon' in seg.keys():
@@ -1043,6 +1043,9 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=Fals
                             s2['relativPosisjon'] = seg['relativPosisjon']
                         else: 
                             print( 'Snål feil, mangler posisjon langs lenkesekvens???', feat['id'])
+
+                        if 'strekning' in seg[vr].keys() and 'adskilte_løp' in seg[vr]['strekning']:
+                            s2['adskilte_lop'] = seg[vr]['strekning']['adskilte_løp']
 
 
                         delkeys = [ 'strekning', 'kryssdel', 'sideanlegg']

@@ -8,7 +8,8 @@ https://www.vegdata.no/2016/03/09/utviklerutgave-av-skrive-apiet-tilgjengelig-pa
 
 apiskrivforbindelse - Klasse som håndterer alt det praktiske med 
 innlogging mot skriveapi. Kan brukes til å lese data fra 
-skriveapi-endrepunkt (skriveoperasjoner, endringssett, låser m.m.)
+skriveapi-endrepunkt (skriveoperasjoner, endringssett, låser m.m.). 
+Brukes av klassen endringssett. 
 
 Merk funksjonen klientinfo('Passe unik tekststreng'). Denne setter headeren 
 X-Client lik tekststrengen. Bruk det til å søke / filtrere / gruppere i 
@@ -25,6 +26,10 @@ Selve endringssettet - de data som skal skrives / endres / lukkes / korrigeres /
 er en python-dict i endringssett.data  - attributten. Du kan legge data dit 
 automatisk ved å sende dem inn som argument når du oppretter endringssett-objektet
 
+En instans av endringssett-klassen har en  "apiskrivforbindelse"-instans på egenskapen "forbindelse". 
+Denne kan evt byttes ut ved å kopiere en eksisterende forbindelse. Nyttig hvis du ønsker å logge inn kun 
+en gang, men har flere endringssett. 
+
 Eksempel
     e1 = endringssett( <dine skriveklare data>)
 alternativt
@@ -34,18 +39,6 @@ alternativt
 Eksempler på endringssett finner du i /generator/ - endepunktet i docker-instans, 
 evt https://www.vegvesen.no/nvdb/apiskriv/generator/
 
-Endringssettet må ha en api-forbindelse. Dette er en instans av 
-apiskrivforbindelse-objektet i attributten endringsset.forbindelse. 
-Via funksjonen endringssett.lag_forbindelse( apiskrivforbindelse ) 
-kan du (gjen)bruke en eksisterende forbindelse, eller opprette en ny. 
-
-Eksempel: 
-	endringssett.lag_forbindelse(  apiskskrivapiskrivforbindelse )
-
-Alternativt
-    endringssett()
-    endringsett.lag_forbindelse() # Lager ny forbindelse til apiskriv
-    endringssett.forbindelse.login( username=<du>, pw=<dittpassord>)
 
 EKSEMPEL, fullstending løype
     e1 = endringssett(<dine skriveklare data>)
@@ -54,7 +47,6 @@ EKSEMPEL, fullstending løype
     e1 = endringssett()
     e1.data = <dine skriveklare data>
     
-    e1.lag_forbindelse()
     e1.forbindelse.login(username='deg', pw='dittPw', miljo='docker')
     # Gjør det enklere å søke / filtrere i kontrollpanelet
     e1.forbindelse.klientinfo('Tekststreng for å skille / gruppere dine endringssett')
