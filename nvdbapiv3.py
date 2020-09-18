@@ -1032,7 +1032,8 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=Fals
                         if 'vegsystem' in seg[vr].keys():
                             s2['vegkategori'] = seg[vr]['vegsystem']['vegkategori']
                             s2['fase'] = seg[vr]['vegsystem']['fase']
-                            s2['nummer'] = seg[vr]['vegsystem']['nummer']
+                            if 'nummer' in seg[vr]['vegsystem']: 
+                                s2['nummer'] = seg[vr]['vegsystem']['nummer']
 
 
                         if 'startposisjon' in seg.keys() and 'sluttposisjon' in seg.keys():

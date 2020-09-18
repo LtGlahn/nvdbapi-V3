@@ -110,7 +110,16 @@ class apiforbindelse( ):
             miljo : None eller string, en av 
                     utvles,   testles,   prodles
                     utvskriv, testskriv, prodskriv
-            
+
+            username : None eller string, ditt brukernavn. Du blir spurt om du ikke oppgir dette
+
+            pw :  None eller string, du blir spurt om du ikke oppgir dette 
+
+            klient : None eller string, Øk sporbarhet ved å gjør det lettere å finne endringssettene dine i 
+                                        APISKRIV sitt endringssett-panel 
+
+            user_type : string, 'employe' eller XXX (hva vi nå kaller fjesløse brukere i dag)
+                                TODO: Oppdater dokumentasjon med riktig fjesløs-begrep XXX 
         
         """
         
