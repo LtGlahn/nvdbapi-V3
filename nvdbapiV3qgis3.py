@@ -600,10 +600,18 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
             # Legger til egenskapverdier fra vegsystemreferanse-strekning
             for egenskap in vegref_strekningDef: 
                 egNavn = list( egenskap.keys())[0]
-                if egNavn == 'arm' and 'arm' in mittobj['vegsystemreferanse']['strekning'].keys():
+                if egNavn == 'arm' and 'strekning' in mittobj['vegsystemreferanse'] and 'arm' in mittobj['vegsystemreferanse']['strekning'].keys():
                     egVerdier.append( str( mittobj['vegsystemreferanse']['strekning']['arm'] ) )
-                elif egNavn in mittobj['vegsystemreferanse']['strekning'].keys(): 
+                elif egNavn == 'arm' and 'kryssystem' in mittobj['vegsystemreferanse'].keys() and 'arm' in mittobj['vegsystemreferanse']['kryssystem'].keys(): 
+                    egVerdier.append( str( mittobj['vegsystemreferanse']['kryssystem']['arm'] ) ) 
+                elif egNavn == 'arm' and 'sideanlegg' in mittobj['vegsystemreferanse'].keys() and 'arm' in mittobj['vegsystemreferanse']['sideanlegg'].keys(): 
+                    egVerdier.append( str(  mittobj['vegsystemreferanse']['sideanlegg']['arm'] ) ) 
+                elif 'strekning' in mittobj['vegsystemreferanse'].keys() and egNavn in mittobj['vegsystemreferanse']['strekning'].keys(): 
                     egVerdier.append( mittobj['vegsystemreferanse']['strekning'][egNavn]) 
+                elif 'kryssystem' in mittobj['vegsystemreferanse'].keys() and egNavn in mittobj['vegsystemreferanse']['kryssystem'].keys(): 
+                    egVerdier.append( mittobj['vegsystemreferanse']['kryssystem'][egNavn]) 
+                elif 'sideanlegg' in mittobj['vegsystemreferanse'].keys() and egNavn in mittobj['vegsystemreferanse']['sideanlegg'].keys(): 
+                    egVerdier.append( mittobj['vegsystemreferanse']['sideanlegg'][egNavn]) 
                 else: 
                     egVerdier.append( None ) 
 
