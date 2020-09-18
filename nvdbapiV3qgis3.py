@@ -590,9 +590,9 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
             # Legger til egenskapverdier fra vegsystem
             for egenskap in vegref_vegsystemDef: 
                 egNavn = list( egenskap.keys())[0]
-                if egNavn == 'vegrefkort': 
+                if egNavn == 'vegrefkort' and 'vegsystemreferanse' in mittobj.keys() and  'kortform' in mittobj['vegsystemreferanse'].keys(): 
                     egVerdier.append( mittobj['vegsystemreferanse']['kortform']) 
-                elif egNavn in mittobj['vegsystemreferanse']['vegsystem'].keys(): 
+                elif 'vegsystem' in mittobj['vegsystemreferanse'].keys() and egNavn in mittobj['vegsystemreferanse']['vegsystem'].keys(): 
                     egVerdier.append( mittobj['vegsystemreferanse']['vegsystem'][egNavn]) 
                 else: 
                     egVerdier.append( None ) 
