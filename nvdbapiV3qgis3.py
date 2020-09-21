@@ -148,7 +148,8 @@ def nvdb2kart( nvdbref, iface, kunfagdata=True, kunvegnett=False,
     Nøkkelordene kunfagdata, kunvegnett og miljø sendes til funksjonen
     nvdbapi.finnid.
     
-    Resten av nøkkeordene sendes til funksjonen 
+    Resten av nøkkeordene sendes til funksjonen nvdbsok2qgis, og er 
+    dokumentert der. 
     """
 
     # Konverterer string => int
@@ -231,10 +232,11 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
             avgrenset på et område (fylke, kommune, kontraktsområde, 
             region) 
             NB! Hvis søkeobjektet allere er avgrenset til et område 
-            (fylke, 
+            (fylke, kommune, riksvegrute, kontraktsområde) så vil kartflaten ha 
+            null betydning. 
         
         geometri=None eller en av ['egen', 'vegnett', 'flate', 'linje',  
-                                                    'punkt', 'alle' ]
+                                                    'punkt', 'alle', 'vegkart ]
             Detaljstyring av hvilken egeongeometri-variant som 
             foretrekkes. Defaultverdien None returnerer den mest 
             "verdifulle" geometritypen som finnes
@@ -246,9 +248,18 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
             'alle' betyr at vi viser ALLE egengeometriene til objektet 
             pluss vegnettsgeometri (hvis da ikke dette overstyres med 
             valget inkludervegnett='aldri')
+
+            valget 'vegkart' betyr at vi benytter data fra objektets "geometri"-element, 
+            dvs samme visning som Vegkart. Logikken med prioritering av geometrityper i rekkefølgen 
+            egengeometri, flate,  -linje, -punkt og vegnettgeometri er den samme. Forskjellen er at 
+            abstrakte strekningsobjekt (fartsgrense, bruksklasse) ofte vil ha en blanding av multi- og 
+            single linestring. Dette blir to separate lag i QGIS-kartflaten. Fordelen er at et objekt 
+            vil ha en og kun en geometrirepresentasjon. Alternativet 'beste' eller 'vegnett' vil representere
+            NVDB-objektet som et eller mange geografiske features i kartflaten, alt ettersom hvor mange 
+            vegsegmenter objekter er fordelt over.  
                 
-        inkludervegnett='beste' | 'alltid' | 'aldri' 
-            Default='beste' betyr at vi kun viser vegnettsgeometri hvis det 
+        inkludervegnett='beste' | 'alltid' | 'aldri' | 'multi' 
+            Default='beste' betyr at vi kun viser vegnettsgeometri hvis det
                     ikke finnes egengeometri. 
                     (Tilsvarer geometritype="beste") 
             'alltid' :  Vis ALLTID vegnettsgeometri i tillegg til 
@@ -275,7 +286,7 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
         print( "Her skal det debugges, ja")
     
     # Sjekker input data    
-    gtyper = [ 'flate', 'linje', 'punkt', 'vegnett', 'alle', 'beste' ]
+    gtyper = [ 'flate', 'linje', 'punkt', 'vegnett', 'alle', 'beste', 'vegkart' ]
     if gt and isinstance(gt, str ) and gt.lower() not in gtyper: 
         print( 'nvdb2kart: Ukjent geometritype angitt:', gt, 
             'skal være en av:', gtyper) 
@@ -379,6 +390,10 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
                 if debug:
                     print( mittobj.id, "punkt", "\n\t", punktgeom, 
                             "\n\t", mygeoms[-1].asWkt()[0:100])
+
+            if gt == 'vegkart': 
+                mygeoms.append( QgsGeometry.fromWkt( mittobj.geometri['wkt'] ) )  
+                beste_gt_suksess = True
             
             # Skal vi vise vegnettsgeometri? Itererer i så fall 
             # over alle vegnett-geometrier 
