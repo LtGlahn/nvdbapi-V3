@@ -6,6 +6,7 @@ Klasser og funksjoner for å føye NVDB vegnett og fagdata til QGIS 3
 from qgis.core import QgsProject,  QgsVectorLayer, QgsFeature, QgsGeometry, QgsPoint, QgsLineString
 from nvdbapiv3 import nvdbVegnett, nvdbFagdata, nvdbFagObjekt, finnid
 from copy import deepcopy
+import pdb
 
 
 class memlayerwrap(): 
@@ -189,7 +190,7 @@ def nvdb2kart( nvdbref, iface, kunfagdata=True, kunvegnett=False,
                                 '_' + str( nvdbref) 
             
             elif isinstance( fag, list) and len(fag) > 0 and \
-            isinstance( fag[0], dict) and 'veglenkeid' in fag[0].keys():
+            isinstance( fag[0], dict) and 'veglenkesekvensid' in fag[0].keys():
                 
                 sokeobj = nvdbVegnett()
                 sokeobj.data['objekter'] = fag
@@ -199,6 +200,7 @@ def nvdb2kart( nvdbref, iface, kunfagdata=True, kunvegnett=False,
  
             else: 
                 print( "fant ingen data???", str(nvdbref) )
+                print( fag )
                 return
             
             sokeobj.paginering['dummy'] = True
