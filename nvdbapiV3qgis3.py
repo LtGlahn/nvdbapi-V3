@@ -237,8 +237,8 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
             (fylke, kommune, riksvegrute, kontraktsområde) så vil kartflaten ha 
             null betydning. 
         
-        geometri=None eller en av ['egen', 'vegnett', 'flate', 'linje',  
-                                                    'punkt', 'alle', 'vegkart ]
+        geometritype=None eller en av ['egen', 'vegnett', 'flate', 'linje',  
+                                                    'punkt', 'alle', 'vegkart' ]
             Detaljstyring av hvilken egeongeometri-variant som 
             foretrekkes. Defaultverdien None returnerer den mest 
             "verdifulle" geometritypen som finnes
