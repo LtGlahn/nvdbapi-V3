@@ -663,7 +663,7 @@ class nvdbFagdata(nvdbVegnett):
 
         if len(arg) == 0: 
             for eg in self.objektTypeDef['egenskapstyper']:
-                print( eg['id'], eg['navn'], eg['datatype_tekst'] )
+                print( eg['id'], eg['navn'], eg['egenskapstype'] )
                 
         else: 
             for eg in self.objektTypeDef['egenskapstyper']:
