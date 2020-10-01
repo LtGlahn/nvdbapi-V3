@@ -24,19 +24,9 @@ from apiforbindelse import apiforbindelse
 
 
 
-def finnDuplikat( minliste): 
-    """
-    Finner duplikat i liste 
-    """
-    pass 
-
-
 def nvdb2gpkg( objekttyper, filnavn='datadump', mittfilter=None):
     """
     Lagrer NVDB vegnett og angitte objekttyper til geopackage
-
-    TODO: Føy på støtte for skjermede objekttyper og egenskapverdier
-        (f.eks. legg på mulighet for å sende inn ferdig logget inn instans av apiforbindelse  )
 
     ARGUMENTS
         objekttyper: Liste med objekttyper du vil lagre 
@@ -69,34 +59,70 @@ def nvdb2gpkg( objekttyper, filnavn='datadump', mittfilter=None):
         lagnavn = 'type' + str(enObjTypeId) + '_' + nvdbapiv3.esriSikkerTekst( objtypenavn.lower() ) 
 
         rec = sok.to_records( vegsegmenter=False, geometri=True )
-        mindf = pd.DataFrame( rec )
-        # Må trickse litt for å unngå navnekollisjon
-        kolonner = list( mindf.columns )
-        lowerkolonner = [ x.lower() for x in kolonner ]
-        # Duplicate element indices in list 
-        # Using list comprehension + list slicing 
-        # https://www.geeksforgeeks.org/python-duplicate-element-indices-in-list/ 
-        res = [idx for idx, val in enumerate(lowerkolonner) if val in lowerkolonner[:idx]] 
-        for ii, dublett in enumerate( res):
-            mindf.rename(columns={ mindf.columns[dublett] : kolonner[dublett] + '_' + str( ii+1 )  }, inplace=True )
+        if len( rec ) > 0: 
+            mindf = pd.DataFrame( rec )
+            # Må trickse litt for å unngå navnekollisjon
+            kolonner = list( mindf.columns )
+            lowerkolonner = [ x.lower() for x in kolonner ]
+            # Duplicate element indices in list 
+            # Using list comprehension + list slicing 
+            # https://www.geeksforgeeks.org/python-duplicate-element-indices-in-list/ 
+            res = [idx for idx, val in enumerate(lowerkolonner) if val in lowerkolonner[:idx]] 
+            for ii, dublett in enumerate( res):
+                mindf.rename(columns={ mindf.columns[dublett] : kolonner[dublett] + '_' + str( ii+1 )  }, inplace=True )
 
-        mindf['geometry'] = mindf['geometri'].apply( wkt.loads )
-        minGdf = gpd.GeoDataFrame( mindf, geometry='geometry', crs=5973 )       
-        # må droppe kolonne vegsegmenter hvis du har vegsegmenter=False 
-        if 'vegsegmenter' in minGdf.columns:
-            minGdf.drop( 'vegsegmenter', 1, inplace=True)
+            mindf['geometry'] = mindf['geometri'].apply( wkt.loads )
+            minGdf = gpd.GeoDataFrame( mindf, geometry='geometry', crs=5973 )       
+            # må droppe kolonne vegsegmenter hvis du har vegsegmenter=False 
+            if 'vegsegmenter' in minGdf.columns:
+                minGdf.drop( 'vegsegmenter', 1, inplace=True)
 
-        minGdf.drop( 'geometri', 1, inplace=True)
-        minGdf.to_file( filnavn, layer=lagnavn, driver="GPKG")  
-        
+            minGdf.drop( 'geometri', 1, inplace=True)
+            minGdf.to_file( filnavn, layer=lagnavn, driver="GPKG")  
+        else: 
+            print( 'Ingen forekomster av', objtypenavn, 'for filter', mittfilter)        
 
     veg = nvdbapiv3.nvdbVegnett()
     if mittfilter: 
         veg.filter( mittfilter )
-    
+    print( 'Henter vegnett')
     rec = veg.to_records()
     mindf = pd.DataFrame( rec)
     mindf['geometry'] = mindf['geometri'].apply( wkt.loads )
     mindf.drop( 'geometri', 1, inplace=True)
     minGdf = gpd.GeoDataFrame( mindf, geometry='geometry', crs=5973 )       
     minGdf.to_file( filnavn, layer='vegnett', driver="GPKG")  
+
+
+def dumpkontraktsomr( ): 
+    """
+    Dumper et har (hardkodede) kontraktsområder 
+    """
+
+    komr = [ '9302 Haugesund 2020-2025', '9304 Bergen', '9305 Sunnfjord'  ]
+
+    objliste = [    540, # Trafikkmengde
+                    105, # Fartsgrense
+                    810, # Vinterdriftsklasse
+                    482, # trafikkregistreringsstasjon
+                    153, # Værstasjon
+                    64, # Ferjeleie
+                    39, # Rasteplass 
+                    48, # Fortau
+                    199, # Trær
+                    15, # Grasdekker
+                    274, # Blomsterbeplanting
+                    511, # Busker
+                    300 , # Naturområde (ingen treff i Haugesund kontrakt)
+                    517, # Artsrik vegkant
+                    800, # Fremmede arter
+                    67, # Tunnelløp
+                    846, # Skredsikring, bremsekjegler 
+                    850 # Skredsikring, forbygning
+            ]
+
+    for enkontrakt in komr: 
+
+        filnavn = nvdbapiv3.esriSikkerTekst( enkontrakt )
+
+        nvdb2gpkg( objliste, filnavn=filnavn, mittfilter={'kontraktsomrade' : enkontrakt })

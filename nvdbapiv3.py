@@ -24,6 +24,7 @@ from time import sleep
 import pdb
 from datetime import datetime
 import dateutil.parser
+import re
 
 import apiforbindelse
 
@@ -463,7 +464,17 @@ class nvdbVegnett:
                 
     def to_records(self): 
         """
-        Eksporterer søk for vegnett til liste med NVDB api V3 segmentert vegnett, littegrann utflatet
+        Eksporterer søk for vegnett til liste med NVDB api V3 segmentert vegnett, littegrann forflatet
+
+        Vi henter informasjon fra strekning, sideanlegg og kryssystem og legger på rot-nivå, slik at det 
+        blir enklere å bruke. 
+
+        ARGUMENTS
+            None
+        KEYWORDS 
+            None 
+        Returns
+            Liste med segmentert vegnett fra NVDB api V3, forflatet for enklere bruk 
         """
 
         data = []
@@ -472,37 +483,57 @@ class nvdbVegnett:
 
             metadata = v1.pop( 'metadata', { } )
             v1.update( metadata)
-            if 'feltoversikt' in v1.keys(): 
-                v1['feltoversikt'] = '#'.join( v1['feltoversikt'])
-            v1['geometri'] = v1['geometri']['wkt']
-            v1['vref'] = ''
             vr = 'vegsystemreferanse'
-            if vr in v1.keys(): 
+            vsys = 'vegsystem'
+            strek = 'strekning'
+            kryss = 'kryssystem'
+            sidea = 'sideanlegg'
 
-                if 'kortform ' in v1[vr].keys(): 
-                    v1['vref'] = v1[vr]['kortform']
+            struktur = [ 
+                { 'navn' : 'geometri',  'verdi' : { 'l1' : 'geometri',    'l2' : 'wkt'  }},
+                { 'navn' : 'vref',      'verdi' : { 'l1' : vr,            'l2' : 'kortform'  }}
+            ]
 
-                if 'vegsystem' in v1[vr].keys(): 
+            for mykey in struktur: 
+                try: 
+                     v1[mykey['navn']] = v1[mykey['verdi']['l1']][mykey['verdi']['l2']]
+                except KeyError: 
+                    pass                 
 
-                    if 'vegkategori' in v1[vr]['vegsystem'].keys():
-                        v1['vegkategori'] = v1[vr]['vegsystem']['vegkategori']            
+            # Gjør om feltoversikt fra liste-objekt til (kommaseparert) ren tekst 
+            try: 
+                v1['feltoversikt']  = ', '.join( v1['feltoversikt'])
+            except KeyError: 
+                pass 
 
+            # Noen av disse verdiene hentes fra strekning, men overskrives med  data
+            # fra kryssdel eller sidenanlegg dersom de finnes. 
+            # Vi følger python-idomet med å prøve om verdiene er der og ubekymret springe 
+            # videre hvis de ikke finnes. 
+            struktur = [{ 'navn' : 'vegkategori'     , 'verdi' :  { 'l1' : vr, 'l2' : vsys, 'l3' : 'nummer'             }}, 
+                        { 'navn' : 'fase'            , 'verdi' :  { 'l1' : vr, 'l2' : vsys, 'l3' : 'fase'               }},  
+                        { 'navn' : 'nummer'          , 'verdi' :  { 'l1' : vr, 'l2' : vsys, 'l3' : 'nummer'             }}, 
+                        { 'navn' : 'strekning'       , 'verdi' :  { 'l1' : vr, 'l2' : strek, 'l3' : 'strekning'         }}, 
+                        { 'navn' : 'delstrekning'    , 'verdi' :  { 'l1' : vr, 'l2' : strek, 'l3' : 'delstrekning'      }}, 
+                        { 'navn' : 'ankerpunktmeter' , 'verdi' :  { 'l1' : vr, 'l2' : strek, 'l3' : 'meter'             }}, 
+                        { 'navn' : 'kryssdel'        , 'verdi' :  { 'l1' : vr, 'l2' : kryss, 'l3' : 'kryssdel'          }}, 
+                        { 'navn' : 'sideanleggsdel'  , 'verdi' :  { 'l1' : vr, 'l2' : sidea, 'l3' : 'sideanleggsdel'    }},   
+                        { 'navn' : 'fra_meter'       , 'verdi' :  { 'l1' : vr, 'l2' : strek, 'l3' : 'fra_meter'         }}, 
+                        { 'navn' : 'til_meter'       , 'verdi' :  { 'l1' : vr, 'l2' : strek, 'l3' : 'til_meter'         }}, 
+                        { 'navn' : 'trafikantgruppe' , 'verdi' :  { 'l1' : vr, 'l2' : strek, 'l3' : 'trafikantgruppe'   }}, 
+                        { 'navn' : 'fra_meter'       , 'verdi' :  { 'l1' : vr, 'l2' : kryss, 'l3' : 'fra_meter'         }}, 
+                        { 'navn' : 'til_meter'       , 'verdi' :  { 'l1' : vr, 'l2' : kryss, 'l3' : 'til_meter'         }}, 
+                        { 'navn' : 'trafikantgruppe' , 'verdi' :  { 'l1' : vr, 'l2' : kryss, 'l3' : 'trafikantgruppe'   }}, 
+                        { 'navn' : 'fra_meter'       , 'verdi' :  { 'l1' : vr, 'l2' : sidea, 'l3' : 'fra_meter'         }}, 
+                        { 'navn' : 'til_meter'       , 'verdi' :  { 'l1' : vr, 'l2' : sidea, 'l3' : 'til_meter'         }}, 
+                        { 'navn' : 'trafikantgruppe' , 'verdi' :  { 'l1' : vr, 'l2' : sidea, 'l3' : 'trafikantgruppe'   }} 
+                        ]
 
-                    if 'fase' in v1[vr]['vegsystem'].keys():
-                        v1['fase'] = v1[vr]['vegsystem']['fase']            
-
-                    if 'nummer' in v1[vr]['vegsystem'].keys():
-                        v1['nummer'] = v1[vr]['vegsystem']['nummer']            
-
-                # Henter trafikantgruppe
-                if 'strekning' in v1[vr].keys() and 'trafikantgruppe' in v1[vr]['strekning'].keys():
-                    v1['trafikantgruppe'] = v1[vr]['strekning']['trafikantgruppe']
-
-                if 'kryssystem' in v1[vr].keys() and 'trafikantgruppe' in v1[vr]['kryssystem'].keys():
-                    v1['trafikantgruppe'] = v1[vr]['kryssystem']['trafikantgruppe']
-
-                if 'sidealegg' in v1[vr].keys() and 'trafikantgruppe' in v1[vr]['sidealegg'].keys():
-                    v1['trafikantgruppe'] = v1[vr]['sidealegg']['trafikantgruppe']
+            for mykey in struktur: 
+                try: 
+                    v1[mykey['navn']] = v1[mykey['verdi']['l1']][mykey['verdi']['l2']][mykey['verdi']['l3']]
+                except KeyError: 
+                    pass 
             
             v1.pop( 'kontraktsområder', None)
             v1.pop( 'riksvegruter', None)
