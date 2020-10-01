@@ -461,6 +461,59 @@ class nvdbVegnett:
         print( 'Pagineringsinfo: Antall objekt i databuffer=', len( self.data['objekter']))
         print( json.dumps( self.paginering, indent = 4)) 
                 
+    def to_records(self): 
+        """
+        Eksporterer søk for vegnett til liste med NVDB api V3 segmentert vegnett, littegrann utflatet
+        """
+
+        data = []
+        v1 = self.nesteForekomst()
+        while v1: 
+
+            metadata = v1.pop( 'metadata', { } )
+            v1.update( metadata)
+            if 'feltoversikt' in v1.keys(): 
+                v1['feltoversikt'] = '#'.join( v1['feltoversikt'])
+            v1['geometri'] = v1['geometri']['wkt']
+            v1['vref'] = ''
+            vr = 'vegsystemreferanse'
+            if vr in v1.keys(): 
+
+                if 'kortform ' in v1[vr].keys(): 
+                    v1['vref'] = v1[vr]['kortform']
+
+                if 'vegsystem' in v1[vr].keys(): 
+
+                    if 'vegkategori' in v1[vr]['vegsystem'].keys():
+                        v1['vegkategori'] = v1[vr]['vegsystem']['vegkategori']            
+
+
+                    if 'fase' in v1[vr]['vegsystem'].keys():
+                        v1['fase'] = v1[vr]['vegsystem']['fase']            
+
+                    if 'nummer' in v1[vr]['vegsystem'].keys():
+                        v1['nummer'] = v1[vr]['vegsystem']['nummer']            
+
+                # Henter trafikantgruppe
+                if 'strekning' in v1[vr].keys() and 'trafikantgruppe' in v1[vr]['strekning'].keys():
+                    v1['trafikantgruppe'] = v1[vr]['strekning']['trafikantgruppe']
+
+                if 'kryssystem' in v1[vr].keys() and 'trafikantgruppe' in v1[vr]['kryssystem'].keys():
+                    v1['trafikantgruppe'] = v1[vr]['kryssystem']['trafikantgruppe']
+
+                if 'sidealegg' in v1[vr].keys() and 'trafikantgruppe' in v1[vr]['sidealegg'].keys():
+                    v1['trafikantgruppe'] = v1[vr]['sidealegg']['trafikantgruppe']
+            
+            v1.pop( 'kontraktsområder', None)
+            v1.pop( 'riksvegruter', None)
+
+            data.append( v1 )
+
+            v1 = self.nesteForekomst()
+
+        return data
+
+
 class nvdbFagdata(nvdbVegnett): 
     """Søkeobjekt - dvs klasse for spørringer mot NVDB ang en spesifikk objekttype. 
     Jobber dynamisk mot NVDB api for å hente statistikk, laste ned data etc.
@@ -1039,7 +1092,7 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=Fals
                         if 'startposisjon' in seg.keys() and 'sluttposisjon' in seg.keys():
                             s2['startposisjon'] = seg['startposisjon'] 
                             s2['sluttposisjon'] = seg['sluttposisjon']
-                            s2['lengde']        = seg['lengde']
+                            s2['segmentlengde']        = seg['lengde']
                         elif 'relativPosisjon' in seg.keys(): 
                             s2['relativPosisjon'] = seg['relativPosisjon']
                         else: 
@@ -1065,7 +1118,8 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=Fals
                 egenskaper['vegsegmenter']        = feat['vegsegmenter']
                 if 'geometri' in feat.keys():
                     egenskaper['geometri']  = feat['geometri']['wkt']
-                egenskaper['lengde'] = feat['lokasjon']['lengde']
+                if 'lengde' in feat['lokasjon']: 
+                    egenskaper['strekningslengde'] = feat['lokasjon']['lengde']
                 mydata.append( egenskaper )
 
         else: 
@@ -1176,3 +1230,38 @@ def merge_dicts(*dict_args):
     for dictionary in dict_args:
         result.update(dictionary)
     return result
+
+def esriSikkerTekst( mintekst): 
+    """
+    Fjerner kjipe tegn fra tekststreng. Står igjen med kun bokstaver, tall og underscore
+
+    Nyttig f.eks for å sikre at navn på kartlag og egenskaper ikke gir krøll i ulike kartsystem
+
+    ARGUMENTS
+        mintekst - tekststreng 
+
+    KEYWORDS
+        None
+    
+    RETURNS
+        mintekst hvor skumle tegn (mellomrom, komma, skråstrek, bindestrek m.m.) er byttet ut med 
+                underscore. 
+
+    """
+
+    # Bytter ut noen spesialtegn med underscore 
+    mintekst = re.sub( ',', '_', mintekst)
+    mintekst = re.sub( '/', '_', mintekst)
+    mintekst = re.sub( ' ', '_', mintekst)
+    mintekst = re.sub( '-', '_', mintekst)
+
+    # Fjerner opphopning av underscores 
+    mintekst = re.sub( '__', '_', mintekst)
+    mintekst = re.sub( '__', '_', mintekst)
+    mintekst = re.sub( '__', '_', mintekst)
+
+
+    tt = [val for val in mintekst if val.isalpha() or val.isnumeric() or val == '_' ] 
+    mintekst = ''.join( tt )
+
+    return mintekst 
