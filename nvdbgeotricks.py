@@ -126,3 +126,147 @@ def dumpkontraktsomr( ):
         filnavn = nvdbapiv3.esriSikkerTekst( enkontrakt )
 
         nvdb2gpkg( objliste, filnavn=filnavn, mittfilter={'kontraktsomrade' : enkontrakt })
+
+
+def firefeltrapport( mittfilter={}): 
+    """
+    Finner alle firefeltsveger i Norge, evt innafor angitt søkekriterie 
+
+    Bruker søkeobjektet nvdbapiv3.nvdbVegnett fra biblioteket https://github.com/LtGlahn/nvdbapi-V3
+
+    ARGUMENTS
+        None 
+
+    KEYWORDS:
+        mittfilter: Dictionary med søkefilter 
+
+    RETURNS
+        geodataframe med resultatet
+    """
+
+    v = nvdbapiv3.nvdbVegnett()
+
+    # Legger til filter på kun fase = V (eksistende veg), såfremt det ikke kommer i konflikt med anna filter
+    if not 'vegsystemreferanse' in mittfilter.keys(): 
+        mittfilter['vegsystemreferanse'] = 'Ev,Rv,Fv,Kv,Sv,Pv'
+
+    if not 'kryssystem' in mittfilter.keys():
+        mittfilter['kryssystem'] = 'false' 
+
+    if not 'sideanlegg' in mittfilter.keys():
+        mittfilter['sideanlegg'] = 'false' 
+
+    v.filter( mittfilter )
+    
+    # Kun kjørende, og kun øverste topologinivå, og ikke adskiltelop=MOT
+    v.filter( { 'trafikantgruppe' : 'K', 'detaljniva' : 'VT,VTKB', 'adskiltelop' : 'med,nei' } )
+
+    data = []
+    vegsegment = v.nesteForekomst()
+    while vegsegment: 
+
+        if sjekkfelt( vegsegment, felttype='firefelt'):
+            vegsegment['feltoversikt']  = ','.join( vegsegment['feltoversikt'] )
+            vegsegment['geometri']      = vegsegment['geometri']['wkt']
+            vegsegment['vref']          = vegsegment['vegsystemreferanse']['kortform']
+            vegsegment['vegnr']         = vegsegment['vref'].split()[0]
+            vegsegment['vegkategori']   = vegsegment['vref'][0]
+            vegsegment['adskilte løp']  = vegsegment['vegsystemreferanse']['strekning']['adskilte_løp']
+
+            data.append( vegsegment )
+
+        vegsegment = v.nesteForekomst()
+
+    if len( data ) > 1: 
+        mindf = pd.DataFrame( data )
+        mindf['geometry'] = mindf['geometri'].apply( wkt.loads )
+        mindf.drop( 'geometri', 1, inplace=True)
+        mindf.drop( 'kontraktsområder', 1, inplace=True)
+        mindf.drop( 'riksvegruter', 1, inplace=True) 
+        mindf.drop( 'href', 1, inplace=True) 
+        mindf.drop( 'metadata', 1, inplace=True) 
+        mindf.drop( 'kortform', 1, inplace=True) 
+        mindf.drop( 'veglenkenummer', 1, inplace=True) 
+        mindf.drop( 'segmentnummer', 1, inplace=True) 
+        mindf.drop( 'startnode', 1, inplace=True) 
+        mindf.drop( 'sluttnode', 1, inplace=True) 
+        mindf.drop( 'referanse', 1, inplace=True) 
+        mindf.drop( 'målemetode', 1, inplace=True) 
+        mindf.drop( 'måledato', 1, inplace=True) 
+        minGdf = gpd.GeoDataFrame( mindf, geometry='geometry', crs=5973 ) 
+        return minGdf
+    else: 
+        return None 
+
+
+def sjekkfelt( vegsegment, felttype='firefelt' ): 
+    """
+    Sjekker hva slags felt som finnes på et vegsegment
+
+    ARGUMENTS: 
+        vegsegment - dicionary med data om en bit av vegnettet hentet fra https://nvdbapiles-v3.atlas.vegvesen.no/vegnett/veglenkesekvenser/segmentert/ 
+
+    KEYWORDS: 
+        felttype - hva slags felttype som skal sjekkes. Mulige verdier: 
+            firefelt (default). Antar at firefeltsveg betyr at kjørefeltnummer 1-4 er brukt og er enten vanlig kj.felt, kollektivfelt eller reversibelt felt 
+
+                     (flere varianter kommer når de trengs)
+
+    RETURNS
+        boolean - True hvis kjørefeltene er av riktig type 
+    """
+    svar = False
+    vr = 'vegsystemreferanse'
+    sr = 'strekning'
+
+    if felttype == 'firefelt': 
+        if 'feltoversikt' in vegsegment.keys() and 'detaljnivå' in vegsegment.keys() and 'Vegtrase' in vegsegment['detaljnivå']: 
+            kjfelt = set( filtrerfeltoversikt( vegsegment['feltoversikt'], mittfilter=['vanlig', 'K', 'R']) )
+            if vr in vegsegment.keys(): 
+
+                if sr in vegsegment[vr] and 'adskilte_løp' in vegsegment[vr][sr]: 
+                    if vegsegment[vr][sr]['adskilte_løp'] == 'Nei' and kjfelt.issuperset( { 1, 2, 3, 4}): 
+                        svar = True
+                    elif vegsegment[vr][sr]['adskilte_løp'] == 'Med' and len( kjfelt ) >= 2: 
+                        svar = True 
+
+
+        return svar 
+    else: 
+        raise NotImplementedError('Sjekkfelt: Sjekk for felt av type: ' + felttype + 'er ikke implementert (ennå)' )
+        
+
+def filtrerfeltoversikt( feltoversikt, mittfilter=['vanlig', 'K', 'R' ]):
+    """
+    Returnerer liste med kjørefeltnummer filtrert på hva slags feltkode vi evt har
+
+    ARGUMENTS
+        feltoversikt - Liste med feltkoder for et vegsegment. 
+
+    KEYWORDS
+        mittfilter=['vanlig', 'K', 'R' ] - Liste med koder for hva slags felt vi skal telle med. Sjekk håndbok v830 
+            Nasjonalt vegreferansesystem https://www.vegvesen.no/_attachment/61505 for mulige verdier, kortversjon: 
+                'vanlig' - Helt vanlig kjørefelt, kjørefeltnumemr er angitt som heltall uten noen bokstaver. 
+                'K'      - kollektivfelt
+                'R'      - reversibelt felt
+                'S'      - Sykkelfelt
+                'H'      - Svingefelt mot høyre
+                'V'      - Svingefelt mot venstre
+                'B'      - Ekstra felt for bompengeinnkreving 
+    RETURNS
+        Liste med kjørefeltnummer hvor kun kjørefelt som  angitt med mittfilter-nøkkelord er inkludert 
+    """
+    data = [ ]
+    for felt in feltoversikt: 
+        feltbokstav = re.findall( '[A-Za-z]', felt)
+        if feltbokstav: 
+            feltbokstav = feltbokstav[0]
+        else: 
+            feltbokstav = 'vanlig'
+        
+        if feltbokstav in mittfilter: 
+            feltnummer = int( re.split( '[A-Z]', felt)[0] ) 
+            data.append( feltnummer )
+
+    return data 
+        
