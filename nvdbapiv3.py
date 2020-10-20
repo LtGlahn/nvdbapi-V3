@@ -1242,8 +1242,12 @@ def egenskaper2records( egenskaper, relasjoner=False, geometri=False ):
                 data[vedleggnavn] = eg['href']
 
             elif geometri or not 'geometri' in eg['navn'].lower(): 
-                data[eg['navn']] = eg['verdi']
-        
+                if 'egenskapstype' in eg.keys() and eg['egenskapstype'] == 'Binær' and 'href' in eg.keys(): 
+                    data[eg['navn']] = eg['href']
+                else: 
+                    data[eg['navn']] = eg['verdi']
+                # TODO må kanskje gå gjennom egenskaptype-varianter mer i detalj og eksplisitt? 
+
     if relasjoner: 
         warn( 'Uthenting av relasjoner fra egenskapverdier er ikke implementert (ennå)')
 

@@ -227,7 +227,8 @@ def sjekkfelt( vegsegment, felttype='firefelt' ):
                 if sr in vegsegment[vr] and 'adskilte_løp' in vegsegment[vr][sr]: 
                     if vegsegment[vr][sr]['adskilte_løp'] == 'Nei' and kjfelt.issuperset( { 1, 2, 3, 4}): 
                         svar = True
-                    elif vegsegment[vr][sr]['adskilte_løp'] == 'Med' and len( kjfelt ) >= 2: 
+                    # Siste klausul her har f.eks. forekommet på Fv5724, envegskjørt tunnel ved Oldenvatnet. 
+                    elif vegsegment[vr][sr]['adskilte_løp'] == 'Med' and len( kjfelt ) >= 2 and not kjfelt.issuperset( {1, 2} ): 
                         svar = True 
 
 
