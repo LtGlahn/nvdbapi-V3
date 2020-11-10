@@ -2,7 +2,7 @@
 
 Jobb interaktivt og objektorientert mot NVDB api V3! 
 
-Les først gjennom [https://api.vegdata.no/](https://api.vegdata.no/)
+Les først gjennom [https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/](https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/)
 for nyttige tips og innblikk i logikken. 
 
 Rutinene håndterer all kommunikasjon mot NVDB API, inklusive paginering (d.v.s. vi henter passe
@@ -25,7 +25,7 @@ Hovedrutinen *nvdbapiv3.py* er skrevet i python3, men burde også fungere med py
 2. Søkeobjektene har funksjoner for å avgrense søk, og hente ut alle data som tilfredssstiller søket. 
 3. Noen funksjoner _(f.eks. nvdb2geojson)_ tar et slik søkeobjekt og transformerer til andre datastrukturer, tabulære data m.m.
 4. Fra søkeobjektet kan du iterere over alle NVDB-objekter som tilfredsstiller søket ditt: 
-    1. Enten som JSON-objekt [rett fra NVDB api](https://api.vegdata.no/endepunkt/vegobjekter.html "Vegobjekter i NVDB api")
+    1. Enten som JSON-objekt [rett fra NVDB api](https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/#/Vegobjekter/get_vegobjekter__vegobjekttypeid_ "Vegobjekter i NVDB api")
     2. Eller som et _*nvdbFagObjekt*_, som har en del fiffige funksjoner for å hente ut egenskapverdier m.m. 
 7. I tillegg til søkeobjekten har vi en del hjelpefunksjoner
    1. finnid: Henter vegobjekt og/eller lenkesekvens med angitt ID
@@ -39,11 +39,11 @@ Søkeobjekt for å hente segmentert vegnett fra NVDB api.
 ## nvdbFagdata(objektTypeId) 
 
 Søkeobjekt for å hente fagdata (ikke vegnett, men øvrige data om vegen). Totalt har vi definert i underkant av 400 ulike objekttyper
-i [datakatalogen](https://www.vegvesen.no/nvdb/apidokumentasjon/#/get/vegobjekttyper). 
+i [datakatalogen](https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/#/Vegobjekter/get_vegobjekter__vegobjekttypeid___vegobjektid_). 
 
 nvdbFagdata utvider klassen nvdbVegnett, og arver metoder og egenskaper fra denne. 
 
-argumentet objektTypeID (heltall) angir hvilke objekttype vi jobber med, definert i [datakatalogen](https://www.vegvesen.no/nvdb/apidokumentasjon/#/get/vegobjekttyper)
+argumentet objektTypeID (heltall) angir hvilke objekttype vi jobber med, definert i [datakatalogen](https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/#/Vegobjekter/get_vegobjekter__vegobjekttypeid___vegobjektid_)
 
 # Felles metoder for nvdbVegnett og nvdbFagdata
 
@@ -55,7 +55,7 @@ Sletter alle nedlastede data, og nullstiller telleverket i paginering.
 ### filter( FILTERARG )
 
 FILTERARG er en python dictionary med relevante filtre. Søkeobjektene `nvdbVegnett` og `nvdbFagdata` støtter begge geografiske filtre (fylke, kommune, kartutsnitt, vegsystemreferanse), men kun `nvdbFagdata` har avanserte egenskapsfilter og overlappfilter. Og `nvdbVegnett` støtter en del filter som kun er relevant for vegnett (typeeveg, adskilte løp etc). 
-Se [dokumentasjon NVDB api V3](https://api.vegdata.no)
+Se [dokumentasjon NVDB api V3](https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/#/Vegnett/get_vegnett_veglenkesekvenser_segmentert)
 
 
 Eksempel
@@ -142,7 +142,7 @@ Søk etter NVDB fagdata (vegobjekter) har en del avanserte muligheter.
 
 ### Søk etter egenskapverdi 
 
-Tekststreng med filtre for egenskapsverdier. Se dokumentasjon for [egenskapsfiltre](https://api.vegdata.no)
+Tekststreng med filtre for egenskapsverdier. Se dokumentasjon for [egenskapsfiltre](https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/#operations-Vegobjekter-get_vegobjekter__vegobjekttypeid_)
 
 ```
 p = nvdbFagdata( 809) # Døgnhvileplass 
@@ -154,7 +154,7 @@ p.filter( '' ) # Nullstiller alle filtre.
 
 ### Overlappsøk  
 
-Henter fagdata som overlapper med annen objekttype (evt med eget filter). Se dokumentasjon for [overlappfilter](https://api.vegdata.no)
+Henter fagdata som overlapper med annen objekttype (og denne kan evt også ha eget filter). Se dokumentasjon for [overlappfilter](https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/#operations-Vegobjekter-get_vegobjekter__vegobjekttypeid_)
 
 ```
 u = nvdbFagdata(570) # Trafikkulykker
