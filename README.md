@@ -64,7 +64,7 @@ Eksempel
 v = nvdbVegnett()
 v.filter( { 'kommune' : 5001 } )
 v.filter( { 'vegsystemreferanse' : 'ev6s76d1' } )
-# Filteret har nå verdien { 'vegreferanse' : 'ev6s76d1', 'kommune' : 5001 }
+# Filteret har nå verdien { 'vegsystemreferanse' : 'ev6s76d1', 'kommune' : 5001 }
 ```
 
 ### nesteForekomst()
