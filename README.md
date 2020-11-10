@@ -62,9 +62,9 @@ Eksempel
 
 ```
 v = nvdbVegnett()
-v.filter( { 'kommune' : 1601 } )
-v.filter( { 'vegreferanse' : 'ev6hp15' } )
-# Filteret har nå verdien { 'vegreferanse' : 'ev6hp15', 'kommune' : 1601 }
+v.filter( { 'kommune' : 5001 } )
+v.filter( { 'vegsystemreferanse' : 'ev6s76d1' } )
+# Filteret har nå verdien { 'vegreferanse' : 'ev6s76d1', 'kommune' : 5001 }
 ```
 
 ### nesteForekomst()
