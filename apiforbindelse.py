@@ -60,22 +60,22 @@ class apiforbindelse( ):
         """ 
         self.miljo = miljo
 
+        self.headers['Accept'] = 'application/vnd.vegvesen.nvdb-v3-rev1+json'
               
         if miljo == 'utvles': 
             self.apiurl = 'https://nvdbapiles-v3.utv.atlas.vegvesen.no' 
 
-            self.headers['Accept'] = 'application/vnd.vegvesen.nvdb-v3-rev1+json'
 #            self.proxies =  {  "http": "proxy.vegvesen.no:8080", "https": "proxy.vegvesen.no:8080" }
+
+        elif miljo == 'stm-utvles': 
+            self.apiurl = 'https://nvdbapiles-v3-stm.utv.atlas.vegvesen.no' 
+
 
         elif miljo == 'testles': 
             self.apiurl = 'https://nvdbapiles-v3.test.atlas.vegvesen.no' 
-
-            self.headers['Accept'] = 'application/vnd.vegvesen.nvdb-v3-rev1+json'
         
         elif miljo == 'prodles': 
             self.apiurl = 'https://nvdbapiles-v3.atlas.vegvesen.no' 
-
-            self.headers['Accept'] = 'application/vnd.vegvesen.nvdb-v3-rev1+json'
 
         elif miljo == 'utvskriv':
             self.apiurl = 'https://www.utv.vegvesen.no' 
