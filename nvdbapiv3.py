@@ -9,6 +9,7 @@ Har disse hjelpefunksjonene:
     - finnid: Henter vegobjekt og/eller lenkesekvens med angitt ID
     - nvdbfagdata2records: Flater ut NVDB-vegobjekt (direkte fra NVDB api) til enklere (forutsigbar) dictionary-struktur
     - egenskaper2records: Oversetter liste med egenskapverdier til dictionary 
+    - vegrefpunkt: Slår opp på et punkt på vegnettet
 
 Sjekk README.md for detaljer, og https://github.com/LtGlahn/nvdbapi-V3/issues for kjente feil og mangler. 
 
@@ -1214,6 +1215,79 @@ def finnid(objektid, kunvegnett=False, kunfagdata=False, miljo=False):
         print( "Fant intet NVDB objekt eller vegnett med ID = " + str(objektid))
         
     return res
+
+def vegrefpunkt( vref, retur='veglenkeposisjon', forb=None ): 
+    """
+    Slår opp vegsystemreferanse i NVDBAPILES V3. Returnerer koordinater, veglenkeposisjon eller hele datastrukturen. 
+
+    ARGUMENTS: 
+        vref - string, vegsystemreferanse 
+
+    KEYWORDS 
+        retur - string, en av 
+            - 'veglenkeposisjon' (default), 
+            - 'wkt', string, koordinater formattert som well known text
+            - 'komplett' : Dictionary med responsen fra NVDB api 
+
+        forb - En instans av nvdbapiforbindelse. Angis dersom du skal bruke et annet miljø enn PROD
+
+    RETURNS 
+        - string eller dictionary, se 'retur'-nøkkelord. Returnerer None hvis feiler 
+    """
+
+    if not forb: 
+        forb = apiforbindelse.apiforbindelse()
+    params = { 'vegsystemreferanse' : vref }
+    r = forb.les('/veg', params=params)
+    if r.ok: 
+        data = r.json() 
+        if 'vegle' in retur.lower()  and 'veglenkesekvens' in data.keys() and 'kortform' in data['veglenkesekvens'].keys(): 
+            return data['veglenkesekvens']['kortform']
+        elif retur.lower() == 'wkt' and 'geometri' in data.keys() and 'wkt' in data['geometri'].keys(): 
+            return data['geometri']['wkt']
+        elif retur.lower() == 'komplett': 
+            return data 
+
+    return None 
+
+def vegref2rute( vref1, vref2, forb=None, **kwargs ): 
+    """
+    Finner rute (liste med veglenke-biter) mellom to punkt angitt som vegsystemreferanse i NVDBAPILES V3. 
+
+    ARGUMENTS: 
+        vref1 - string, vegsystemreferanse for starten på ruta
+        vref2 - string, vegsystemreferanse for slutten på ruta
+
+    KEYWORDS 
+
+        forb - En instans av nvdbapiforbindelse. Angis dersom du skal bruke et annet miljø enn PROD
+
+        Alle resterende nøkkelord blir brukt som parametre i spørringene til /vegnett/beta/rute 
+
+    RETURNS 
+        liste med (biter av) veglenker som til sammen angir ei rute langs NVDB vegnett
+    """
+    if not forb: 
+        forb = apiforbindelse.apiforbindelse()
+
+    params = {}
+    for (key,val) in kwargs.items(): 
+        params[key] = val
+
+    # Finner posisjon på veglenkesekvens for start og slutt
+    pos1 = vegrefpunkt( vref1, forb=forb )
+    pos2 = vegrefpunkt( vref2, forb=forb )
+
+    if pos1 and pos2: 
+        params['start'] = pos1
+        params['slutt'] = pos2
+        
+        r = forb.les( '/beta/vegnett/rute', params=params )
+
+        if r.ok: 
+            return r.json( )
+    
+    return None 
 
 def egenskaper2records( egenskaper, relasjoner=False, geometri=False ):
     """
