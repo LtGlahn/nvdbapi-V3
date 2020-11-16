@@ -548,6 +548,43 @@ class nvdbVegnett:
 
         return data
 
+    def vegrefrutesok(self, vref1, vref2, **kwargs ): 
+        """
+        PROTOTYPE - Finner vegnett langs rute mellom start- og sluttpunkt angitt med vegsystemreferanse
+
+        https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/#/Vegnett/get_beta_vegnett_rute
+
+        Resultatene puttes inn i søkeobjektets datastruktur, og du kan bruke de vanlige funksjonene 
+        for å aksessere dem (nesteForekomst, to_records() og så videre) 
+
+        Bruker stand-alone funksjonen vegref2rute 
+
+        TODO: Tweake på parameterrom etc til funksjonen er optimalt tilpasset bruksmønster, f.eks 
+            - flere måter å angi start- og sluttpunkt på ruta? (koordinater, posisjon på veglenkesekvens) 
+
+        ARGUMENTS: 
+            vref1 - string, vegsystemreferanse for starten på ruta
+            vref2 - string, vegsystemreferanse for slutten på ruta
+
+        KEYWORDS: 
+            Evt nøkkelord blir brukt som parametre i rutesøket mot NVDB api V3 /beta/vegnett/rute
+            https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/#/Vegnett/get_beta_vegnett_rute
+
+        RETURNS: 
+            None. Modifiserer i stedet datainnholdet i Vegnett - forekomsten 
+        """
+
+        data = vegref2rute(vref1, vref2, forb=self.forbindelse, **kwargs )
+
+        if data and 'vegnettsrutesegmenter' in data and len( data['vegnettsrutesegmenter']) > 0: 
+            self.refresh()
+            self.data['objekter'] = data['vegnettsrutesegmenter']
+            self.paginering['meredata'] = False
+            self.paginering['initielt'] = False
+            self.paginering['dummy'] = True 
+        else: 
+            print( 'Fant ikke gyldig rute', vref1, vref2 )
+
 
 class nvdbFagdata(nvdbVegnett): 
     """Søkeobjekt - dvs klasse for spørringer mot NVDB ang en spesifikk objekttype. 
@@ -1220,6 +1257,8 @@ def vegrefpunkt( vref, retur='veglenkeposisjon', forb=None ):
     """
     Slår opp vegsystemreferanse i NVDBAPILES V3. Returnerer koordinater, veglenkeposisjon eller hele datastrukturen. 
 
+    https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/#/Vegnett/get_veg
+
     ARGUMENTS: 
         vref - string, vegsystemreferanse 
 
@@ -1254,6 +1293,8 @@ def vegref2rute( vref1, vref2, forb=None, **kwargs ):
     """
     Finner rute (liste med veglenke-biter) mellom to punkt angitt som vegsystemreferanse i NVDBAPILES V3. 
 
+    https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/#/Vegnett/get_beta_vegnett_rute
+
     ARGUMENTS: 
         vref1 - string, vegsystemreferanse for starten på ruta
         vref2 - string, vegsystemreferanse for slutten på ruta
@@ -1285,7 +1326,14 @@ def vegref2rute( vref1, vref2, forb=None, **kwargs ):
         r = forb.les( '/beta/vegnett/rute', params=params )
 
         if r.ok: 
-            return r.json( )
+            data = r.json( )
+
+            # Ikke funnet rute? Prøver med større bbox 
+            if 'IKKE' in data['metadata']['status_tekst'].upper() and (not 'omkrets' in params.keys() or params['omkrets'] < 10000): 
+                params['omkrets'] = 10000
+                data = vegref2rute( vref1, vref2, forb=forb, **params )
+
+            return data 
     
     return None 
 
