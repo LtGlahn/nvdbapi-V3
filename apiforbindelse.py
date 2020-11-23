@@ -21,7 +21,7 @@ class apiforbindelse( ):
     Håndterer innlogging og kommunikasjon mot NVDB api LES og SKRIV .
     """
     
-    def __init__( self, miljo='utvles' ):
+    def __init__( self, miljo='prodles' ):
         """
         Oppretter en instans av apiskrivforbindelse
         
