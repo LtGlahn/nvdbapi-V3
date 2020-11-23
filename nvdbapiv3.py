@@ -158,6 +158,27 @@ class nvdbVegnett:
         
         else: 
             return False
+
+    def __iter__(self): 
+        """
+        Mer python-generisk iterasjonsstøtte. 
+
+        Har brukt denne oppskriften: https://towardsdatascience.com/how-to-loop-through-your-own-objects-in-python-1609c81e11ff
+        """
+        return self 
+
+    def __next__(self): 
+        """
+        Bruker nesteForekomst for en mer generell pythonisk iterasjon
+
+        Har brukt denne oppskriften: https://towardsdatascience.com/how-to-loop-through-your-own-objects-in-python-1609c81e11ff 
+        """
+        data = self.nesteForekomst()
+        if data:
+            return data
+        else:  
+            raise StopIteration
+
         
     def nesteForekomst(self, debug=False): 
         """Returnerer en enkelt forekomst av vegnettet. 
