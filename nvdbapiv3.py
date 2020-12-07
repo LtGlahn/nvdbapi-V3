@@ -26,6 +26,7 @@ import pdb
 from datetime import datetime
 import dateutil.parser
 import re
+from json import JSONDecodeError
 
 import apiforbindelse
 
@@ -334,26 +335,40 @@ class nvdbVegnett:
             print( r.url[33:]) # DEBUG
         
         if r.status_code == requests.codes.ok:
-            data = r.json()
-            if debug and 'metadata' in data.keys(): 
-                print( '\n',  data['metadata'], '\n' ) 
+            data = None 
+            try: 
+                data = r.json()
+            except JSONDecodeError as err: 
+                if iterasjontelling < maks_iterasjoner: 
+                    print( 'Fikk feilmelding på JSON-dekoding av respons, hikke fra NVDB api? Prøver på ny en håndfull ganger med litt pause')
+                    sleep( 15 )
+                    iterasjontelling += 1
+                    self.anrope( path, parametre=parametre, debug=debug, silent=silent, logganrop=logganrop, iterasjontelling=iterasjontelling )
+                else: 
+                    print( 'Beklager, må gi opp å parse data hentet med url', r.url)
+                    print( err )
+                    raise ValueError("Klarte ikke oversette respons fra NVDB api til JSON for kall " + r.url ) 
+            else: 
+
+                if debug and 'metadata' in data.keys(): 
+                    print( '\n',  data['metadata'], '\n' ) 
+                    
+                if logganrop: 
+                    loggfil = 'logganrop.txt'
+                    if not os.path.exists( loggfil): 
+                        with open( loggfil, 'w' ) as f2: 
+                            f2.write( 'Logger alle anrop mot NVDB api V2 fra nvdbapi.py\n' ) 
+                            f.write( r.url ) 
+                            f.write( '\n' ) 
+                            f.write( json.dumps( data, indent=4, ensure_ascii=False) )
+                            f.write( '\n' )                          
                 
-            if logganrop: 
-                loggfil = 'logganrop.txt'
-                if not os.path.exists( loggfil): 
-                    with open( loggfil, 'w' ) as f2: 
-                        f2.write( 'Logger alle anrop mot NVDB api V2 fra nvdbapi.py\n' ) 
+                    with open(loggfil, 'a', encoding='utf-8' ) as f: 
+                        f.write( '\n==========================\n' ) 
                         f.write( r.url ) 
                         f.write( '\n' ) 
                         f.write( json.dumps( data, indent=4, ensure_ascii=False) )
-                        f.write( '\n' )                          
-            
-                with open(loggfil, 'a', encoding='utf-8' ) as f: 
-                    f.write( '\n==========================\n' ) 
-                    f.write( r.url ) 
-                    f.write( '\n' ) 
-                    f.write( json.dumps( data, indent=4, ensure_ascii=False) )
-                    f.write( '\n' )  
+                        f.write( '\n' )  
 
             # Normalsituasjon, returnerer JSON-data    
             return data 
@@ -1141,7 +1156,6 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=Fals
     nvdbid_manglergeom = []
     terskler = [ 1000, 10000]
 
-
     for count, feat in enumerate(feature_eller_liste): 
         
         if 'geometri' in feat.keys():
@@ -1175,7 +1189,7 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=Fals
                              }
 
                         if 'vegsystemreferanse' in seg.keys() and 'kortform' in seg['vegsystemreferanse'].keys():
-                            seg['vref'] = seg['vegsystemreferanse']['kortform'] 
+                            s2['vref'] = seg['vegsystemreferanse']['kortform'] 
 
                         vr = 'vegsystemreferanse'
                         if 'vegsystem' in seg[vr].keys():
@@ -1369,11 +1383,13 @@ def egenskaper2records( egenskaper, relasjoner=False, geometri=False ):
 
     Geometri-egenskap(er), såkalt egengeometri, er også av variabel interesse. 
     geometri=True tar med egengeometri-egenskapene. 
+
+    NB! Hopper over egenskaper av typen Liste og Struktur
     """
     data = {}
 
     for eg in egenskaper: 
-        if eg['id'] < 100000: 
+        if eg['id'] < 100000 and not eg['egenskapstype'].lower() in ['struktur', 'liste']: 
 
             if eg['navn'] == 'Vedlegg':
                 print( 'Har lite erfaring med håndtering av vedlegg, beware!')
