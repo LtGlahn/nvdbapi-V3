@@ -96,6 +96,8 @@ def nvdb2gpkg( objekttyper, filnavn='datadump', mittfilter=None, vegnett=True, v
     if vegnett: 
         veg = nvdbapiv3.nvdbVegnett()
         if mittfilter: 
+            junk = mittfilter.pop( 'egenskap', None)
+            junk = mittfilter.pop( 'overlapp', None)
             veg.filter( mittfilter )
         print( 'Henter vegnett')
         rec = veg.to_records()
