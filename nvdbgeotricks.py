@@ -24,7 +24,7 @@ from apiforbindelse import apiforbindelse
 
 
 
-def nvdb2gpkg( objekttyper, filnavn='datadump', mittfilter=None):
+def nvdb2gpkg( objekttyper, filnavn='datadump', mittfilter=None, vegnett=True, vegsegmenter=False, geometri=True):
     """
     Lagrer NVDB vegnett og angitte objekttyper til geopackage
 
@@ -34,6 +34,17 @@ def nvdb2gpkg( objekttyper, filnavn='datadump', mittfilter=None):
     KEYWORDS
         mittfilter=None : Dictionary med filter til søkeobjekt i nvdbapiv3.py, for eksempel { 'kommune' : 5001 }
         Samme filter brukes på både vegnett og fagdata
+
+        vegnett=True : Bool, default=True. Angir om vi skal ta med data om vegnett eller ikke
+
+        vegsegmenter=False : Bool, default=False. Angir om vi skal repetere objektet delt inn etter vegsegementer
+
+        geometri=True : Bool, default=True. Angir om vi skal hente geometri fra egengeometri (hvis det finnes)
+
+        Hvis du ønsker å presentere vegobjekt ut fra objektets stedfesting langs veg så bruker du kombinasjonen 
+        vegsegmenter=True, geometri=False 
+
+
 
     RETURNS 
         None 
@@ -58,7 +69,7 @@ def nvdb2gpkg( objekttyper, filnavn='datadump', mittfilter=None):
         print( 'Henter', stat['antall'],  'forekomster av objekttype', sok.objektTypeId, objtypenavn )
         lagnavn = 'type' + str(enObjTypeId) + '_' + nvdbapiv3.esriSikkerTekst( objtypenavn.lower() ) 
 
-        rec = sok.to_records( vegsegmenter=False, geometri=True )
+        rec = sok.to_records( vegsegmenter=vegsegmenter, geometri=geometri )
         if len( rec ) > 0: 
             mindf = pd.DataFrame( rec )
             # Må trickse litt for å unngå navnekollisjon
@@ -82,24 +93,29 @@ def nvdb2gpkg( objekttyper, filnavn='datadump', mittfilter=None):
         else: 
             print( 'Ingen forekomster av', objtypenavn, 'for filter', mittfilter)        
 
-    veg = nvdbapiv3.nvdbVegnett()
-    if mittfilter: 
-        veg.filter( mittfilter )
-    print( 'Henter vegnett')
-    rec = veg.to_records()
-    mindf = pd.DataFrame( rec)
-    mindf['geometry'] = mindf['geometri'].apply( wkt.loads )
-    mindf.drop( 'geometri', 1, inplace=True)
-    minGdf = gpd.GeoDataFrame( mindf, geometry='geometry', crs=5973 )       
-    minGdf.to_file( filnavn, layer='vegnett', driver="GPKG")  
+    if vegnett: 
+        veg = nvdbapiv3.nvdbVegnett()
+        if mittfilter: 
+            veg.filter( mittfilter )
+        print( 'Henter vegnett')
+        rec = veg.to_records()
+        mindf = pd.DataFrame( rec)
+        mindf['geometry'] = mindf['geometri'].apply( wkt.loads )
+        mindf.drop( 'geometri', 1, inplace=True)
+        minGdf = gpd.GeoDataFrame( mindf, geometry='geometry', crs=5973 )       
+        minGdf.to_file( filnavn, layer='vegnett', driver="GPKG")  
 
 
-def dumpkontraktsomr( ): 
+def dumpkontraktsomr( komr = [] ): 
     """
     Dumper et har (hardkodede) kontraktsområder 
     """
+    if not komr: 
 
-    komr = [ '9302 Haugesund 2020-2025', '9304 Bergen', '9305 Sunnfjord'  ]
+        komr = [ '9302 Haugesund 2020-2025', '9304 Bergen', '9305 Sunnfjord'  ]
+        komr = [ '9253 Agder elektro og veglys 2021-2024']
+
+
 
     objliste = [    540, # Trafikkmengde
                     105, # Fartsgrense
@@ -120,6 +136,8 @@ def dumpkontraktsomr( ):
                     846, # Skredsikring, bremsekjegler 
                     850 # Skredsikring, forbygning
             ]
+
+    objliste = []
 
     for enkontrakt in komr: 
 
