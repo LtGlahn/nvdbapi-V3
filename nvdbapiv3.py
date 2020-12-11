@@ -566,7 +566,8 @@ class nvdbVegnett:
                         { 'navn' : 'trafikantgruppe' , 'verdi' :  { 'l1' : vr, 'l2' : kryss, 'l3' : 'trafikantgruppe'   }}, 
                         { 'navn' : 'fra_meter'       , 'verdi' :  { 'l1' : vr, 'l2' : sidea, 'l3' : 'fra_meter'         }}, 
                         { 'navn' : 'til_meter'       , 'verdi' :  { 'l1' : vr, 'l2' : sidea, 'l3' : 'til_meter'         }}, 
-                        { 'navn' : 'trafikantgruppe' , 'verdi' :  { 'l1' : vr, 'l2' : sidea, 'l3' : 'trafikantgruppe'   }} 
+                        { 'navn' : 'trafikantgruppe' , 'verdi' :  { 'l1' : vr, 'l2' : sidea, 'l3' : 'trafikantgruppe'   }}, 
+                        { 'navn' : 'adskilte_lop'    , 'verdi' :  { 'l1' : vr, 'l2' : strek, 'l3' : 'adskilte_løp'      }}
                         ]
 
             for mykey in struktur: 
