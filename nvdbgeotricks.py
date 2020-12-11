@@ -42,9 +42,11 @@ def nvdb2gpkg( objekttyper, filnavn='datadump', mittfilter=None, vegnett=True, v
         geometri=True : Bool, default=True. Angir om vi skal hente geometri fra egengeometri (hvis det finnes)
 
         Hvis du ønsker å presentere vegobjekt ut fra objektets stedfesting langs veg så bruker du kombinasjonen 
-        vegsegmenter=True, geometri=False 
-
-
+        vegsegmenter=True, geometri=False. Ett enkelt objekt blir da repetert for hvert vegsegment som det er 
+        tilknyttet (stedfestet til). 
+        
+        Standardverdiene vegsegmenter=False, geometri=True er valgt ut fra antagelsen om at du ønsker 
+        en rad per objekt, uten duplisering. 
 
     RETURNS 
         None 
