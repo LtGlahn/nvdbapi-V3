@@ -373,13 +373,19 @@ class nvdbVegnett:
             # Normalsituasjon, returnerer JSON-data    
             return data 
 
-        elif r.status_code == 504 and iterasjontelling < maks_iterasjoner: # Gateway timeout
+        elif r.status_code in [ 503, 504 ] and iterasjontelling < maks_iterasjoner: # Gateway timeout
             iterasjontelling += 1
             print( 'Http error, prøver om igjen', str( iterasjontelling), 'av', str( maks_iterasjoner), 'ganger om bittelita stund: '+str(r.status_code) +' '+r.url +
                             '\n' + r.text )
             sleep( 15 )
             data = self.anrope( path, parametre=parametre, debug=debug, silent=silent, logganrop=logganrop, iterasjontelling=iterasjontelling )
             return data 
+
+        elif r.status_code == 401: 
+            raise ValueError( 'Ugyldig pålogging', str(r.status_code) + ' ' + r.url + '\n' + r.text ) 
+
+        elif r.status_code == 403: 
+            raise ValueError( 'Ugyldig pålogging', str(r.status_code) + ' ' + r.url + '\n' + r.text ) 
 
         else:
             if not silent: 
