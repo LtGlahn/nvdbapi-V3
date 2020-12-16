@@ -1417,7 +1417,10 @@ def egenskaper2records( egenskaper, relasjoner=False, geometri=False ):
                 if 'egenskapstype' in eg.keys() and eg['egenskapstype'] == 'Binær' and 'href' in eg.keys(): 
                     data[eg['navn']] = eg['href']
                 else: 
-                    data[eg['navn']] = eg['verdi']
+                    try: 
+                        data[eg['navn']] = eg['verdi']
+                    except KeyError:
+                        pass 
                 # TODO må kanskje gå gjennom egenskaptype-varianter mer i detalj og eksplisitt? 
 
     if relasjoner: 
