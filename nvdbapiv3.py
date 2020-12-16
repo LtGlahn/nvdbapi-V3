@@ -1420,6 +1420,7 @@ def egenskaper2records( egenskaper, relasjoner=False, geometri=False ):
                     try: 
                         data[eg['navn']] = eg['verdi']
                     except KeyError:
+                        print( 'Fant ingen verdi i denne egenskapen, ignorerer:\n', json.dumps( eg, indent=4) )
                         pass 
                 # TODO må kanskje gå gjennom egenskaptype-varianter mer i detalj og eksplisitt? 
 
