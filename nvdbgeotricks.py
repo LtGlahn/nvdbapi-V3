@@ -21,6 +21,35 @@ from datetime import datetime
 import nvdbapiv3
 from apiforbindelse import apiforbindelse
 
+def records2gpkg( minliste, filnavn, lagnavn ): 
+    """
+    Tar en liste med records (dictionaries) a la dem vi får fra nvdbapiv3.to_records() og skriver til geopackage
+
+    Forutsetning: Alle records har et "geometri"-element med WKT-streng og inneholder ingen lister. 
+    Vi tester for en del kjente snublefeller mhp disse forutsetningene, men ikke alle. 
+    """
+    if len( minliste ) == 0: 
+        raise ValueError( 'nvdbgeotrics.records2gpkg: Tom liste som inngangsverdi, funker dårlig')
+
+    mindf = pd.DataFrame( minliste )
+    # Må trickse litt for å unngå navnekollisjon
+    kolonner = list( mindf.columns )
+    lowerkolonner = [ x.lower() for x in kolonner ]
+    # Duplicate element indices in list 
+    # Using list comprehension + list slicing 
+    # https://www.geeksforgeeks.org/python-duplicate-element-indices-in-list/ 
+    res = [idx for idx, val in enumerate(lowerkolonner) if val in lowerkolonner[:idx]] 
+    for ii, dublett in enumerate( res):
+        mindf.rename(columns={ mindf.columns[dublett] : kolonner[dublett] + '_' + str( ii+1 )  }, inplace=True )
+
+    mindf['geometry'] = mindf['geometri'].apply( wkt.loads )
+    minGdf = gpd.GeoDataFrame( mindf, geometry='geometry', crs=5973 )       
+    # må droppe kolonne vegsegmenter hvis data er hentet med vegsegmenter=False 
+    if 'vegsegmenter' in minGdf.columns:
+        minGdf.drop( 'vegsegmenter', 1, inplace=True)
+
+    minGdf.drop( 'geometri', 1, inplace=True)
+    minGdf.to_file( filnavn, layer=lagnavn, driver="GPKG")  
 
 
 
@@ -72,26 +101,10 @@ def nvdb2gpkg( objekttyper, filnavn='datadump', mittfilter=None, vegnett=True, v
         lagnavn = 'type' + str(enObjTypeId) + '_' + nvdbapiv3.esriSikkerTekst( objtypenavn.lower() ) 
 
         rec = sok.to_records( vegsegmenter=vegsegmenter, geometri=geometri )
+
+        # Lagringsrutine skilt ut med funksjonen records2gpkg, IKKE TESTET (men bør gå greit) 
         if len( rec ) > 0: 
-            mindf = pd.DataFrame( rec )
-            # Må trickse litt for å unngå navnekollisjon
-            kolonner = list( mindf.columns )
-            lowerkolonner = [ x.lower() for x in kolonner ]
-            # Duplicate element indices in list 
-            # Using list comprehension + list slicing 
-            # https://www.geeksforgeeks.org/python-duplicate-element-indices-in-list/ 
-            res = [idx for idx, val in enumerate(lowerkolonner) if val in lowerkolonner[:idx]] 
-            for ii, dublett in enumerate( res):
-                mindf.rename(columns={ mindf.columns[dublett] : kolonner[dublett] + '_' + str( ii+1 )  }, inplace=True )
-
-            mindf['geometry'] = mindf['geometri'].apply( wkt.loads )
-            minGdf = gpd.GeoDataFrame( mindf, geometry='geometry', crs=5973 )       
-            # må droppe kolonne vegsegmenter hvis du har vegsegmenter=False 
-            if 'vegsegmenter' in minGdf.columns:
-                minGdf.drop( 'vegsegmenter', 1, inplace=True)
-
-            minGdf.drop( 'geometri', 1, inplace=True)
-            minGdf.to_file( filnavn, layer=lagnavn, driver="GPKG")  
+            records2gpkg( rec, filnavn, lagnavn )
         else: 
             print( 'Ingen forekomster av', objtypenavn, 'for filter', mittfilter)        
 
