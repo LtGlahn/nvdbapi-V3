@@ -1420,8 +1420,8 @@ def egenskaper2records( egenskaper, relasjoner=False, geometri=False ):
                     try: 
                         data[eg['navn']] = eg['verdi']
                     except KeyError:
-                        pass 
-                # TODO må kanskje gå gjennom egenskaptype-varianter mer i detalj og eksplisitt? 
+                        print( 'Fant ingen verdi i denne egenskapen, ignorerer:\n', json.dumps( eg, indent=4) )
+                        # TODO må kanskje gå gjennom alle egenskaptype-varianter mer i detalj og eksplisitt? 
 
     if relasjoner: 
         warn( 'Uthenting av relasjoner fra egenskapverdier er ikke implementert (ennå)')
