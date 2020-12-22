@@ -82,7 +82,7 @@ def nvdb2gpkg( objekttyper, filnavn='datadump', mittfilter=None, vegnett=True, v
     """
 
     if not '.gpkg' in filnavn: 
-        filnavn = filnavn +  datetime.today().strftime('%Y-%m-%d') + '.gpkg'
+        filnavn = filnavn + '_' + datetime.today().strftime('%Y-%m-%d') + '.gpkg'
 
     if not isinstance(objekttyper, list ): 
         objekttyper = [ objekttyper ]
@@ -133,6 +133,8 @@ def dumpkontraktsomr( komr = [] ):
         komr = [ '9253 Agder elektro og veglys 2021-2024']
 
 
+    if isinstance( komr, str): 
+        komr = [ komr ]
 
     objliste = [    540, # Trafikkmengde
                     105, # Fartsgrense

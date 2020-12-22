@@ -536,7 +536,10 @@ class nvdbVegnett:
             sidea = 'sideanlegg'
 
             struktur = [ 
-                { 'navn' : 'geometri',  'verdi' : { 'l1' : 'geometri',    'l2' : 'wkt'  }},
+                { 'navn' : 'medium',    'verdi' : { 'l1' : 'geometri',    'l2' : 'medium'  }}, 
+                { 'navn' : 'geometri',  'verdi' : { 'l1' : 'geometri',    'l2' : 'wkt'  }}, # NB! Geometri-dictionary byttes nå ut med WKT-tekststreng!
+                                                                                            # Hvis du vil ha mer data ut av geometri-elementet 
+                                                                                            # må du gjøre det FØR denne operasjonen (eller ta vare på data eksplisitt)
                 { 'navn' : 'vref',      'verdi' : { 'l1' : vr,            'l2' : 'kortform'  }}
             ]
 
@@ -556,7 +559,7 @@ class nvdbVegnett:
             # fra kryssdel eller sidenanlegg dersom de finnes. 
             # Vi følger python-idomet med å prøve om verdiene er der og ubekymret springe 
             # videre hvis de ikke finnes. 
-            struktur = [{ 'navn' : 'vegkategori'     , 'verdi' :  { 'l1' : vr, 'l2' : vsys, 'l3' : 'vegkategori'             }}, 
+            struktur = [{ 'navn' : 'vegkategori'     , 'verdi' :  { 'l1' : vr, 'l2' : vsys, 'l3' : 'vegkategori'        }}, 
                         { 'navn' : 'fase'            , 'verdi' :  { 'l1' : vr, 'l2' : vsys, 'l3' : 'fase'               }},  
                         { 'navn' : 'nummer'          , 'verdi' :  { 'l1' : vr, 'l2' : vsys, 'l3' : 'nummer'             }}, 
                         { 'navn' : 'strekning'       , 'verdi' :  { 'l1' : vr, 'l2' : strek, 'l3' : 'strekning'         }}, 
