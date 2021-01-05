@@ -430,8 +430,8 @@ def fagdata2skrivemal( liste_eller_forekomst, operasjon='delvisOppdater',
             skrivobj['tempId'] = str( -1 * (count+1) )
 
         else: 
-            skrivobj['nvdbId'] = ettobj['id']
-            skrivobj['versjon'] : ettobj['metadata']['versjon']
+            skrivobj['nvdbId']  = ettobj['id']
+            skrivobj['versjon'] = ettobj['metadata']['versjon']
 
         if 'ppdater' in operasjon or 'orriger' in operasjon: 
             skrivobj['gyldighetsperiode'] =  { "startdato": effektDato }
