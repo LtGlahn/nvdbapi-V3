@@ -19,7 +19,7 @@ import geopandas as gpd
 from datetime import datetime
 
 import nvdbapiv3
-from apiforbindelse import apiforbindelse
+from nvdbapiv3 import apiforbindelse
 
 def records2gpkg( minliste, filnavn, lagnavn ): 
     """

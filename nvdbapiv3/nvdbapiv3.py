@@ -28,7 +28,7 @@ import dateutil.parser
 import re
 from json import JSONDecodeError
 
-import apiforbindelse
+from . import apiforbindelse
 
 # Uncomment to silent those unverified https-request warnings
 requests.packages.urllib3.disable_warnings() 
@@ -1477,4 +1477,4 @@ def esriSikkerTekst( mintekst):
     tt = [val for val in mintekst if val.isalpha() or val.isnumeric() or val == '_' ] 
     mintekst = ''.join( tt )
 
-    return mintekst 
+    return mintekst
