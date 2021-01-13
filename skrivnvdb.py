@@ -66,7 +66,7 @@ import getpass
 import pdb 
 # from copy import deepcopy 
 
-import apiforbindelse
+from nvdbapiv3 import apiforbindelse
         
 #         """Leser data fra NVDB api"""
 #         return self.requestsession.get( url=url, 
