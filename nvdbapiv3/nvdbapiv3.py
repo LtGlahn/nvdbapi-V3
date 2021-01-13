@@ -523,7 +523,9 @@ class nvdbVegnett:
             Liste med segmentert vegnett fra NVDB api V3, forflatet for enklere bruk 
         """
 
-        data = []
+        return list(to_records_iter())
+
+    def to_records_iter(self):
         v1 = self.nesteForekomst()
         while v1: 
 
@@ -588,11 +590,9 @@ class nvdbVegnett:
             v1.pop( 'kontraktsområder', None)
             v1.pop( 'riksvegruter', None)
 
-            data.append( v1 )
+            yield v1
 
             v1 = self.nesteForekomst()
-
-        return data
 
     def vegrefrutesok(self, vref1, vref2, **kwargs ): 
         """
@@ -811,8 +811,11 @@ class nvdbFagdata(nvdbVegnett):
             return( fagobj)
         else: 
             return None
-        
-    def to_records(self, vegsegmenter=True, relasjoner=False, geometri=False, debug=False, tidspunkt=None ): 
+
+    def to_records(self, *args, **kwargs):
+        return list(self.to_records_iter(*args, **kwargs))
+
+    def to_records_iter(self, vegsegmenter=True, relasjoner=False, geometri=False, debug=False, tidspunkt=None):
         """
         Eksporterer til en liste med dictionaries med struktur 
         "objekttype" : INT,
@@ -862,7 +865,6 @@ class nvdbFagdata(nvdbVegnett):
 
         """
 
-        mydata = []
         if not self.antall: 
             self.statistikk()
 
@@ -900,7 +902,7 @@ class nvdbFagdata(nvdbVegnett):
                     #     enfeature['relasjoner'] = feat['relasjoner']
 
             
-                mydata.extend( featureliste )
+                yield from featureliste
             else: 
                 nvdbid_manglergeom.append( feat['id'])
 
@@ -913,8 +915,6 @@ class nvdbFagdata(nvdbVegnett):
             print( 'fra miljø', self.apiurl )
             if debug: 
                 print( nvdbid_manglergeom )
-
-        return mydata
 
 
 class nvdbFagObjekt():
