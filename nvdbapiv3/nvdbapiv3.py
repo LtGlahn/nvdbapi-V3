@@ -1222,12 +1222,12 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=Fals
                             s2['adskilte_lop'] = seg[vr]['strekning']['adskilte_løp']
 
 
-                        delkeys = [ 'strekning', 'kryssdel', 'sideanlegg']
+                        delkeys = [ 'strekning', 'kryssystem', 'sideanlegg']
                         for hvaslag in delkeys: 
                             if  hvaslag in seg['vegsystemreferanse'].keys(): 
                                 s2['trafikantgruppe'] = seg['vegsystemreferanse'][hvaslag]['trafikantgruppe']
                             
-
+                    
                         s2['geometri'] = seg['geometri']['wkt']
                         egenskaper_kopi = deepcopy( egenskaper )
                         egenskaper_kopi = merge_dicts( egenskaper_kopi, s2)
