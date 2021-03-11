@@ -1201,6 +1201,12 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=Fals
                         if 'vegsystemreferanse' in seg.keys() and 'kortform' in seg['vegsystemreferanse'].keys():
                             s2['vref'] = seg['vegsystemreferanse']['kortform'] 
 
+                        if 'veglenkeType' in seg: 
+                            s2['veglenkeType'] = seg['veglenkeType']
+
+                        if 'medium' in seg: 
+                            s2['medium'] = seg['medium']
+
                         vr = 'vegsystemreferanse'
                         if 'vegsystem' in seg[vr].keys():
                             s2['vegkategori'] = seg[vr]['vegsystem']['vegkategori']
