@@ -21,6 +21,45 @@ from datetime import datetime
 import nvdbapiv3
 from nvdbapiv3 import apiforbindelse
 
+def finnoverlapp( dfA, dfB, prefixB=None ): 
+    """
+    Finner overlapp mellom to (geo)pandas (geo)dataframes med veglenkeposisjoner. 
+    
+    For å minimere navnekollisjon gir vi et prefiks til alle kolonnenanv i Dataframe B basert på objekttypen 
+    (prefikset kan overstyres med nøkkelord prefixB )
+
+    Returverdien er en (geo)dataframe med alle vegsegmenter som overlapper. Ett vegobjekt har gjerne flere vegsegmenter. 
+    Hvis man ønsker en rad per vegobjekt-kombinasjon må man filtrere dette i etterkant. Det mest lettvinte er da å fjerne 
+    duplikater basert på Nvdb ID (vegobjekt id). 
+
+    ARGUMENTS
+        dfA, dfB - Pandas dataframe eller Geopandas geodataframe, eller kombinasjon. Returverdi blir identisk med dfA. 
+
+    KEYWORDS
+        prefixB=None Valgfri tekststreng med det prefikset som skal føyes til navn i dfB 
+
+    RETURNS
+        Pandas DataFrame, eller Geopandas Geodataframe, avhengig av hva dfA er for slag. 
+
+    TODO: MVP
+    TODO: Håndtere valgfri kombinasjon av punkt- og linjestedfesting 
+    TODO: Inputdata er Vegnett + vegnett eller vegobjekter + vegnett ? (Trengs dette?)   
+    """
+
+    raise NotImplementedError( "Har ikke fått laget denne ennå, sjekk om noen dager")
+
+def finnDatter( morDf, datterDf, datterprefix=None ): 
+    """
+    Finner relasjoner mellom vegobjekter i (geo)dataframe 
+    TODO: Dokumentasjon
+    TODO: MVP 
+    """
+
+    raise NotImplementedError( "Har ikke fått laget denne ennå, sjekk om noen dager")
+
+
+
+
 def records2gpkg( minliste, filnavn, lagnavn ): 
     """
     Tar en liste med records (dictionaries) a la dem vi får fra nvdbapiv3.to_records() og skriver til geopackage
