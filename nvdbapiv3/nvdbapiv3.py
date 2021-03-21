@@ -845,7 +845,7 @@ class nvdbFagdata(nvdbVegnett):
         KEYWORDS 
             vegsegmenter=True (default) | False : Gi en forekomst (av objektet) per unike vegsegment
             
-            relasjoner=False (default) | True : Ta med mer detaljer om objektets relasjoner 
+            relasjoner=True (default) | False : Ta med mer detaljer om objektets relasjoner 
             
             geometri=False (default) | True : Hent geometri fra objektets vegtilknytning, evt bruk objektets 
                                             egengeometri (hvis den finnes, vegtilknytning er alltid fallback) 
@@ -886,12 +886,8 @@ class nvdbFagdata(nvdbVegnett):
             # https://github.com/LtGlahn/diskusjon_diverse/tree/master/debug_nvdbapilesv3/vegobjekter 
             if 'geometri' in feat.keys():
 
-                featureliste = nvdbfagdata2records( feat, vegsegmenter=vegsegmenter, relasjoner=False, geometri=geometri, debug=debug, tidspunkt=tidspunkt )
+                featureliste = nvdbfagdata2records( feat, vegsegmenter=vegsegmenter, relasjoner=relasjoner, geometri=geometri, debug=debug, tidspunkt=tidspunkt )
 
-                if relasjoner and 'relasjoner' in feat.keys(): 
-
-                    for enforekomst in featureliste: 
-                        enforekomst.update( { 'relasjoner' : feat['relasjoner'] } )
 
                     # tmp = deepcopy( featureliste )
                     # featureliste = []
@@ -1153,7 +1149,6 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=True
     RETURNS
         liste med dictionaries (vegobjekt fra NVDB api LES i flatere dictionary-struktur)
 
-
     """
     if not isinstance( feature_eller_liste, list): 
         feature_eller_liste = [ feature_eller_liste ]
@@ -1181,10 +1176,10 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=True
 
             # meta['metadata'] = feat['metadata']
 
-            egenskaper = egenskaper2records( feat['egenskaper'], geometri=geometri )
-
-            if relasjoner and 'relasjoner' in feat: 
+            egenskaper = egenskaper2records( feat['egenskaper'], relasjoner=False, geometri=geometri )
+            if relasjoner and 'relasjoner' in feat.keys() and len( feat['relasjoner']) > 0: 
                 egenskaper['relasjoner'] = feat['relasjoner']
+
             egenskaper = merge_dicts( meta, egenskaper)
 
             if vegsegmenter: 
@@ -1436,7 +1431,7 @@ def egenskaper2records( egenskaper, relasjoner=False, geometri=False ):
                         # TODO må kanskje gå gjennom alle egenskaptype-varianter mer i detalj og eksplisitt? 
 
     if relasjoner: 
-        warn( 'Uthenting av relasjoner fra egenskapverdier er ikke implementert (ennå)')
+        warn( 'Uthenting av relasjoner fra egenskapverdier er ikke implementert (ennå). Bruk to_records() eller nvdbfagdata2records()')
 
     return data 
             
