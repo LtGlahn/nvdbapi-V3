@@ -22,21 +22,43 @@ from datetime import datetime
 import nvdbapiv3
 from nvdbapiv3 import apiforbindelse
 
-def finnoverlapp( dfA, dfB, prefixB=None ): 
+def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None ): 
     """
     Finner overlapp mellom to (geo)pandas (geo)dataframes med veglenkeposisjoner. 
     
     For å minimere navnekollisjon gir vi et prefiks til alle kolonnenanv i Dataframe B basert på objekttypen 
     (prefikset kan overstyres med nøkkelord prefixB )
 
-    Returverdien er en (geo)dataframe med alle vegsegmenter som overlapper. Ett vegobjekt har gjerne flere vegsegmenter. 
-    Hvis man ønsker en rad per vegobjekt-kombinasjon må man filtrere dette i etterkant. Det mest lettvinte er da å fjerne 
-    duplikater basert på Nvdb ID (vegobjekt id). 
+    Returverdien er en dataframe med alle vegsegmenter som overlapper. Ett vegobjekt har gjerne flere vegsegmenter. 
+    Hvis man ønsker en rad per vegobjekt-kombinasjon må man filtrere inputada i forkant eller resultatene i 
+    etterkant. Det mest lettvinte er da å fjerne duplikater basert på Nvdb ID (vegobjekt id). 
 
+    Hvis du har en verdikjede hvor du ønsker å kombinere mange dataett (for eksempel mange ulike objekttyper) så 
+    må du selv ta ansvar for å unngå navnekollisjon og forvirring. Vi har tre metoder: 
+
+        1) Definer hvilken objekttype som alltid blir dfA i koblingene. Kolonnenavnene i dfA endres ikke i 
+        resultatdatasettet, og kan derfor "gjenbrukes" når resultatdatasettet kobles med dataframes for andre 
+        objekttyper. For eksempel dersom du kobler tunnelløp med fartsgrense og trafikkmengde kan du gjøre noe slikt: 
+
+        resultat1 = finnoverlapp( dfTunnellop, dfFartsgrenser  ) 
+        resultat2 = finnoverlapp( resultat1, dfTrafikkmengde )
+
+        resultat2 har da tunnelløp koblet med fartsgrenser (med forstavelsen 105_ ) og trafikkmengde (med forstavelsen 540_ )
+
+        2) Ta eksplisitt kontroll over prefiks med nøkkelordene prefixA, prefixB. Merk at prefiks kun føyes til kolonnenavn 
+        dersom det ikke finnes fra før, så vi inngår prefiks av typen 67_67_ 
+
+        3) Fjern "overflødige" kolonner fra mellomliggende resultater. 
+    
+    Samme navnelogikk er brukt i funksjonen finndatter.  
+    
     ARGUMENTS
         dfA, dfB - Pandas dataframe eller Geopandas geodataframe, eller kombinasjon. Returverdi blir identisk med dfA. 
 
     KEYWORDS
+        prefixA=None Valgfri tekststreng med det prefikset som skal føyes til navn i dfA, eller det prefikset som 
+                     er brukt fordi dfA er resultatet fra en tidligere kobling 
+
         prefixB=None Valgfri tekststreng med det prefikset som skal føyes til navn i dfB 
 
     RETURNS
@@ -45,13 +67,36 @@ def finnoverlapp( dfA, dfB, prefixB=None ):
     TODO: MVP
     TODO: Håndtere valgfri kombinasjon av punkt- og linjestedfesting 
     TODO: Inputdata er Vegnett + vegnett eller vegobjekter + vegnett ? (Trengs dette?)   
+
+
     """
+
+    # EKSEMPELKODE!
+    # Lager virituell database, slik at vi kan gjøre SQL-spørringer
+    # conn = sqlite3.connect( ':memory:')
+    # temp2010.to_sql( 'v2010', conn, index=False )
+    # temp2009.to_sql( 'v2009', conn, index=False )
+
+    # qry = """
+    # select  max( v2010.startposisjon, v2009.d2009_startposisjon ) as frapos, 
+    #         min( v2010.sluttposisjon, v2009.d2009_sluttposisjon ) as tilpos, 
+    #         * from v2009
+    #         INNER JOIN v2010 ON 
+    #         v2009.d2009_veglenkesekvensid = v2010.veglenkesekvensid and
+    #         v2009.d2009_startposisjon     < v2010.sluttposisjon and 
+    #         v2009.d2009_sluttposisjon     > v2010.startposisjon
+    # """
+    #
+    # joined = pd.read_sql_query( qry, conn)        
+
+
+
 
     raise NotImplementedError( "Har ikke fått laget denne ennå, sjekk om noen dager")
 
 
 
-def finnDatter( morDf, datterDf, addprefix_datter=True, prefix=None, nvdbIdKolonne=None, relasjonsKolonne=None   ): 
+def finnDatter( morDf, datterDf, prefixMor=None, prefixDatter=None, ignorerDatterPrefix=False   ): 
     """
     Finner relasjoner mellom vegobjekter i (geo)dataframe 
     
@@ -60,67 +105,75 @@ def finnDatter( morDf, datterDf, addprefix_datter=True, prefix=None, nvdbIdKolon
     For å unngå navnekollisjon er standardoppførselen å føye forstavelsen kolonnenavn <vegobjektTypeId>_ til 
     alle kolonnenavn i datterdf. Denne oppførselen reguleres med nøkkelordene addprefix_datter og prefix. 
 
+    Når du har en verdikjede med flere koblinger etter hverandre (evt med funksjonen finnoverlapp) er det  risiko 
+    for navnekollisjon og navneforvirring. Hvis ikke du overstyrer med argumentet prefiksMor så beholder vi kolonnenavn
+    fra morDf, men endrer alle kolonnenavnene i datterDf med forstavelsen "<objektTypeID>_", for eksempel "67_". 
+    Forstavelse for datterDf kan også overstyres med nøkkelord prefixDatter. Merk at hvis morDf eller datterDf allerede er 
+    "omdøpt" med dette prefikset så føyes det ikke til enda en gang (men brukes for å identifisere riktige kolonner) 
+    Se også dokumentasjon for funksjonen finnoverlapp.  
+
+    I noen sammenhenger er det riktig å behandle hvert vegsegment til et objekt separat, andre ganger ønsker man kun 
+    en rad per objekt Id. Funksjonen finnDatter kan ikke avgjøre hva som er riktig for deg, men gir ut det den får inn. 
+    Dvs hvis ID2 er datterobjekt til ID1 så vil du få returnert en rad med kombinasjonen ID1->ID2 for hver kombinasjon av 
+    vegsegmenter for objektene ID1, ID2. Dvs hvis ID1 har to vegsegmenter og Id2 har tre så får du seks rader i resultatene. 
+    Du må selv filtrere vekk de kombinasjonene du ikke vil ha, eller filtrere 
+    vekk duplikater fra inputdata. I så fall er anbefalingen å filtrere på Nvdb Id. 
+
     ARGUMENTS: 
         morDf, datterDf: Pandas dataframe eller geopandas geodataframe. 
 
     KEYWORDS: 
-        addprefix_datter=True | False. Skal vi føye til prefiks på kolonnenavnene i datterDf? 
+        Her er nøkkelord som regulerer hvordan vi døper om kolonner i datterDf (og evt morDf) for å minimere navnekollisjon. 
+        Standardoppførselen er å  beholde alle navn i morDf, men døpe vi om alle kolonnenavn i datterDf med "<objektTypeID>_" som prefiks. 
+        Merk at vi ikke endrer kolonnenavn som allerede inneholder det vi ellers ville brukt som prefiks for å døpe dem om. 
 
-        prefix=None eller tekstreng. Spesifiserer tekststreng for datterobjektenes prefix. Hvis None så 
-        avleder vi prefiks ut fra objekttypen i datterDf 
+        prefixMor=None eller tekststreng. Brukes hvis det er ønskelig å døpe om alle kolonnenavn i morDf med dette som prefix   
 
-        nvdbIdKolonne: Tekststreng med kolonnenavn for nvdbId i morDf. Hvis ikke angitt bruker vi kolonnen nvdbID eller
-                        eller et kolonnenavn der 'nvdbId' inngår som del av navnet
-
-        relasjonskolonne: Tekststreng med kolonnenanv for relasjon-dictionary i datterDf. Hvis ikke angitt finner vi et 
-                        kolonnenavn der 'relasjoner' inngår som del av navnet. 
-
+        prefixDatter=None eller tekststreng. Angis hvis du vil bruke noe annet enn "<objektTypeID>_" som prefiks når du gir nye navn til 
+                                            kolonner i datterDf. 
+                                            
+        ignorerDatterPrefix: Endrer IKKE kolonnenavn i datterDf. 
     RETURNS
         dataFrame eller Geodataframe (samme som morDf)
     """
 
-    if addprefix_datter and not prefix: 
-        if not 'objekttype' in datterDf.columns: 
-            print( 'finnDatter: Fant ikke objekttype blant kolonnenavn, angi prefiks manuelt')
-        else: 
-            objektType = list( datterDf['objekttype'].unique() ) 
-            if len( objektType ) > 1: 
-                print( f"finnDatter: Flere objekttyper i datterDf, vrient å døpe om da... bruker første forekomst {str(objektType[0]) + '_'} ")
-            datterPrefix = str( objektType[0]) + '_'
-
-    # Finner rett kolonnenavn for morDf 
-    idKey = 'nvdbId'
-    if nvdbIdKolonne: 
-        idKey = nvdbIdKolonne
-
-    if idKey not in morDf.keys():
-        idKandidater = [ x for x in list( morDf.index ) if 'nvdbid' in x.lower()  ]
-        assert len( idKandidater ) == 1,  f"Fant ingen NvdbId - kolonne blant kolonnenavn for morDf"
-        idKey = idKandidater[0]
-
     # Lager kopier, så vi ikke får kjipe sideeffekter av orginaldatasettet 
-    mDf = morDf.drop_duplicates( subset=idKey ).copy()
+    mDf = morDf.copy()
     dDf = datterDf.copy()
 
+    idKey = 'nvdbId'
+    if prefixMor: 
+        # Sjekker om prefixet er i bruk allerede:
+        if len( [ x for x in list( mDf.columns ) if prefixMor in x ]  ) == 0: 
+            mDf = mDf.add_prefix( prefixMor )
+        idKey = prefixMor + 'nvdbId'
 
-    if addprefix_datter: 
-        dDf = dDf.add_prefix( datterPrefix )
+    if prefixDatter and not ignorerDatterPrefix: 
+        # Sjekker om prefikset er i bruk allerede
+        if len( [ x for x in list( dDf.columns ) if prefixDatter in x ]  ) == 0: 
+            dDf = dDf.add_prefix( prefixDatter )
 
-    # Finner rett kolonnenavn for relasjoner i datterDf: 
-    relKey = 'relasjoner'
-    if relasjonsKolonne: 
-        relKey = relasjonsKolonne
+        relKey       = prefixDatter + 'relasjoner'
+        datterIdKey  = prefixDatter + 'nvdbId'
+ 
+    else: 
+        temp = [x for x in list( dDf.columns ) if 'objekttype' in x ]
+        assert len(temp) == 1, f"finnDatter: Lette etter en kolonne kalt objekttype i datterDf, fant {len(temp)} stk: {temp} "
+        temp2 = list( dDf[temp[0]].unique() )
+        assert len(temp2) == 1, f"finnDatter: Lette etter unik objekttype i datterDf kolonne {temp[0]}, fant {len(temp2)} stk: {temp2} "
 
-    if relKey not in dDf.keys(): 
-        idKandidater = [ x for x in list( dDf.columns ) if 'relasjon' in x.lower()  ]
-        assert len( idKandidater ) == 1,  f"Fant ingen relasjon - kolonne blant kolonnenavn for datterDf"
-        relKey = idKandidater[0]
+        if ignorerDatterPrefix: 
+            relKey      = 'relasjoner' 
+            datterIdKey = 'nvdbId'
 
+        else: 
+            relKey          = str( temp2[0] ) + '_relasjoner'
+            datterIdKey     = str( temp2[0] ) + '_nvdbId'
+            dDf = dDf.add_prefix( str( temp2[0] ) + '_' )
 
-    # Rett navn NVDB ID datterobjekt
-    idKandidater = [ x for x in list( dDf.columns ) if 'nvdbid' in x.lower()  ]
-    assert len( idKandidater ) == 1,  f"Fant ingen unik NvdbId - kolonne blant kolonnenavn for datterDf"
-    datterIdKey = idKandidater[0]     
+    assert len( [x for x in list( mDf.columns ) if idKey        in x ] ) == 1, f"Fant ikke unik kolonne {idKey} i mor-datasett, prefixMor={prefixMor} "
+    assert len( [x for x in list( dDf.columns ) if relKey       in x ] ) == 1, f"Fant ikke unik kolonne {relKey} i datter-datasett, prefixDatter={prefixDatter} "
+    assert len( [x for x in list( dDf.columns ) if datterIdKey  in x ] ) == 1, f"Fant ikke unik kolonne {datterIdKey} i datter-datasett, prefixDatter={prefixDatter} "
 
     returdata = []
     for ii, row in dDf.iterrows(): 
@@ -145,7 +198,7 @@ def finnDatter( morDf, datterDf, addprefix_datter=True, prefix=None, nvdbIdKolon
             if len( row_resultat ) > 1: 
                 print( f"Flere mødre { morIdListe } funnet for datterobjekt {row[datterIdKey]}" )
             elif len( morIdListe) > 1 and len( row_resultat) == 1: 
-                print( f"Flere mødre angitt for datterobjekt {row[datterIdKey]}, men fant kun ett treff i morDf" )
+                print( f"Flere mødre angitt for datterobjekt {row[datterIdKey]}, men fant heldigvis kun ett treff i morDf" )
 
             returdata.extend( row_resultat )
 
