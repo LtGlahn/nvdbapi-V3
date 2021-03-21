@@ -812,7 +812,7 @@ class nvdbFagdata(nvdbVegnett):
         else: 
             return None
         
-    def to_records(self, vegsegmenter=True, relasjoner=False, geometri=False, debug=False, tidspunkt=None ): 
+    def to_records(self, vegsegmenter=True, relasjoner=True, geometri=False, debug=False, tidspunkt=None ): 
         """
         Eksporterer til en liste med dictionaries med struktur 
         "objekttype" : INT,
@@ -835,10 +835,9 @@ class nvdbFagdata(nvdbVegnett):
         NB! Når vi returnerer individuelle vegsegmenter tar vi med vegsegmenter gyldige i dag,
         dvs åpen sluttdato.
 
-        Paramter relasjoner=False: Tar ikke med liste over relasjoner til andre objekter
+        Paramter relasjoner=True: Tar med dictionary over relasjoner til andre objekter
 
         Parameter geometri=False: Tar ikke med s.k. egengeometri(er)
-
 
         ARGUMENTS
             feature_eller_liste Dictionary eller liste med dictionies med NVDB fagdata slik de kommer fra NVDB api V3
@@ -1102,7 +1101,7 @@ def nvdbfagobjekt2records( feature_eller_liste, **kwargs):
     data = nvdbfagdata2records( feature_eller_liste, **kwargs) 
     return data 
 
-def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=False, geometri=False, debug=False, tidspunkt=None ): 
+def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=True, geometri=False, debug=False, tidspunkt=None ): 
     """
     Gjør om (liste med) nvdb fagdata fra NVDB api LES til records, dvs de-normalisert til dictionaries med enkel struktur. 
 
@@ -1131,7 +1130,8 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=Fals
     NB! Når vi returnerer individuelle vegsegmenter tar vi med vegsegmenter gyldige i dag,
     dvs åpen sluttdato. Dette kan overstyres med nøkkeord tidspunkt (se under)
 
-    Paramter relasjoner=False: Tar ikke med liste over relasjoner til andre objekter
+    Paramter relasjoner=True: Tar med dataelementet "relasjoner" fra objektet (dictionary-struktur med de ulike typer
+    relasjoner for objektet)
 
     Parameter geometri=False: Tar ikke med s.k. egengeometri(er)
 
@@ -1141,7 +1141,7 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=Fals
     KEYWORDS 
         vegsegmenter=True (default) | False : Gi en forekomst (av objektet) per unike vegsegment
         
-        relasjoner=False (default) | True : Ta med mer detaljer om objektets relasjoner 
+        relasjoner=True (default) | False : Ta med mer detaljer om objektets relasjoner 
         
         geometri=False (default) | True : Hent geometri fra objektets vegtilknytning, evt bruk objektets 
                                           egengeometri (hvis den finnes, vegtilknytning er alltid fallback) 
@@ -1181,7 +1181,10 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=Fals
 
             # meta['metadata'] = feat['metadata']
 
-            egenskaper = egenskaper2records( feat['egenskaper'], relasjoner=relasjoner, geometri=geometri )
+            egenskaper = egenskaper2records( feat['egenskaper'], geometri=geometri )
+
+            if relasjoner and 'relasjoner' in feat: 
+                egenskaper['relasjoner'] = feat['relasjoner']
             egenskaper = merge_dicts( meta, egenskaper)
 
             if vegsegmenter: 
