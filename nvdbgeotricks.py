@@ -11,6 +11,7 @@ uten at det påvirker hele python-installasjonen din.
 """
 import re
 import pdb
+from copy import deepcopy
 
 from shapely import wkt 
 # from shapely.ops import unary_union
@@ -48,17 +49,109 @@ def finnoverlapp( dfA, dfB, prefixB=None ):
 
     raise NotImplementedError( "Har ikke fått laget denne ennå, sjekk om noen dager")
 
-def finnDatter( morDf, datterDf, datterprefix=None ): 
+
+
+def finnDatter( morDf, datterDf, addprefix_datter=True, prefix=None, nvdbIdKolonne=None, relasjonsKolonne=None   ): 
     """
     Finner relasjoner mellom vegobjekter i (geo)dataframe 
-    TODO: Dokumentasjon
-    TODO: MVP 
+    
+    Returnerer ny dataframe hvor alle elementer i datterDf er påført informasjon fra mor-objektet hentet fra morDf 
+
+    For å unngå navnekollisjon er standardoppførselen å føye forstavelsen kolonnenavn <vegobjektTypeId>_ til 
+    alle kolonnenavn i datterdf. Denne oppførselen reguleres med nøkkelordene addprefix_datter og prefix. 
+
+    ARGUMENTS: 
+        morDf, datterDf: Pandas dataframe eller geopandas geodataframe. 
+
+    KEYWORDS: 
+        addprefix_datter=True | False. Skal vi føye til prefiks på kolonnenavnene i datterDf? 
+
+        prefix=None eller tekstreng. Spesifiserer tekststreng for datterobjektenes prefix. Hvis None så 
+        avleder vi prefiks ut fra objekttypen i datterDf 
+
+        nvdbIdKolonne: Tekststreng med kolonnenavn for nvdbId i morDf. Hvis ikke angitt bruker vi kolonnen nvdbID eller
+                        eller et kolonnenavn der 'nvdbId' inngår som del av navnet
+
+        relasjonskolonne: Tekststreng med kolonnenanv for relasjon-dictionary i datterDf. Hvis ikke angitt finner vi et 
+                        kolonnenavn der 'relasjoner' inngår som del av navnet. 
+
+    RETURNS
+        dataFrame eller Geodataframe (samme som morDf)
     """
 
-    raise NotImplementedError( "Har ikke fått laget denne ennå, sjekk om noen dager")
+    if addprefix_datter and not prefix: 
+        if not 'objekttype' in datterDf.columns: 
+            print( 'finnDatter: Fant ikke objekttype blant kolonnenavn, angi prefiks manuelt')
+        else: 
+            objektType = list( datterDf['objekttype'].unique() ) 
+            if len( objektType ) > 1: 
+                print( f"finnDatter: Flere objekttyper i datterDf, vrient å døpe om da... bruker første forekomst {str(objektType[0]) + '_'} ")
+            datterPrefix = str( objektType[0]) + '_'
+
+    # Finner rett kolonnenavn for morDf 
+    idKey = 'nvdbId'
+    if nvdbIdKolonne: 
+        idKey = nvdbIdKolonne
+
+    if idKey not in morDf.keys():
+        idKandidater = [ x for x in list( morDf.index ) if 'nvdbid' in x.lower()  ]
+        assert len( idKandidater ) == 1,  f"Fant ingen NvdbId - kolonne blant kolonnenavn for morDf"
+        idKey = idKandidater[0]
+
+    # Lager kopier, så vi ikke får kjipe sideeffekter av orginaldatasettet 
+    mDf = morDf.drop_duplicates( subset=idKey ).copy()
+    dDf = datterDf.copy()
 
 
+    if addprefix_datter: 
+        dDf = dDf.add_prefix( datterPrefix )
 
+    # Finner rett kolonnenavn for relasjoner i datterDf: 
+    relKey = 'relasjoner'
+    if relasjonsKolonne: 
+        relKey = relasjonsKolonne
+
+    if relKey not in dDf.keys(): 
+        idKandidater = [ x for x in list( dDf.columns ) if 'relasjon' in x.lower()  ]
+        assert len( idKandidater ) == 1,  f"Fant ingen relasjon - kolonne blant kolonnenavn for datterDf"
+        relKey = idKandidater[0]
+
+
+    # Rett navn NVDB ID datterobjekt
+    idKandidater = [ x for x in list( dDf.columns ) if 'nvdbid' in x.lower()  ]
+    assert len( idKandidater ) == 1,  f"Fant ingen unik NvdbId - kolonne blant kolonnenavn for datterDf"
+    datterIdKey = idKandidater[0]     
+
+    returdata = []
+    for ii, row in dDf.iterrows(): 
+
+        row_resultat = []
+        if relKey in row and 'foreldre' in row[relKey]: 
+            morIdListe = []
+            morObjektTypeId = []
+            for mortype in row[relKey]['foreldre']: 
+                morIdListe.extend( mortype['vegobjekter'] )
+                morObjektTypeId.append( mortype['type'])
+
+            morDict = []
+            for morId in morIdListe: 
+                tempDf = mDf[ mDf[idKey] == morId ]
+                for jj, morRow in tempDf.iterrows(): 
+                    morDict = morRow.to_dict()
+                    datterDict = row.to_dict()
+                    blanding = { **morDict, **datterDict }                    
+                    row_resultat.append( deepcopy( blanding ) )
+
+            if len( row_resultat ) > 1: 
+                print( f"Flere mødre { morIdListe } funnet for datterobjekt {row[datterIdKey]}" )
+            elif len( morIdListe) > 1 and len( row_resultat) == 1: 
+                print( f"Flere mødre angitt for datterobjekt {row[datterIdKey]}, men fant kun ett treff i morDf" )
+
+            returdata.extend( row_resultat )
+
+    returDf = pd.DataFrame( returdata )
+
+    return returDf 
 
 def records2gpkg( minliste, filnavn, lagnavn ): 
     """
