@@ -12,6 +12,7 @@ uten at det påvirker hele python-installasjonen din.
 import re
 import pdb
 from copy import deepcopy
+import sqlite3
 
 from shapely import wkt 
 # from shapely.ops import unary_union
@@ -43,14 +44,16 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None ):
         resultat1 = finnoverlapp( dfTunnellop, dfFartsgrenser  ) 
         resultat2 = finnoverlapp( resultat1, dfTrafikkmengde )
 
-        resultat2 har da tunnelløp koblet med fartsgrenser (med forstavelsen 105_ ) og trafikkmengde (med forstavelsen 540_ )
+        resultat2 har da tunnelløp koblet med fartsgrenser (med forstavelsen t105_ ) og trafikkmengde (med forstavelsen t540_ )
 
         2) Ta eksplisitt kontroll over prefiks med nøkkelordene prefixA, prefixB. Merk at prefiks kun føyes til kolonnenavn 
-        dersom det ikke finnes fra før, så vi inngår prefiks av typen 67_67_ 
+        dersom det ikke finnes fra før, så vi inngår prefiks av typen t67_t67_ 
 
-        3) Fjern "overflødige" kolonner fra mellomliggende resultater. 
+        3) Fjern "overflødige" kolonner fra mellomliggende resultater, gjerne kombinert med tricks 2) 
     
     Samme navnelogikk er brukt i funksjonen finndatter.  
+
+    TODO: Funksjonen håndterer ikke dictionary-elementer. Spesielt relasjon-strukturen (dictionary) gir oss problemer. 
     
     ARGUMENTS
         dfA, dfB - Pandas dataframe eller Geopandas geodataframe, eller kombinasjon. Returverdi blir identisk med dfA. 
@@ -59,20 +62,104 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None ):
         prefixA=None Valgfri tekststreng med det prefikset som skal føyes til navn i dfA, eller det prefikset som 
                      er brukt fordi dfA er resultatet fra en tidligere kobling 
 
-        prefixB=None Valgfri tekststreng med det prefikset som skal føyes til navn i dfB 
+        prefixB=None Valgfri tekststreng med det prefikset som skal føyes til navn i dfB. Hvis ikke angitt så komponerer vi 
+                     prefiks ut fra objektTypeID, for eksempel "67_" for 67 Tunnelløp. 
 
     RETURNS
         Pandas DataFrame, eller Geopandas Geodataframe, avhengig av hva dfA er for slag. 
 
-    TODO: MVP
-    TODO: Håndtere valgfri kombinasjon av punkt- og linjestedfesting 
     TODO: Inputdata er Vegnett + vegnett eller vegobjekter + vegnett ? (Trengs dette?)   
 
 
     """
 
+    # Lager kopier, så vi ikke får kjipe sideeffekter av orginaldatasettet 
+    dfA = dfA.copy()
+    dfB = dfB.copy()
+
+    col_vlinkA  = 'veglenkesekvensid'   
+    col_startA  = 'startposisjon'   
+    col_sluttA  = 'sluttposisjon'
+    col_relposA = 'relativPosisjon'
+
+    if prefixA: 
+        # Tester om prefikset er i bruk
+        if len( [ x for x in list( dfA.columns ) if prefixA in x ]  ) == 0: 
+            dfA = dfA.add_prefix( prefixA )
+
+        col_vlinkA  = prefixA + col_vlinkA
+        col_startA  = prefixA + col_startA
+        col_sluttA  = prefixA + col_sluttA
+        col_relposA = prefixA + col_relposA 
+
+    # Gjetter på prefix B om den ikke finnes. 
+    if not prefixB: 
+        temp = [x for x in list( dfB.columns ) if 'objekttype' in x ]
+        assert len(temp) == 1, f"finnoverlapp: Lette etter en kolonne kalt objekttype i dfB, fant {len(temp)} stk: {temp} "
+        temp2 = list( dfB[temp[0]].unique() )
+        assert len(temp2) == 1, f"finnoverlapp: Lette etter unik objekttype i dfB kolonne {temp[0]}, fant {len(temp2)} stk: {temp2} "
+        prefixB = 't' + str( temp2[0] )  + '_'
+
+    # Tester om prefikset allerede er i bruk: 
+    if len( [ x for x in list( dfB.columns ) if prefixB in x ]  ) == 0: 
+        dfB = dfB.add_prefix( prefixB )
+
+    col_vlinkB  = prefixB + 'veglenkesekvensid' 
+    col_startB  = prefixB + 'startposisjon' 
+    col_sluttB  = prefixB + 'sluttposisjon'
+    col_relposB = prefixB + 'relativPosisjon'
+
+    # Kvalitetssjekk på at vi har det som trengs: 
+    assert col_vlinkA in dfA.columns, f"finnoverlapp: Fant ikke kolonne {col_vlinkA} i dfA {dfA.columns} "
+    assert col_vlinkB in dfB.columns, f"finnoverlapp: Fant ikke kolonne {col_vlinkB} i dfB {dfB.columns} "
+
+    # Har vi punkt-vs punkt? Spesialcase. De andre tifellene (linje vs linje, punkt-linje eller linje-punkt)
+    # kan vi håndtere fint ved å trickse med å sette startposisjon, sluttposisjon - navnente lik  relativPosisjon - kolonnen
+    # Vi kategoriserer de to 
+
+    typeA = ''
+    typeB = ''
+    if col_startA in dfA.columns and col_sluttA in dfA.columns: 
+        typeA = 'LINJE'
+    elif col_relposA in dfA.columns: 
+        typeA = 'PUNKT'
+        col_startA = col_relposA
+        col_sluttA = col_relposA
+    else: 
+        raise ValueError( f"Finner ikke kolonner for veglenkeposisjon: {col_startA, col_sluttA} eller {col_relposA} i dfA")
+
+    if col_startB in dfB.columns and col_sluttB in dfB.columns: 
+        typeB = 'LINJE'
+    elif col_relposB in dfB.columns: 
+        typeB = 'PUNKT'
+        col_startB = col_relposB
+        col_sluttB = col_relposB
+    else: 
+        raise ValueError( f"Finner ikke kolonner for veglenkeposisjon: {col_startB, col_sluttB} eller {col_relposB} i dfB ")
+
+    if typeA == 'PUNKT' and typeB == 'PUNKT': 
+        qry = ( f"select * from A\n"
+                f"INNER JOIN B ON\n"
+                f"A.{col_vlinkA} = B.{col_vlinkB} and\n"
+                f"A.{col_relposA} = B{col_relposB} "
+            )
+    else: 
+        qry = ( f"select * from A\n"
+                f"INNER JOIN B ON\n"
+                f"A.{col_vlinkA} = B.{col_vlinkB} and\n"
+                f"A.{col_startA} < B.{col_sluttB} and\n"
+                f"A.{col_sluttA} > B.{col_startB} "
+            )
+
+    print( qry )
+
+    conn = sqlite3.connect( ':memory:')
+    dfA.to_sql( 'A', conn, index=False )
+    dfB.to_sql( 'B', conn, index=False )
+    joined = pd.read_sql_query( qry, conn )
+
     # EKSEMPELKODE!
-    # Lager virituell database, slik at vi kan gjøre SQL-spørringer
+    # LBger virituell database, slik at vi kan gjøre SQL-spørringer
     # conn = sqlite3.connect( ':memory:')
     # temp2010.to_sql( 'v2010', conn, index=False )
     # temp2009.to_sql( 'v2009', conn, index=False )
@@ -89,10 +176,10 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None ):
     #
     # joined = pd.read_sql_query( qry, conn)        
 
+    return joined 
 
 
-
-    raise NotImplementedError( "Har ikke fått laget denne ennå, sjekk om noen dager")
+    # raise NotImplementedError( "Har ikke fått laget denne ennå, sjekk om noen dager")
 
 
 
@@ -124,13 +211,13 @@ def finnDatter( morDf, datterDf, prefixMor=None, prefixDatter=None, ignorerDatte
 
     KEYWORDS: 
         Her er nøkkelord som regulerer hvordan vi døper om kolonner i datterDf (og evt morDf) for å minimere navnekollisjon. 
-        Standardoppførselen er å  beholde alle navn i morDf, men døpe vi om alle kolonnenavn i datterDf med "<objektTypeID>_" som prefiks. 
+        Standardoppførselen er å  beholde alle navn i morDf, men døpe vi om alle kolonnenavn i datterDf med "t<objektTypeID>_" som prefiks. 
         Merk at vi ikke endrer kolonnenavn som allerede inneholder det vi ellers ville brukt som prefiks for å døpe dem om. 
 
         prefixMor=None eller tekststreng. Brukes hvis det er ønskelig å døpe om alle kolonnenavn i morDf med dette som prefix   
 
-        prefixDatter=None eller tekststreng. Angis hvis du vil bruke noe annet enn "<objektTypeID>_" som prefiks når du gir nye navn til 
-                                            kolonner i datterDf. 
+        prefixDatter=None eller tekststreng. Angis hvis du vil bruke noe annet enn "t<objektTypeID>_" som prefiks når du gir nye navn til 
+                                             kolonner i datterDf. 
                                             
         ignorerDatterPrefix: Endrer IKKE kolonnenavn i datterDf. 
     RETURNS
@@ -167,9 +254,9 @@ def finnDatter( morDf, datterDf, prefixMor=None, prefixDatter=None, ignorerDatte
             datterIdKey = 'nvdbId'
 
         else: 
-            relKey          = str( temp2[0] ) + '_relasjoner'
-            datterIdKey     = str( temp2[0] ) + '_nvdbId'
-            dDf = dDf.add_prefix( str( temp2[0] ) + '_' )
+            relKey          = 't' + str( temp2[0] ) + '_relasjoner'
+            datterIdKey     = 't' + str( temp2[0] ) + '_nvdbId'
+            dDf = dDf.add_prefix( 't' + str( temp2[0] ) + '_' )
 
     assert len( [x for x in list( mDf.columns ) if idKey        in x ] ) == 1, f"Fant ikke unik kolonne {idKey} i mor-datasett, prefixMor={prefixMor} "
     assert len( [x for x in list( dDf.columns ) if relKey       in x ] ) == 1, f"Fant ikke unik kolonne {relKey} i datter-datasett, prefixDatter={prefixDatter} "
