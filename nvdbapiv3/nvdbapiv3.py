@@ -904,7 +904,7 @@ class nvdbFagdata(nvdbVegnett):
 
         if len( nvdbid_manglergeom ) > 0: 
             print( 'Manglende geometri-element for', len( nvdbid_manglergeom), 'vegobjekter fra dette søket')
-            print( json.dumps( self.filterdata, indent=4)  )
+            self.info()
             print( 'fra miljø', self.apiurl )
             if debug: 
                 print( nvdbid_manglergeom )
@@ -1210,8 +1210,7 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=True
                             s2['vegkategori'] = seg[vr]['vegsystem']['vegkategori']
                             s2['fase'] = seg[vr]['vegsystem']['fase']
                             if 'nummer' in seg[vr]['vegsystem']: 
-                                s2['nummer'] = seg[vr]['vegsystem']['nummer']
-
+                                s2['vegnummer'] = seg[vr]['vegsystem']['nummer']
 
                         if 'startposisjon' in seg.keys() and 'sluttposisjon' in seg.keys():
                             s2['startposisjon'] = seg['startposisjon'] 

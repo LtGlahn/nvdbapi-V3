@@ -19,10 +19,172 @@ from shapely import wkt
 import pandas as pd 
 import geopandas as gpd 
 from datetime import datetime
+import numpy as np
 
 import nvdbapiv3
 from nvdbapiv3 import apiforbindelse
 import nvdbgeotricks
+
+def splitBruksklasse_vekt( bruksklasse ): 
+    """
+    Henter ut vekt- og bruksklassetall fra bruksklasse-streng og returnerer numeriske verdier
+
+    Eks 'BK 10/60' => (10, 60) eller 'Bk10 - 50 tonn' => (10, 50)
+    """
+
+    bk = np.nan
+    vekt = np.nan
+
+    if isinstance( bruksklasse, float) or bruksklasse == None or bruksklasse == '' or 'Spesiell begrensning' in bruksklasse: 
+        return( bk, vekt )
+
+    bruksklasse = bruksklasse.strip()
+
+
+    try: 
+
+        if 'tonn' in bruksklasse.lower() and '-' in bruksklasse: 
+            tmp  = bruksklasse.split( '-')
+            vekt = int( tmp[1].lower().split('tonn')[0])
+            if 't' in tmp[0].lower(): 
+                bk   =  int(  tmp[0].lower().split('bkt')[1]   )
+            else: 
+                bk   =  int(  tmp[0].lower().split('bk')[1]   )
+        
+        elif '/' in bruksklasse: 
+            tmp = bruksklasse.split( '/')
+
+            vekt    = int( tmp[1] )
+            bk      = int(  tmp[0].lower().split('bk')[1]   )
+        else: 
+            print( f'Kan ikke splitte bruksklasse-verdi {bruksklasse} ')
+
+    except ValueError: 
+        print( f'Kan ikke splitte bruksklasse-verdi {bruksklasse} ')
+
+
+    return (bk, vekt )
+
+def brutusBKoverlapp( mittfilter=None, offisiell=False ): 
+    """
+    Finner de bruksklasse-objektene som overlapper med bruer. 
+    
+    Bruk nøkkelord offisiell=True for å hente uoffisielle BK-verdier (krever innlogging)
+
+    Brusøket kan snevres inn  med nøkkelord mittfilter={}, ref dokumentasjon for spørring etter vegobjekter 
+    https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/#/Vegobjekter/get_vegobjekter__vegobjekttypeid_ 
+    """
+
+    filteret = {}
+    # Kopierer mittfilter for å unngå sideefekter 
+    if mittfilter: 
+        filteret = deepcopy( mittfilter )
+
+    # Kun Brukategori = vegbru
+    if 'egenskap' in filteret: 
+        filteret ['egenskap'] = '1263=7304 and ' + filteret['egenskap']
+    else: 
+        filteret ['egenskap'] = '1263=7304'
+
+    brusok = nvdbapiv3.nvdbFagdata( 60 )
+    brusok.filter( filteret )
+    bruer = pd.DataFrame( brusok.to_records( relasjoner=False ) )
+    bruer = bruer[ bruer['trafikantgruppe'] == 'K' ]
+
+    #  BRUKSLAST/TOTALVEKT i utdraget.              I UTDRAG. Antar vi bruker BK normaltransport. Skal sammenligne BK og totalvekt. 
+    # Veggruppe - fra spesialtransport              I UTDRAG  Spesialtransport
+    # SV12/65 godkjent J/N                          I UTDRAG  BK 12/65 (finnes eller finnes ikke)
+    # SV12/00 godjkent J/N                          I UTDRAG  BK 12/100 (finnes / finnes ikke)
+    # SV 12/100 restriksjoner (sakte/sentrisk etc)  - nikx
+    # SV 12/100 avstand                             - niks
+
+
+    if offisiell: 
+        normalprefiks = 'bk904_'
+        spesialprefix = 'bk902_'
+        tolv65prefix  = 'bk891_'
+        tolv100prefix = 'bk893_'
+
+        normalsok  = nvdbapiv3.nvdbFagdata( 904 ) 
+        spesialsok = nvdbapiv3.nvdbFagdata( 902 )
+        tolv65sok  = nvdbapiv3.nvdbFagdata( 891 )
+        tolv100sok = nvdbapiv3.nvdbFagdata( 893 )
+
+    else: 
+        normalprefiks = 'bk905_'
+        spesialprefix = 'bk903_'
+        tolv65prefix  = 'bk892_'
+        tolv100prefix = 'bk894_'
+
+        normalsok  = nvdbapiv3.nvdbFagdata( 905 ) 
+        spesialsok = nvdbapiv3.nvdbFagdata( 903 )
+        tolv65sok  = nvdbapiv3.nvdbFagdata( 892 )
+        tolv100sok = nvdbapiv3.nvdbFagdata( 894 )
+
+        normalsok.forbindelse.login( miljo='prodskriv', username='jajens' )
+        spesialsok.forbindelse = normalsok.forbindelse 
+        tolv65sok.forbindelse  = normalsok.forbindelse
+        tolv100sok.forbindelse = normalsok.forbindelse
+
+    normalsok.filter(  { 'overlapp' : '60' })
+    spesialsok.filter( { 'overlapp' : '60' })
+    tolv65sok.filter(  { 'overlapp' : '60' })
+    tolv100sok.filter( { 'overlapp' : '60' })
+
+    normal  = pd.DataFrame( normalsok.to_records(  relasjoner=False ))
+    spesial = pd.DataFrame( spesialsok.to_records( relasjoner=False ))
+    tolv65  = pd.DataFrame( tolv65sok.to_records(  relasjoner=False ))
+    tolv100 = pd.DataFrame( tolv100sok.to_records( relasjoner=False ))
+
+    normal['bktall'] = normal['Bruksklasse'].apply( lambda x : splitBruksklasse_vekt( x )[0] )  
+    normal['bkvekt'] = normal['Bruksklasse'].apply( lambda x : splitBruksklasse_vekt( x )[1] )  
+    # normal['Maks vogntoglengde'] = normal['Maks vogntoglengde'].apply( lambda x : float( x.replace( ',', '.') ) if '.' in x )
+
+    sletteliste = [ 'objekttype', 'nvdbId', 'versjon', 'startdato', 'Vegliste gjelder alltid', 
+                    'detaljnivå', 'typeVeg', 'kommune', 'fylke', 'veglenkeType', 'segmentlengde', 
+                    'geometri', 'vref', 'vegkategori', 'fase', 'vegnummer', 'adskilte_lop', 
+                    'trafikantgruppe', 'Strekningsbeskrivelse']
+
+    slettelliste_normal  = ['Bruksklasse vinter'  ]
+
+    normal.drop(  columns=sletteliste+slettelliste_normal, inplace=True )
+    spesial.drop( columns=sletteliste+slettelliste_normal, inplace=True )
+    tolv65.drop(  columns=sletteliste, inplace=True )
+    tolv100.drop( columns=sletteliste, inplace=True )
+
+    bruprefix = 'bru_'
+    bruer = bruer.add_prefix( bruprefix )
+    brucol_nvdbId = bruprefix + 'nvdbId'
+    # Overlapp bruer - normaltransport 
+    mellomresultat2 = nvdbgeotricks.finnoverlapp( bruer,           normal, prefixA=bruprefix, prefixB=normalprefiks, join='left')
+    # mellomresultat2 = pd.concat( [ mellomresultat1, bruer[ ~bruer[brucol_nvdbId].isin( mellomresultat1[ brucol_nvdbId ] )  ]  ]   )    
+    mellomresultat2.drop( columns=[ normalprefiks+'veglenkesekvensid', normalprefiks+'startposisjon', normalprefiks+'sluttposisjon' ], inplace=True )
+
+    # Overlapp bruer - spesial 
+    mellomresultat4 = nvdbgeotricks.finnoverlapp( mellomresultat2, spesial, prefixA=bruprefix, prefixB=spesialprefix, join='left')
+    # mellomresultat4 = pd.concat( [ mellomresultat3, bruer[ ~bruer[brucol_nvdbId].isin( mellomresultat3[ brucol_nvdbId ] )  ]  ]   ) 
+    mellomresultat4.drop( columns=[ spesialprefix+'veglenkesekvensid', spesialprefix+'startposisjon', spesialprefix+'sluttposisjon' ], inplace=True )
+
+    # Overlapp bruer - 12/65
+    mellomresultat6 = nvdbgeotricks.finnoverlapp( mellomresultat4, tolv65,  prefixA=bruprefix, prefixB=tolv65prefix, join='left')
+    # mellomresultat6 = pd.concat( [ mellomresultat5, bruer[ ~bruer[brucol_nvdbId].isin( mellomresultat5[ brucol_nvdbId ] )  ]  ]   ) 
+    mellomresultat6.drop( columns=[ tolv65prefix+'veglenkesekvensid', tolv65prefix+'startposisjon', tolv65prefix+'sluttposisjon' ], inplace=True )
+
+    # Overlapp bruer - 12/100
+    mellomresultat8 = nvdbgeotricks.finnoverlapp( mellomresultat6, tolv100, prefixA=bruprefix, prefixB=tolv100prefix, join='left')
+    # mellomresultat8 = pd.concat( [ mellomresultat7, bruer[ ~bruer[brucol_nvdbId].isin( mellomresultat7[ brucol_nvdbId ] )  ]  ]   ) 
+    mellomresultat8.drop( columns=[ tolv100prefix+'veglenkesekvensid', tolv100prefix+'startposisjon', tolv100prefix+'sluttposisjon' ], inplace=True )
+
+    pdb.set_trace()
+
+    bruer['geometry'] = bruer[ 'bru_geometri'].apply( lambda x : wkt.loads( x ) )
+    bruer = gpd.GeoDataFrame( bruer , geometry='geometry', crs=5973 ) 
+
+    mellomresultat8['geometry'] =  mellomresultat8[ 'bru_geometri'].apply( lambda x : wkt.loads( x ) )
+    minGdf = gpd.GeoDataFrame( mellomresultat8 , geometry='geometry', crs=5973 ) 
+
+    return minGdf
+
 
 def tunnelrapport( mittfilter=None  ):
     """
@@ -34,11 +196,10 @@ def tunnelrapport( mittfilter=None  ):
     returnerer TO dataframes, en med full rapport og en komprimert (per unike tunnelobjekt)
     """
 
+    filteret = {}
     # Kopierer mittfilter for å unngå sideefekter 
     if mittfilter: 
         filteret = deepcopy( mittfilter )
-    else: 
-        filteret = {}
 
     # Henter tunnell og tunnelløp, spleiser dem sammen: 
     tun = nvdbapiv3.nvdbFagdata( 581 )

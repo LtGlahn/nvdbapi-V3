@@ -23,7 +23,7 @@ from datetime import datetime
 import nvdbapiv3
 from nvdbapiv3 import apiforbindelse
 
-def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None ): 
+def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner' ): 
     """
     Finner overlapp mellom to (geo)pandas (geo)dataframes med veglenkeposisjoner. 
     
@@ -64,6 +64,9 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None ):
 
         prefixB=None Valgfri tekststreng med det prefikset som skal føyes til navn i dfB. Hvis ikke angitt så komponerer vi 
                      prefiks ut fra objektTypeID, for eksempel "67_" for 67 Tunnelløp. 
+
+        join = 'inner' | 'left' . Hva slags sql-join vi skal gjøre, mest aktuelle er 'INNER' eller 'LEFT'. I prinsippet en hvilke
+                    som helst variant som er støttet av sqlite3.
 
     RETURNS
         Pandas DataFrame, eller Geopandas Geodataframe, avhengig av hva dfA er for slag. 
@@ -139,13 +142,13 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None ):
 
     if typeA == 'PUNKT' and typeB == 'PUNKT': 
         qry = ( f"select * from A\n"
-                f"INNER JOIN B ON\n"
+                f"{join.upper()} JOIN B ON\n"
                 f"A.{col_vlinkA} = B.{col_vlinkB} and\n"
                 f"A.{col_relposA} = B{col_relposB} "
             )
     else: 
         qry = ( f"select * from A\n"
-                f"INNER JOIN B ON\n"
+                f"{join.upper()} JOIN B ON\n"
                 f"A.{col_vlinkA} = B.{col_vlinkB} and\n"
                 f"A.{col_startA} < B.{col_sluttB} and\n"
                 f"A.{col_sluttA} > B.{col_startB} "
