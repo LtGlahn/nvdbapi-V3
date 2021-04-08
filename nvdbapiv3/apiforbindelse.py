@@ -78,20 +78,20 @@ class apiforbindelse( ):
             self.apiurl = 'https://nvdbapiles-v3.atlas.vegvesen.no' 
 
         elif miljo == 'utvskriv':
-            self.apiurl = 'https://www.utv.vegvesen.no' 
-            self.skrivloginurl = 'https://www.utv.vegvesen.no/ws/no/vegvesen/ikt/sikkerhet/aaa/autentiser' 
+            self.apiurl = 'https://nvdbapiskriv.utv.atlas.vegvesen.no' 
+            self.skrivloginurl = 'https://nvdbapiskriv.utv.atlas.vegvesen.no/rest/v1/oidc/authenticate' 
             self.headers['Accept'] = 'application/json'
             self.headers['Content-Type'] = 'application/json'
 
         elif miljo == 'testskriv': 
-            self.apiurl = 'https://www.test.vegvesen.no' 
-            self.skrivloginurl = 'https://www.test.vegvesen.no/ws/no/vegvesen/ikt/sikkerhet/aaa/autentiser' 
+            self.apiurl = 'https://nvdbapiskriv.test.atlas.vegvesen.no' 
+            self.skrivloginurl = 'https://nvdbapiskriv.test.atlas.vegvesen.no/rest/v1/oidc/authenticate' 
             self.headers['Accept'] = 'application/json'
             self.headers['Content-Type'] = 'application/json'            
             
         elif miljo == 'prodskriv': 
-            self.apiurl = 'https://www.vegvesen.no' 
-            self.skrivloginurl = 'https://www.vegvesen.no/ws/no/vegvesen/ikt/sikkerhet/aaa/autentiser'
+            self.apiurl = 'https://nvdbapiskriv.atlas.vegvesen.no' 
+            self.skrivloginurl = 'https://nvdbapiskriv.atlas.vegvesen.no/rest/v1/oidc/authenticate'
             self.headers['Accept'] = 'application/json'
             self.headers['Content-Type'] = 'application/json'
             
@@ -99,7 +99,7 @@ class apiforbindelse( ):
             print( 'Miljø finnes ikke! utvles, utvskriv, testles, testskriv, prodles, prodskriv')
 
                               
-    def login(self, miljo=None, username='jajens', pw=None, klient=None, user_type='employee'): 
+    def login(self, miljo=None, username='jajens', pw=None, klient=None, realm='EMPLOYEE'): 
         """
         Logger inn i api.
         
@@ -118,8 +118,10 @@ class apiforbindelse( ):
             klient : None eller string, Øk sporbarhet ved å gjør det lettere å finne endringssettene dine i 
                                         APISKRIV sitt endringssett-panel 
 
-            user_type : string, 'employe' eller XXX (hva vi nå kaller fjesløse brukere i dag)
-                                TODO: Oppdater dokumentasjon med riktig fjesløs-begrep XXX 
+            REALM : string, angir brukertype for innlogging skriveapi. 
+                    'EMPLOYEE' er default (personlig bruker, ansatt i SVV), 
+                    andre verdier er 'SERVICE_ACCOUNT' (fjesløs systembruker)
+                    eller 'EXTERNAL' (personlig bruker ikke ansatt i SVV)
         
         """
         
@@ -127,7 +129,7 @@ class apiforbindelse( ):
             self.velgmiljo( miljo=miljo)
 
         if 'skriv' in self.miljo: 
-            self.__loginskriv( username='jajens', pw=pw )
+            self.__loginskriv( username='jajens', pw=pw, realm=realm )
         elif 'les' in self.miljo: 
            self.__loginles( username='jajens', pw=pw) 
         else: 
@@ -178,16 +180,24 @@ class apiforbindelse( ):
             print( self.loginrespons.text )
 
 
-    def __loginskriv( self, username='jajens', pw=None, klient=None): 
+    def __loginskriv( self, username='jajens', pw=None, klient=None, realm='EMPLOYEE'): 
         """
         Logger inn mot apiskriv 
 
         """
         temp = self.SVVpassord( username=username, pw=pw )
         body = { 'username' :  temp['X-OpenAM-Username'], 
-                 'password' :  temp['X-OpenAM-Password']
-                }        
-        headers = { "Content-Type" : "application/json"}
+                 'password' :  temp['X-OpenAM-Password'], 
+                 'realm'    : realm
+                }  
+
+        # Må ha klientinformasjon
+        if not klient: 
+            klient = 'Ltglahn python'
+
+        headers = { "Content-Type" : "application/json", 
+                    "Accept" : "application/json", 
+                    "X-Client" : klient }
         
         self.loginrespons = self.requestsession.post( url=self.skrivloginurl, 
                                         headers=headers, 
@@ -195,15 +205,15 @@ class apiforbindelse( ):
         
         if self.loginrespons.ok:
             temp = self.loginrespons.json()
-            if 'token' in temp.keys():
+            if 'accessToken' in temp.keys():
                 
-                self.headers['Cookie'] = temp['tokenname'] + '= ' + temp['token']
+                self.headers['authorization'] = 'Bearer ' + temp['accessToken']
                 
             else: 
-                print( 'Fikk ikke logget på - ingen token :(' )
+                print( 'Fikk ikke logget på - ingen accessToken :(' )
                 
         else: 
-            print( "Fikk ikke logget på :(, loginrespons ", self.loginrespons.status_code )
+            print( "Fikk ikke logget på :(  , loginrespons ", self.loginrespons.status_code )
 
                
     # def loggut(self): 
