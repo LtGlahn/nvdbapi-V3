@@ -51,18 +51,21 @@ def splitBruksklasse_vekt( bruksklasse ):
             else: 
                 bk   =  int(  tmp[0].lower().split('bk')[1]   )
         
-        elif '/' in bruksklasse: 
+        elif '/' in bruksklasse and 'bk' in bruksklasse.lower(): 
             tmp = bruksklasse.split( '/')
 
             vekt    = int( tmp[1] )
-            bk      = int(  tmp[0].lower().split('bk')[1]   )
+            if 't' in tmp[0].lower(): 
+               bk      = int(  tmp[0].lower().split('t')[1]   ) 
+            else: 
+               bk      = int(  tmp[0].lower().split('bk')[1]   )
         else: 
             print( f'Kan ikke splitte bruksklasse-verdi {bruksklasse} ')
 
     except ValueError: 
         print( f'Kan ikke splitte bruksklasse-verdi {bruksklasse} ')
 
-
+        
     return (bk, vekt )
 
 def brutusBKoverlapp( mittfilter=None, offisiell=False ): 
@@ -73,6 +76,19 @@ def brutusBKoverlapp( mittfilter=None, offisiell=False ):
 
     Brusøket kan snevres inn  med nøkkelord mittfilter={}, ref dokumentasjon for spørring etter vegobjekter 
     https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/#/Vegobjekter/get_vegobjekter__vegobjekttypeid_ 
+
+    ARGUMENTS: 
+        None
+
+    KEYWORDS
+        mittfilter=None (default) Valgfritt dictionary med eventuelle filtre for bruenes egenskaper, veg- eller områdefilter m.m. 
+            Se nvdbapiv3.nvdbFagdata eller API dokumentasjon 
+            https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/#/Vegobjekter/get_vegobjekter__vegobjekttypeid_ 
+
+        offisiell=False (default) | True. Angir om vi skal bruke offisielle eller uoffisielle bruksklassedata (krever innlogging)
+
+    RETURNS
+        geopandas geodataframe
     """
 
     filteret = {}
@@ -87,7 +103,7 @@ def brutusBKoverlapp( mittfilter=None, offisiell=False ):
         filteret ['egenskap'] = '1263=7304'
 
     brusok = nvdbapiv3.nvdbFagdata( 60 )
-    brusok.filter( filteret )
+    # brusok.filter( filteret )
     bruer = pd.DataFrame( brusok.to_records( relasjoner=False ) )
     bruer = bruer[ bruer['trafikantgruppe'] == 'K' ]
 
@@ -121,7 +137,7 @@ def brutusBKoverlapp( mittfilter=None, offisiell=False ):
         tolv65sok  = nvdbapiv3.nvdbFagdata( 892 )
         tolv100sok = nvdbapiv3.nvdbFagdata( 894 )
 
-        normalsok.forbindelse.login( miljo='prodskriv', username='jajens' )
+        normalsok.forbindelse.login( miljo='prodles', username='jajens' )
         spesialsok.forbindelse = normalsok.forbindelse 
         tolv65sok.forbindelse  = normalsok.forbindelse
         tolv100sok.forbindelse = normalsok.forbindelse
@@ -140,7 +156,8 @@ def brutusBKoverlapp( mittfilter=None, offisiell=False ):
     normal['bkvekt'] = normal['Bruksklasse'].apply( lambda x : splitBruksklasse_vekt( x )[1] )  
     # normal['Maks vogntoglengde'] = normal['Maks vogntoglengde'].apply( lambda x : float( x.replace( ',', '.') ) if '.' in x )
 
-    sletteliste = [ 'objekttype', 'nvdbId', 'versjon', 'startdato', 'Vegliste gjelder alltid', 
+    # 'Vegliste gjelder alltid',
+    sletteliste = [ 'objekttype', 'nvdbId', 'versjon', 'startdato',  
                     'detaljnivå', 'typeVeg', 'kommune', 'fylke', 'veglenkeType', 'segmentlengde', 
                     'geometri', 'vref', 'vegkategori', 'fase', 'vegnummer', 'adskilte_lop', 
                     'trafikantgruppe', 'Strekningsbeskrivelse']
@@ -175,8 +192,7 @@ def brutusBKoverlapp( mittfilter=None, offisiell=False ):
     # mellomresultat8 = pd.concat( [ mellomresultat7, bruer[ ~bruer[brucol_nvdbId].isin( mellomresultat7[ brucol_nvdbId ] )  ]  ]   ) 
     mellomresultat8.drop( columns=[ tolv100prefix+'veglenkesekvensid', tolv100prefix+'startposisjon', tolv100prefix+'sluttposisjon' ], inplace=True )
 
-    pdb.set_trace()
-
+    # Lager geodataframe 
     bruer['geometry'] = bruer[ 'bru_geometri'].apply( lambda x : wkt.loads( x ) )
     bruer = gpd.GeoDataFrame( bruer , geometry='geometry', crs=5973 ) 
 
