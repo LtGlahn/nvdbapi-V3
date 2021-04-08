@@ -77,6 +77,12 @@ class apiforbindelse( ):
         elif miljo == 'prodles': 
             self.apiurl = 'https://nvdbapiles-v3.atlas.vegvesen.no' 
 
+        elif miljo == 'stmskriv': 
+            self.apiurl = 'https://nvdbapiskriv-stm.utv.atlas.vegvesen.no'
+            self.skrivloginurl = 'https://nvdbapiskriv-stm.utv.atlas.vegvesen.no/rest/v1/oidc/authenticate' 
+            self.headers['Accept'] = 'application/json'
+            self.headers['Content-Type'] = 'application/json'
+
         elif miljo == 'utvskriv':
             self.apiurl = 'https://nvdbapiskriv.utv.atlas.vegvesen.no' 
             self.skrivloginurl = 'https://nvdbapiskriv.utv.atlas.vegvesen.no/rest/v1/oidc/authenticate' 
