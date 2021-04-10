@@ -155,7 +155,8 @@ class endringssett():
          
         """
         if not apiskriv: 
-            apiskriv = apiforbindelse.apiforbindelse()
+            # apiskriv = apiforbindelse.apiforbindelse()
+            apiskriv = apiforbindelse()
         
         self.forbindelse = apiskriv
     
@@ -167,7 +168,7 @@ class endringssett():
             print( "Ingen aktiv forbindelse med NVDB api skriv")
             return 
             
-        self.validertrespons = self.forbindelse.skrivtil( '/nvdb/apiskriv/rest/v3/endringssett/validator', self.data )
+        self.validertrespons = self.forbindelse.skrivtil( '/rest/v3/endringssett/validator', self.data )
         if self.validertrespons.ok: 
             self.validertresultat = self.validertrespons.json()
             
@@ -227,7 +228,7 @@ class endringssett():
         else: 
             self.forbindelse.headers['X-NVDB-DryRun'] = 'false'
 
-        self.registrertrespons = self.forbindelse.skrivtil('/nvdb/apiskriv/rest/v3/endringssett', self.data )
+        self.registrertrespons = self.forbindelse.skrivtil('/rest/v3/endringssett', self.data )
         if self.registrertrespons.ok: 
             self.status = 'registrert' 
             
