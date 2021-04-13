@@ -68,9 +68,12 @@ def splitBruksklasse_vekt( bruksklasse ):
         
     return (bk, vekt )
 
-def brutusBKoverlapp( mittfilter=None, offisiell=False ): 
+def brutusBKoverlapp( mittfilter=None, offisiell=False, kunEnTypeBK=None ): 
     """
     Finner de bruksklasse-objektene som overlapper med bruer. 
+
+    finner overlapp mellom bruenes vegsegmenter og vegsegmenter for BK-typene "Normaltransport", "Spesialtransport" og "12/100 vegnett"
+    Bruk evt nøkkelord kunEnTypeBK for å plukke ut en av disse. 
     
     Bruk nøkkelord offisiell=True for å hente uoffisielle BK-verdier (krever innlogging)
 
@@ -86,6 +89,8 @@ def brutusBKoverlapp( mittfilter=None, offisiell=False ):
             https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/#/Vegobjekter/get_vegobjekter__vegobjekttypeid_ 
 
         offisiell=False (default) | True. Angir om vi skal bruke offisielle eller uoffisielle bruksklassedata (krever innlogging)
+
+        kunEnTypeBK = None (default) eller en tekststreng som angir hvilke type bruksklasse vi skal hente. 
 
     RETURNS
         geopandas geodataframe
@@ -121,10 +126,10 @@ def brutusBKoverlapp( mittfilter=None, offisiell=False ):
         tolv65prefix  = 'bk891_'
         tolv100prefix = 'bk893_'
 
-        normalsok  = nvdbapiv3.nvdbFagdata( 904 ) 
-        spesialsok = nvdbapiv3.nvdbFagdata( 902 )
-        tolv65sok  = nvdbapiv3.nvdbFagdata( 891 )
-        tolv100sok = nvdbapiv3.nvdbFagdata( 893 )
+        normalsok  = nvdbapiv3.nvdbFagdata( 904 ) #Normal
+        spesialsok = nvdbapiv3.nvdbFagdata( 902 ) #Spesial
+        tolv65sok  = nvdbapiv3.nvdbFagdata( 891 ) # 12/65 
+        tolv100sok = nvdbapiv3.nvdbFagdata( 893 ) # 12/100 vegnett
 
     else: 
         normalprefiks = 'bk905_'
@@ -159,7 +164,7 @@ def brutusBKoverlapp( mittfilter=None, offisiell=False ):
     # 'Vegliste gjelder alltid',
     sletteliste = [ 'objekttype', 'nvdbId', 'versjon', 'startdato',  
                     'detaljnivå', 'typeVeg', 'kommune', 'fylke', 'veglenkeType', 'segmentlengde', 
-                    'geometri', 'vref', 'vegkategori', 'fase', 'vegnummer', 'adskilte_lop', 
+                    'geometri', 'vegkategori', 'fase', 'vegnummer', 'adskilte_lop', 
                     'trafikantgruppe', 'Strekningsbeskrivelse']
 
     slettelliste_normal  = ['Bruksklasse vinter'  ]
@@ -172,32 +177,44 @@ def brutusBKoverlapp( mittfilter=None, offisiell=False ):
     bruprefix = 'bru_'
     bruer = bruer.add_prefix( bruprefix )
     brucol_nvdbId = bruprefix + 'nvdbId'
+    sluttresultat = None 
     # Overlapp bruer - normaltransport 
-    mellomresultat2 = nvdbgeotricks.finnoverlapp( bruer,           normal, prefixA=bruprefix, prefixB=normalprefiks, join='left')
-    # mellomresultat2 = pd.concat( [ mellomresultat1, bruer[ ~bruer[brucol_nvdbId].isin( mellomresultat1[ brucol_nvdbId ] )  ]  ]   )    
-    mellomresultat2.drop( columns=[ normalprefiks+'veglenkesekvensid', normalprefiks+'startposisjon', normalprefiks+'sluttposisjon' ], inplace=True )
-
+    if kunEnTypeBK == None or kunEnTypeBK == 'normal': 
+        mellomresultat2 = nvdbgeotricks.finnoverlapp( bruer,           normal, prefixA=bruprefix, prefixB=normalprefiks, join='left')
+        mellomresultat2.drop( columns=[ normalprefiks+'veglenkesekvensid', normalprefiks+'startposisjon', normalprefiks+'sluttposisjon' ], inplace=True )
+        sluttresultat = mellomresultat2.copy()
+    else: 
+        mellomresultat2 = bruer
+        
     # Overlapp bruer - spesial 
-    mellomresultat4 = nvdbgeotricks.finnoverlapp( mellomresultat2, spesial, prefixA=bruprefix, prefixB=spesialprefix, join='left')
-    # mellomresultat4 = pd.concat( [ mellomresultat3, bruer[ ~bruer[brucol_nvdbId].isin( mellomresultat3[ brucol_nvdbId ] )  ]  ]   ) 
-    mellomresultat4.drop( columns=[ spesialprefix+'veglenkesekvensid', spesialprefix+'startposisjon', spesialprefix+'sluttposisjon' ], inplace=True )
-
+    if kunEnTypeBK == None or kunEnTypeBK == 'spesial': 
+        mellomresultat4 = nvdbgeotricks.finnoverlapp( mellomresultat2, spesial, prefixA=bruprefix, prefixB=spesialprefix, join='left')
+        mellomresultat4.drop( columns=[ spesialprefix+'veglenkesekvensid', spesialprefix+'startposisjon', spesialprefix+'sluttposisjon' ], inplace=True )
+        sluttresultat = mellomresultat4.copy()
+    else: 
+        mellomresultat4 = bruer
+    
     # Overlapp bruer - 12/65
-    mellomresultat6 = nvdbgeotricks.finnoverlapp( mellomresultat4, tolv65,  prefixA=bruprefix, prefixB=tolv65prefix, join='left')
-    # mellomresultat6 = pd.concat( [ mellomresultat5, bruer[ ~bruer[brucol_nvdbId].isin( mellomresultat5[ brucol_nvdbId ] )  ]  ]   ) 
-    mellomresultat6.drop( columns=[ tolv65prefix+'veglenkesekvensid', tolv65prefix+'startposisjon', tolv65prefix+'sluttposisjon' ], inplace=True )
-
+    if kunEnTypeBK == None or kunEnTypeBK == 'tolv65': 
+        mellomresultat6 = nvdbgeotricks.finnoverlapp( mellomresultat4, tolv65,  prefixA=bruprefix, prefixB=tolv65prefix, join='left')
+        mellomresultat6.drop( columns=[ tolv65prefix+'veglenkesekvensid', tolv65prefix+'startposisjon', tolv65prefix+'sluttposisjon' ], inplace=True )
+        sluttresultat = mellomresultat6.copy()
+    else: 
+        mellomresultat6 = bruer
+    
     # Overlapp bruer - 12/100
-    mellomresultat8 = nvdbgeotricks.finnoverlapp( mellomresultat6, tolv100, prefixA=bruprefix, prefixB=tolv100prefix, join='left')
-    # mellomresultat8 = pd.concat( [ mellomresultat7, bruer[ ~bruer[brucol_nvdbId].isin( mellomresultat7[ brucol_nvdbId ] )  ]  ]   ) 
-    mellomresultat8.drop( columns=[ tolv100prefix+'veglenkesekvensid', tolv100prefix+'startposisjon', tolv100prefix+'sluttposisjon' ], inplace=True )
+    if kunEnTypeBK == None or kunEnTypeBK = 'tolv100': 
+        mellomresultat8 = nvdbgeotricks.finnoverlapp( mellomresultat6, tolv100, prefixA=bruprefix, prefixB=tolv100prefix, join='left')
+        mellomresultat8.drop( columns=[ tolv100prefix+'veglenkesekvensid', tolv100prefix+'startposisjon', tolv100prefix+'sluttposisjon' ], inplace=True )
+        sluttresultat = mellomresultat8.copy()
+
 
     # Lager geodataframe 
     bruer['geometry'] = bruer[ 'bru_geometri'].apply( lambda x : wkt.loads( x ) )
     bruer = gpd.GeoDataFrame( bruer , geometry='geometry', crs=5973 ) 
 
-    mellomresultat8['geometry'] =  mellomresultat8[ 'bru_geometri'].apply( lambda x : wkt.loads( x ) )
-    minGdf = gpd.GeoDataFrame( mellomresultat8 , geometry='geometry', crs=5973 ) 
+    sluttresultat['geometry'] =  sluttresultat[ 'bru_geometri'].apply( lambda x : wkt.loads( x ) )
+    minGdf = gpd.GeoDataFrame( sluttresultat , geometry='geometry', crs=5973 ) 
 
     return minGdf
 
