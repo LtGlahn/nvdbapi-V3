@@ -983,7 +983,11 @@ class nvdbFagObjekt():
         stedfesting_eller_assosiasjon = [ 'Stedfesting', 'Liste' ]
 
         if egenskap and egenskap != empty and egenskap['egenskapstype'] not in stedfesting_eller_assosiasjon: 
-            return egenskap['verdi']
+            if 'verdi' in egenskap: 
+                return egenskap['verdi']
+            elif egenskap['egenskapstype'].upper( ) == 'BINÆR' and 'href' in egenskap: 
+                return egenskap['href'] 
+                
         elif egenskap and egenskap != empty and egenskap['egenskapstype'] in stedfesting_eller_assosiasjon:
             return json.dumps( egenskap, indent=4, ensure_ascii=False)
         else: 
