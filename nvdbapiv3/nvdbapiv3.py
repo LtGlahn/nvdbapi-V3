@@ -1402,8 +1402,6 @@ def egenskaper2records( egenskaper, relasjoner=False, geometri=False ):
         if eg['id'] < 100000 and not eg['egenskapstype'].lower() in ['struktur', 'liste']: 
 
             if eg['navn'] == 'Vedlegg':
-                print( 'Har lite erfaring med håndtering av vedlegg, beware!')
-                print( json.dumps( eg, indent=4))
                 vedleggnavn = eg['navn']
                 count = 0 
                 # Legger til rette for at vi kan ha en liste med vedlegg (vedlegg1, vedlegg2, ...)
@@ -1413,8 +1411,13 @@ def egenskaper2records( egenskaper, relasjoner=False, geometri=False ):
                     count += 1
                     vedleggnavn = eg['navn'] + str( count )
                     print( "Flere vedlegg (eksperimentelt!", vedleggnavn)
+                    print( json.dumps( eg, indent=4 ))
 
-                data[vedleggnavn] = eg['href']
+                if 'href' in eg: 
+                    data[vedleggnavn] = eg['href']
+                else: 
+                    print( 'Primitiv vedleggshåndtering, denne skjønte jeg ikke:')
+                    print( json.dumps( eg, indent=4 ))
 
             elif geometri or not 'geometri' in eg['navn'].lower(): 
                 if 'egenskapstype' in eg.keys() and eg['egenskapstype'] == 'Binær' and 'href' in eg.keys(): 
