@@ -90,8 +90,13 @@ def brutusBKoverlapp( mittfilter=None, offisiell=False, kunEnTypeBK=None ):
 
         offisiell=False (default) | True. Angir om vi skal bruke offisielle eller uoffisielle bruksklassedata (krever innlogging)
 
-        kunEnTypeBK = None (default) eller en tekststreng som angir hvilke type bruksklasse vi skal hente. 
-
+        kunEnTypeBK = None (default) eller en tekststreng som angir hvilke type bruksklasse vi skal hente. Lovlige verdier: 
+                None        : Henter alle BK-variantene
+                'normal'    : Kun Bruksklasse, normaltransport 
+                'spesial'   : Kun Bruksklasse, Spesialtransport
+                'tolv65'    : Kun Bruksklasse, 12/65 mobilkran m.m.
+                'tolv100'   : Kun Bruksklasse, 12/100 vegnett
+    
     RETURNS
         geopandas geodataframe
     """
@@ -203,7 +208,7 @@ def brutusBKoverlapp( mittfilter=None, offisiell=False, kunEnTypeBK=None ):
         mellomresultat6 = bruer
     
     # Overlapp bruer - 12/100
-    if kunEnTypeBK == None or kunEnTypeBK = 'tolv100': 
+    if kunEnTypeBK == None or kunEnTypeBK == 'tolv100': 
         mellomresultat8 = nvdbgeotricks.finnoverlapp( mellomresultat6, tolv100, prefixA=bruprefix, prefixB=tolv100prefix, join='left')
         mellomresultat8.drop( columns=[ tolv100prefix+'veglenkesekvensid', tolv100prefix+'startposisjon', tolv100prefix+'sluttposisjon' ], inplace=True )
         sluttresultat = mellomresultat8.copy()

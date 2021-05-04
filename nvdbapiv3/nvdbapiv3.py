@@ -832,9 +832,6 @@ class nvdbFagdata(nvdbVegnett):
         får du returnert N forekomster av objektet, ett for hver unike vegsegment. Videre 
         blir egenskapene vegsystemreferanse og vegsegmenter ikke lister, men dictionaries 
 
-        NB! Når vi returnerer individuelle vegsegmenter tar vi med vegsegmenter gyldige i dag,
-        dvs åpen sluttdato.
-
         Paramter relasjoner=True: Tar med dictionary over relasjoner til andre objekter
 
         Parameter geometri=False: Tar ikke med s.k. egengeometri(er)
@@ -852,9 +849,8 @@ class nvdbFagdata(nvdbVegnett):
             
             debug=False (default) | True : Detaljert debug-informasjon 
             
-            tidspunkt=None | tekst på formatet '2010-01-01'. Angi tidspunkt som brukes til å filtrere hvilke vegsegmenter som tas med. 
-                             NB! Bør utelates - vi sjekker hvilket tidspunkt som evt er angitt som filter i spørringen mot NVDB api, 
-                             og DETTE tidspunktet vil vi bruke med mindre du aktivt overstyrer... 
+            tidspunkt=None | datostreng (tekst) på formen '2010-01-01'. DEAKTIVERT, NVDB api gir oss uansett kun de vegsegmentene
+                        som er gyldige for det tidspunktet som står i API-kallet. 
 
         RETURNS
             liste med dictionaries (NVDB-objekt fra NVDB api LES v3 i utflatet struktur)
@@ -1123,9 +1119,6 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=True
     ett for hver unike vegsegment. Videre blir egenskapene vegsystemreferanse og vegsegmenter 
     ikke lister, men dictionaries 
 
-    NB! Når vi returnerer individuelle vegsegmenter tar vi med vegsegmenter gyldige i dag,
-    dvs åpen sluttdato. Dette kan overstyres med nøkkeord tidspunkt (se under)
-
     Paramter relasjoner=True: Tar med dataelementet "relasjoner" fra objektet (dictionary-struktur med de ulike typer
     relasjoner for objektet)
 
@@ -1144,7 +1137,8 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=True
         
         debug=False (default) | True : Detaljert debug-informasjon 
         
-        tidspunkt=None | tekst på formatet '2010-01-01'. Angi tidspunkt som brukes til å filtrere hvilke vegsegmenter som tas med
+        tidspunkt=None | dato som tekst på formen '2010-01-01'. Angi tidspunkt som brukes til å filtrere hvilke vegsegmenter som tas med
+                DEAKTIVERT, NVDB api gir kun ut de vegsegmentene som er gyldige på angitt tidspunkt for spørringen
 
     RETURNS
         liste med dictionaries (vegobjekt fra NVDB api LES i flatere dictionary-struktur)
@@ -1184,57 +1178,60 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=True
 
             if vegsegmenter: 
                 for seg in feat['vegsegmenter']:
-                    if not 'sluttdato' in seg.keys() or (tidspunkt  and \
-                        dateutil.parser.parse( seg['startdato'] ) <= gyldigdato and \
-                        dateutil.parser.parse( seg['sluttdato'] ) > gyldigdato ):
+
+                    # Kommenterer ut tidspunkt-logikk fordi NVDB api nå (per mai 2021) kun presenterer de vegsegmentene som er 
+                    # gyldige på angitt tidspunkt (default i dag) i API-kallet 
+                    # if not 'sluttdato' in seg.keys() or (tidspunkt  and \
+                    #     dateutil.parser.parse( seg['startdato'] ) <= gyldigdato and \
+                    #     dateutil.parser.parse( seg['sluttdato'] ) > gyldigdato ):
 
 
-                        s2 = {  'veglenkesekvensid' : seg['veglenkesekvensid'], 
-                                'detaljnivå'        : seg['detaljnivå'],
-                                'typeVeg'           : seg['typeVeg'],
-                                'kommune'           : seg['kommune'], 
-                                'fylke'             : seg['fylke']
-                             }
+                    s2 = {  'veglenkesekvensid' : seg['veglenkesekvensid'], 
+                            'detaljnivå'        : seg['detaljnivå'],
+                            'typeVeg'           : seg['typeVeg'],
+                            'kommune'           : seg['kommune'], 
+                            'fylke'             : seg['fylke']
+                            }
 
-                        if 'vegsystemreferanse' in seg.keys() and 'kortform' in seg['vegsystemreferanse'].keys():
-                            s2['vref'] = seg['vegsystemreferanse']['kortform'] 
+                    if 'vegsystemreferanse' in seg.keys() and 'kortform' in seg['vegsystemreferanse'].keys():
+                        s2['vref'] = seg['vegsystemreferanse']['kortform'] 
 
-                        if 'veglenkeType' in seg: 
-                            s2['veglenkeType'] = seg['veglenkeType']
+                    if 'veglenkeType' in seg: 
+                        s2['veglenkeType'] = seg['veglenkeType']
 
-                        if 'medium' in seg: 
-                            s2['medium'] = seg['medium']
+                    if 'medium' in seg: 
+                        s2['medium'] = seg['medium']
 
-                        vr = 'vegsystemreferanse'
-                        if 'vegsystem' in seg[vr].keys():
-                            s2['vegkategori'] = seg[vr]['vegsystem']['vegkategori']
-                            s2['fase'] = seg[vr]['vegsystem']['fase']
-                            if 'nummer' in seg[vr]['vegsystem']: 
-                                s2['vegnummer'] = seg[vr]['vegsystem']['nummer']
+                    vr = 'vegsystemreferanse'
+                    if 'vegsystem' in seg[vr].keys():
+                        s2['vegkategori'] = seg[vr]['vegsystem']['vegkategori']
+                        s2['fase'] = seg[vr]['vegsystem']['fase']
+                        if 'nummer' in seg[vr]['vegsystem']: 
+                            s2['vegnummer'] = seg[vr]['vegsystem']['nummer']
 
-                        if 'startposisjon' in seg.keys() and 'sluttposisjon' in seg.keys():
-                            s2['startposisjon'] = seg['startposisjon'] 
-                            s2['sluttposisjon'] = seg['sluttposisjon']
-                            s2['segmentlengde']        = seg['lengde']
-                        elif 'relativPosisjon' in seg.keys(): 
-                            s2['relativPosisjon'] = seg['relativPosisjon']
-                        else: 
-                            print( 'Snål feil, mangler posisjon langs lenkesekvens???', feat['id'])
+                    if 'startposisjon' in seg.keys() and 'sluttposisjon' in seg.keys():
+                        s2['startposisjon'] = seg['startposisjon'] 
+                        s2['sluttposisjon'] = seg['sluttposisjon']
+                        s2['segmentlengde']        = seg['lengde']
+                    elif 'relativPosisjon' in seg.keys(): 
+                        s2['relativPosisjon'] = seg['relativPosisjon']
+                    else: 
+                        print( 'Snål feil, mangler posisjon langs lenkesekvens???', feat['id'])
 
-                        if 'strekning' in seg[vr].keys() and 'adskilte_løp' in seg[vr]['strekning']:
-                            s2['adskilte_lop'] = seg[vr]['strekning']['adskilte_løp']
+                    if 'strekning' in seg[vr].keys() and 'adskilte_løp' in seg[vr]['strekning']:
+                        s2['adskilte_lop'] = seg[vr]['strekning']['adskilte_løp']
 
 
-                        delkeys = [ 'strekning', 'kryssystem', 'sideanlegg']
-                        for hvaslag in delkeys: 
-                            if  hvaslag in seg['vegsystemreferanse'].keys(): 
-                                s2['trafikantgruppe'] = seg['vegsystemreferanse'][hvaslag]['trafikantgruppe']
-                            
-                    
-                        s2['geometri'] = seg['geometri']['wkt']
-                        egenskaper_kopi = deepcopy( egenskaper )
-                        egenskaper_kopi = merge_dicts( egenskaper_kopi, s2)
-                        mydata.append( egenskaper_kopi )
+                    delkeys = [ 'strekning', 'kryssystem', 'sideanlegg']
+                    for hvaslag in delkeys: 
+                        if  hvaslag in seg['vegsystemreferanse'].keys(): 
+                            s2['trafikantgruppe'] = seg['vegsystemreferanse'][hvaslag]['trafikantgruppe']
+                        
+                
+                    s2['geometri'] = seg['geometri']['wkt']
+                    egenskaper_kopi = deepcopy( egenskaper )
+                    egenskaper_kopi = merge_dicts( egenskaper_kopi, s2)
+                    mydata.append( egenskaper_kopi )
             else: 
                 egenskaper['vegsystemreferanser'] = ','.join([ d['kortform'] for d in feat['lokasjon']['vegsystemreferanser'] ] )
                 egenskaper['stedfestinger']       = ','.join([ d['kortform'] for d in feat['lokasjon']['stedfestinger'] ] )

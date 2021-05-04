@@ -407,9 +407,10 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
                 if debug: 
                     print( mittobj.id, "Henter vegnettsgeometri") 
                 for segment in mittobj.vegsegmenter: 
-                    # Tar kun med vegsegmenter gyldige i dag:
-                    if 'geometri' in segment.keys() and not 'sluttdato' in segment.keys():
-                        # TODO - legge inn historikkstøtte! 
+                    # NVDB api gir (per mai 2021) kun ut vegsegmenter for det tidspunktet som er oppgitt i spørringen
+                    # default=i dag. Dvs vi trenger ingen eksplisitt historikkfilter lenger. 
+                    # if 'geometri' in segment.keys() and not 'sluttdato' in segment.keys():
+                    if 'geometri' in segment.keys():
 
                         mygeoms.append( QgsGeometry.fromWkt(
                                             segment['geometri']['wkt'] ))
