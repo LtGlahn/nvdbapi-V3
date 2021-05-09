@@ -3,6 +3,8 @@ Klasser og funksjoner for å føye NVDB vegnett og fagdata til QGIS 3
 
 
 """
+
+import urllib.parse 
 from qgis.core import QgsProject,  QgsVectorLayer, QgsFeature, QgsGeometry, QgsPoint, QgsLineString
 from nvdbapiv3 import nvdbVegnett, nvdbFagdata, nvdbFagObjekt, finnid
 from copy import deepcopy
@@ -112,7 +114,7 @@ def egenskaptype2qgis( egenskaptype):
     elif 'Dato' == egenskaptype['egenskapstype']:
         defstring += ':date'  
     else: 
-        defstring += ':string' 
+        defstring += ':string(40000)' 
     
     return defstring 
     
@@ -664,3 +666,82 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
         collectionlag.ferdig()
 
 
+def url2kart( url, iface=None, sokeobjekt=False, ignorerbbox=False, **kwargs): 
+    """
+    Leser URL for et kall til å hente vegobjekter fra NVDB api V3 og føyer dataene fra API'et til  qgis kartet 
+
+    Det viktiste bruksområdet er vegkart-søk, hvor du kan jobbe fram et vegkart-søk du liker, 
+    kopiere lenken til API-kallet og lime inn her. 
+
+    ARGUMENTS
+        url : Kall for å hente vegobjekter fra NVDB api 
+
+    KEYWORDS
+        iface: Send med et såkalt iface-objekt fra qgis hvis du ønsker å bruke din egen qgis kartflate som 
+                avgrensning i stedet for den som er i vegkart-søket. I så fall bruker vi funksjonen 
+                nvdb2kart. Ellers brukes nvdbsok2qgis med kartutsnitt-avgrensing fra vegkart (evt uten bbox
+                hvis nøkkeolord ignorerbbox=True)
+
+        sokeobjekt: Sett til True hvis du ønsker å få søkeobjektet inn i QGIS-kommandolinjen, f.eks. 
+                for å manipulere mere på dem, sette eller fjerne filter etc. 
+
+        ignorerbbox: Sett til True om du ønsker å fjerne "kartutsnitt"-parameteren fra søket (dvs hente 
+                alle tilgjengelige data, uten bbox). Ignoreres hvis iface - parametere brukes samtidig. 
+
+        **kwargs: Alle andre nøkkeolrd er sendt videre til funksjonene nvdbsok2qgis eller nvdb2kart
+
+    RETURNS 
+        None, evt et søkeobjekt av typen nvdbapiv3.nvdbFagdata fra https://github.com/LtGlahn/nvdbapi-V3 
+                (nøkkelord sokeobjekt=True) 
+    """
+
+    url = urllib.parse.unquote( url )
+
+    myparams = ''
+    if '?' in url: 
+        ( root, myparams) = url.split( '?')
+    else: 
+        root = url 
+
+    params={}
+    if len( myparams ) >= 3 and '=' in myparams: 
+        params = { x.split('=')[0] : '='.join( x.split('=')[1:] ) for x in myparams.split( '&') }
+        # Oversetter bitene av http://ULR?&key=value&key2=val2 nøkkelordene til dictionary  
+        # Litt komplekst uttrykk, her er forklaringen
+        # Lengst til høyre: Deler myparams opp i biter basert på separator &
+        # Lengst til venstre: dictionary - navnet = det som står til venstre for likhetstegnet
+        # dvs første treff på x.split('=')
+        # Konstruksjonen i midten: '='.join( x.split('=')[1:]  ) 
+        # Et egenskap=verdi kan ha en verdi satt sammen med likhetstegn. Konstruksjonen 
+        # '='.join( x.split('=')[1:]  )  føyer dem sammen igjen til en tekststreng.  
+        # Dermed blir uttrykk som egenskap=(4589='Konsul Lor*') til 
+        # { 'egenskap' : "(4589='Konsul Lor*')" } 
+        
+        # Overstyrer inkluder-parameter
+        params['inkluder'] = 'alle'
+
+    if isinstance( params, dict) and ignorerbbox: 
+        junk = params.pop( 'kartutsnitt', None )
+
+    # Finner rot-url: 
+    roots = root.split( '/')
+    if roots[-2] == 'vegobjekter' and roots[-1].isdigit():
+
+        sok =  nvdbFagdata( int( roots[-1] ))
+        if isinstance( params, dict):
+            sok.filter( params )
+
+        # Setter riktig api-url
+        sok.forbindelse.apiurl = 'https://' + roots[2]
+
+        if sokeobjekt: 
+            return sok
+
+        # Sender til qgis - kartflate, enten med kartflate som filter, eller ikke
+        if iface: 
+            nvdb2kart( sok, iface, **kwargs) 
+        else: 
+            nvdbsok2qgis( sok, **kwargs)
+
+    else: 
+        print( f"Klarer ikke dekode som NVDB api søk etter vegobjekter {root} ")
