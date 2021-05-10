@@ -114,7 +114,9 @@ Se ellers [dokumentasjon i kildekoden](https://github.com/LtGlahn/nvdbapi-V3/blo
 
 ![Finn URL fra vegkart](./pic/qgis3vegkarttips.png)
 
-## Installasjon 
+-------------------
+
+# Installasjon 
 
   0. Lag et QGIS-prosjekt med CRS=5973 eller CRS=25833. (UTM sone 33, som er det [koordinatsystemet](https://www.vegdata.no/2020/03/11/nytt-referansesystem-nvdb/) vi bruker). 
   1. Last ned kildekoden [https://github.com/LtGlahn/nvdbapi-V3](https://github.com/LtGlahn/nvdbapi-V3). 
