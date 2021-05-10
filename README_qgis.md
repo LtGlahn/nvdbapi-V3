@@ -86,6 +86,18 @@ sokeobjekt.refresh()
 
 Kartutsnittet vil bli oppdatert med nye verdier neste gang du kjører ´nvdb2kart´(sokeobjekt, iface)´. Men hvis du så bruker ´nvdbsok2qgis´ så vil resultatet fremdeles være avgrenset med det kartutsnittet du hadde sist gang du kjørte ´nvdb2kart´. 
 
+## Vegkart tips: Bruk API-lenke fra vegkart
+
+Webapplikasjonen [vegkart](http://vegkart.no) er genial for å gjøre seg kjent med NVDB data, søkefiltre m.m. Hvis du har funnet et vegkart-søk kan du enkelt gjenta samme søk i QGIS: Ekspander søkeboksen for objekttypen (den lille > - markøren) og kopier API-lenken (høyreklikk i de fleste nettlesere). Deretter angir du lenken som parameter til funksjonen `url2kart`. 
+
+```
+url2kart( 'https://tinyurl.com/5dej294p' ) 
+```
+
+Oppførselen  kan modifiseres med parametrene `iface, sokeobjekt, ignorebbox` og ellers de parametrene som brukes av funksjonene `nvdbsok2qgis` og `nvdb2kart`. Se [dokumentasjon i kildekoden](https://github.com/LtGlahn/nvdbapi-V3/blob/edebe7867d1d6781ee968e9f5c0294bd6e3047a6/nvdbapiV3qgis3.py#L669) 
+
+![Finn URL fra vegkart](./pic/qgis3vegkarttips.png)
+
 ## Installasjon 
 
   0. Lag et QGIS-prosjekt med CRS=5973 eller CRS=25833. (UTM sone 33, som er det [koordinatsystemet](https://www.vegdata.no/2020/03/11/nytt-referansesystem-nvdb/) vi bruker). 
