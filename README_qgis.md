@@ -91,10 +91,26 @@ Kartutsnittet vil bli oppdatert med nye verdier neste gang du kjører ´nvdb2kar
 Webapplikasjonen [vegkart](http://vegkart.no) er genial for å gjøre seg kjent med NVDB data, søkefiltre m.m. Hvis du har funnet et vegkart-søk kan du enkelt gjenta samme søk i QGIS: Ekspander søkeboksen for objekttypen (den lille > - markøren) og kopier API-lenken (høyreklikk i de fleste nettlesere). Deretter angir du lenken som parameter til funksjonen `url2kart`. 
 
 ```
-url2kart( 'https://tinyurl.com/5dej294p' ) 
+url2kart( 'https://nvdbapiles-v3.atlas.vegvesen.no/vegobjekter/904?segmentering=true&egenskap=(10901=18187)&vegsystemreferanse=F&inkluder=alle' ) 
 ```
 
-Oppførselen  kan modifiseres med parametrene `iface, sokeobjekt, ignorebbox` og ellers de parametrene som brukes av funksjonene `nvdbsok2qgis` og `nvdb2kart`. Se [dokumentasjon i kildekoden](https://github.com/LtGlahn/nvdbapi-V3/blob/edebe7867d1d6781ee968e9f5c0294bd6e3047a6/nvdbapiV3qgis3.py#L669) 
+Oppførselen  kan modifiseres med parametrene `iface, sokeobjekt, ignorebbox` og ellers de parametrene som brukes av funksjonene `nvdbsok2qgis` og `nvdb2kart`. Eksempel: 
+
+```
+minlenke = 'https://nvdbapiles-v3.atlas.vegvesen.no/vegobjekter/904?segmentering=true&egenskap=(10901%3D18187)&vegsystemreferanse=F&inkluder=alle' 
+
+url2kart( minlenke, iface=iface) 
+# Bruker gjeldende kartutsnitt fra QGIS som geografisk avgrensning. 
+
+
+url2kart( minlenke, ignorebbox=True ) 
+# Tar ikke hensyn til kartutsnitt, hverken det i Vegkart eller QGIS sin kartflate. 
+
+mittSokeObjekt = nvdb2kart( minlenke, sokeobjekt ) 
+# Returnerer et søkeobjekt (nvdbapiv3.nvdbFagdata ) som du kan jobbe videre med. 
+```
+
+Se ellers [dokumentasjon i kildekoden](https://github.com/LtGlahn/nvdbapi-V3/blob/edebe7867d1d6781ee968e9f5c0294bd6e3047a6/nvdbapiV3qgis3.py#L669) 
 
 ![Finn URL fra vegkart](./pic/qgis3vegkarttips.png)
 
