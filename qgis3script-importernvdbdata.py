@@ -46,7 +46,7 @@ if not [ k for k in sys.path if 'nvdbapi-V3' in k]:
     sys.path.append(nvdblibrary)
 
 from nvdbapiv3 import nvdbFagdata, nvdbVegnett
-from nvdbapiV3qgis3 import  nvdb2kart, nvdbsok2qgis
+from nvdbapiV3qgis3 import  nvdb2kart, nvdbsok2qgis, url2kart
 
 ## Bruk linjene nedenfor for debugging
 # import imp
