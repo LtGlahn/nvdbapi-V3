@@ -5,6 +5,8 @@ NVDB data til QGIS med Python-konsollet. Søk, filtrering og nedlasting gjøres 
 
 ![Qgis3 med NVDB vegnett](./pic/qgis3_vegnettklett.png)
 
+### Presentasjon fra [QGIS brukermøte 28. mai 2021](https://github.com/LtGlahn/nvdbapi-V3/blob/master/pic/nvdb2qgis-demo-20210528.pdf)
+
 ### Eksempel - bomstasjoner i Oslo til Qgis 3
 Innlesning gjøres i python-konsoll med kommandoen 
 
