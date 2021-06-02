@@ -514,12 +514,12 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
       
 
         # Egenskaper for vegnett
-        egNavnDef = [   { "veglenkesekvensid" : 'int'},
+        egNavnDef = [   { "veglenkesekvensid" : 'int(15)'},
                         { "startdato" : 'date' }, # Spesialbehandling, metadata-element
                         { "sluttdato" : 'date' }, # Spesialbehandling, metadata-elemept
                         { "kortform_lenkepos": "string" },
-                        { "startposisjon" : 'double' },
-                        { "sluttposisjon" : 'double' },
+                        { "startposisjon" : 'double(9,8)' },
+                        { "sluttposisjon" : 'double(9,8)' },
                         { "veglenkenummer": "int" },
                         { "segmentnummer": "int" },
                         { "startnode": "string" },
