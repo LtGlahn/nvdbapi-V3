@@ -179,7 +179,7 @@ def nvdb2kart( nvdbref, iface, kunfagdata=True, kunvegnett=False,
     elif isinstance( nvdbref, int): 
         
         fag = finnid( nvdbref, kunfagdata=kunfagdata, 
-            kunvegnett=kunvegnett, miljo=miljo)  
+            kunvegnett=kunvegnett, miljo=miljo, **kwargs)  
         
         if fag: 
             if isinstance( fag, dict) and 'id' in fag.keys():
@@ -218,7 +218,7 @@ def nvdb2kart( nvdbref, iface, kunfagdata=True, kunvegnett=False,
 
 
 def nvdbsok2qgis( sokeobjekt, lagnavn=None, 
-            geometritype='beste', inkludervegnett='beste', debug=False): 
+            geometritype='beste', inkludervegnett='beste', debug=False, **kwargs): 
     """   
     Vil ta et søkeobjekt fra  nvdbapi-v2 biblioteket (nvdbFagdata eller 
     nvdbVegnett) og hente tilhørende data fra NVDB-api V2. 
