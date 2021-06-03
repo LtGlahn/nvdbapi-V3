@@ -317,6 +317,9 @@ def records2gpkg( minliste, filnavn, lagnavn ):
     for ii, dublett in enumerate( res):
         mindf.rename(columns={ mindf.columns[dublett] : kolonner[dublett] + '_' + str( ii+1 )  }, inplace=True )
 
+    if isinstance( mindf.iloc[0].geometri, dict ): 
+        mindf['geometri'] = mindf['geometri'].apply( lambda x : x['wkt'] )
+
     mindf['geometry'] = mindf['geometri'].apply( wkt.loads )
     minGdf = gpd.GeoDataFrame( mindf, geometry='geometry', crs=5973 )       
     # må droppe kolonne vegsegmenter hvis data er hentet med vegsegmenter=False 
