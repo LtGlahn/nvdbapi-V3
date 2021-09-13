@@ -217,6 +217,7 @@ class apiforbindelse( ):
                 
             else: 
                 print( 'Fikk ikke logget på - ingen accessToken :(' )
+                # pdb.set_trace()
                 
         else: 
             print( "Fikk ikke logget på :(  , loginrespons ", self.loginrespons.status_code )
