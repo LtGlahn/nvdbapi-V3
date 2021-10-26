@@ -75,11 +75,11 @@ def lagQgisDakat(  sokeobjekt):
         egIds.append( eg['id'] ) 
         qgisEg.append( egenskaptype2qgis( eg) ) 
         
-    # Føyer på placeholder for vegsystemreferanse: 
+    # Føyer på placeholder for vegsystemreferanse, stedfesting og trafikantgruppe
+    qgisEg.append( 'trafikantgruppe:string')
     qgisEg.append( 'vegsystemreferanse:string')
-
-    # Føyer på placeholder for stedfesting
     qgisEg.append( 'stedfesting:string')
+
 
     qgisDakat = '&field='.join( qgisEg )
     
@@ -364,9 +364,10 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
             linjegeom = mittobj.egenskapverdi( linjenavn)
             punktgeom = mittobj.egenskapverdi( punktnavn)
 
-            # Datastruktur (liste) for vegsystemreferanse og stedfesting
+            # Datastruktur (liste) for vegsystemreferanse og stedfesting. Brukes for å holde på informasjon fra flere vegsegmenter per objekt. 
             vrefliste   = [ ]
             stedfesting = [ ]
+            trafikantgruppe = [ ]
             
                           
             if gt in [ 'alle', 'flate', 'beste' ]: 
@@ -432,6 +433,17 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
                         elif 'startposisjon' in segment.keys() and 'sluttposisjon' in segment.keys() and 'veglenkesekvensid' in segment.keys():
                             stedfeststring =  str(  segment['startposisjon'] ) + '-' + str(  segment['sluttposisjon'] ) + '@' + str( segment['veglenkesekvensid'] )
 
+
+                        # Trafikantgruppe, som kan være på kryssdel, sideanleggsdel i tillegg til strekning 
+                        trgruppe = 'Ukjent'
+                        if 'vegsystemreferanse' in segment.keys() and 'kryssystem' in segment['vegsystemreferanse'] and 'trafikantgruppe' in segment['vegsystemreferanse']['kryssystem']:
+                            trgruppe = segment['vegsystemreferanse']['kryssystem']['trafikantgruppe']
+                        elif 'vegsystemreferanse' in segment.keys() and 'sideanlegg' in segment['vegsystemreferanse'] and 'trafikantgruppe' in segment['vegsystemreferanse']['sideanlegg']:
+                            trgruppe = segment['vegsystemreferanse']['sideanlegg']['trafikantgruppe']
+                        elif 'vegsystemreferanse' in segment.keys() and 'strekning' in segment['vegsystemreferanse'] and 'trafikantgruppe' in segment['vegsystemreferanse']['strekning']:
+                            trgruppe = segment['vegsystemreferanse']['strekning']['trafikantgruppe']
+                        trafikantgruppe.append( trgruppe )
+
                         stedfesting.append( stedfeststring )
 
             else: 
@@ -443,7 +455,18 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
                     vrefliste.append( 'MANGLER vegsystemreferanse')
 
                 # Føyer til stedfesting 
-                stedfesting.append( 'Kun for vegsegmenter')
+                allested = ','.join( [ v['kortform'] for v in mittobj.lokasjon['stedfestinger' ] if 'kortform' in v ]  )
+                if allested: 
+                    stedfesting.append( allested )
+                else: 
+                    stedfesting.append( 'MANGLER stedfesting???' )
+ 
+                # Føyer til trafikantgruppe: 
+                alleTrafikantgrupper = ','.join( [ v['strekning']['trafikantgruppe'] for v in mittobj.lokasjon['vegsystemreferanser' ] if 'strekning' in v and 'trafikantgruppe' in v['strekning'] ]  )
+                if alleTrafikantgrupper: 
+                    trafikantgruppe.append( alleTrafikantgrupper ) 
+                else: 
+                    trafikantgruppe.append( 'MANGLER trafikantgruppe' )
 
            # Advarsel 
             if len( mygeoms ) == 0:
@@ -460,6 +483,7 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
                     print( "WKT med små bokstaver:",  mywkt) 
 
                 segmentegenskaper = deepcopy( egenskaper ) 
+                segmentegenskaper.append( trafikantgruppe[geomcount] )
                 segmentegenskaper.append(  vrefliste[geomcount] )
                 segmentegenskaper.append( stedfesting[geomcount] )
 
