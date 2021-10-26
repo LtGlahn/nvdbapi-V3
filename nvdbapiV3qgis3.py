@@ -69,7 +69,7 @@ def lagQgisDakat(  sokeobjekt):
     # Liste med ID'er for egenskapstypene for denne objekttypen  
     egIds = [] 
     # Liste med QGIS datatyper. Kort liste med metadata først, deretter matcher listen med egenskapstyper. 
-    qgisEg = ['field=nvdbid:int', 'versjon:int', 'fraDato:string', 'sistmodifisert:string' ]
+    qgisEg = ['field=nvdbid:int', 'versjon:int', 'startDato:string', 'sluttDato:string', 'sistmodifisert:string' ]
 
     for eg in sokeobjekt.objektTypeDef['egenskapstyper']: 
         egIds.append( eg['id'] ) 
@@ -80,7 +80,6 @@ def lagQgisDakat(  sokeobjekt):
 
     # Føyer på placeholder for stedfesting
     qgisEg.append( 'stedfesting:string')
-
 
     qgisDakat = '&field='.join( qgisEg )
     
@@ -126,7 +125,12 @@ def nvdbFeat2qgisProperties( mittobj, egIds):
     """ 
     qgisprops = [ mittobj.id, mittobj.metadata['versjon'], 
                  mittobj.metadata['startdato'] ] 
-                 
+
+    if 'sluttdato' in mittobj.metadata:
+        qgisprops.append( mittobj.metadata['sluttdato'] )
+    else: 
+        qgisprops.append( '' ) 
+                     
     if 'sist_modifisert' in mittobj.metadata:
         qgisprops.append( mittobj.metadata['sist_modifisert'] )
     else: 
