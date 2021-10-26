@@ -142,6 +142,16 @@ def nvdbFeat2qgisProperties( mittobj, egIds):
     
     return qgisprops
 
+def nvdb2kartListe(listeFagdata, iface, **kwargs):
+    """
+    Legger liste med objekttyper til kartutsnittet. Wrapper rundt nvdb2kart 
+
+    Takk til Oskar Eide Lilienthal, Rogaland fylkeskommune, som foreslo denne løsningen. 
+    """
+    if isinstance(listeFagdata, list):
+        for value in listeFagdata:
+            nvdb2kart(nvdbFagdata(value), iface, **kwargs)
+
 
 def nvdb2kart( nvdbref, iface, kunfagdata=True, kunvegnett=False, 
             miljo='prod',lagnavn=None, **kwargs):
