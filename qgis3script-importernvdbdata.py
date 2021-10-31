@@ -36,9 +36,10 @@ nvdb2kart( 572672190, iface )
 import sys
 # import os 
 
-# Endre stien til dit du har lastet ned biblioteket
-# https://github.com/LtGlahn/nvdbapi-V3 
-nvdblibrary = 'C:/Data/test/github/nvdbapi-V3'
+# Endre stien til den mappen der du har lastet ned dette 
+# biblioteket https://github.com/LtGlahn/nvdbapi-V3 
+# 
+nvdblibrary = 'C:/Data/leveranser/nvdbapi-V3'
 # nvdblibrary = '/home/jan/Documents/jobb/nvdbapi-V3'
 
 if not [ k for k in sys.path if 'nvdbapi-V3' in k]: 
@@ -46,7 +47,7 @@ if not [ k for k in sys.path if 'nvdbapi-V3' in k]:
     sys.path.append(nvdblibrary)
 
 from nvdbapiv3 import nvdbFagdata, nvdbVegnett
-from nvdbapiV3qgis3 import  nvdb2kart, nvdbsok2qgis, url2kart
+from nvdbapiV3qgis3 import  nvdb2kart, nvdbsok2qgis, url2kart, nvdb2kartListe
 
 ## Bruk linjene nedenfor for debugging
 # import imp
