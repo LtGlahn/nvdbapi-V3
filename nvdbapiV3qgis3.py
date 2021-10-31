@@ -4,12 +4,18 @@ Klasser og funksjoner for å føye NVDB vegnett og fagdata til QGIS 3
 
 """
 
-import urllib.parse 
-from qgis.core import QgsProject,  QgsVectorLayer, QgsFeature, QgsGeometry, QgsPoint, QgsLineString
-from nvdbapiv3 import nvdbVegnett, nvdbFagdata, nvdbFagObjekt, finnid
 from copy import deepcopy
 import pdb
+import json 
+import urllib.parse 
 
+from qgis.core import QgsProject,  QgsVectorLayer, QgsFeature, QgsGeometry, QgsPoint, QgsLineString
+from nvdbapiv3 import nvdbVegnett, nvdbFagdata, nvdbFagObjekt, finnid
+
+# Global variable for maks lengde på tekstverdier i qgis-objektenes egenskapsverdier 
+# Masse styr rundt håndtering av maks lengde på tekstfelt som genialt ble omgått ved å sette 
+# denne verdien = -1 
+max_text_length = -1
 
 class memlayerwrap(): 
     """
@@ -113,12 +119,12 @@ def egenskaptype2qgis( egenskaptype):
     elif 'Dato' == egenskaptype['egenskapstype']:
         defstring += ':date'  
     else: 
-        defstring += ':string(40000)' 
+        defstring += f':string({ max_text_length })' 
     
     return defstring 
     
     
-def nvdbFeat2qgisProperties( mittobj, egIds): 
+def nvdbFeat2qgisProperties( mittobj, egIds, qgisEg): 
     """
     Omsetter egenskapsverdiene pluss utvalgte metadata fra et 
     NVDB fagobjekt til en liste med QGIS verdier. 
@@ -136,9 +142,20 @@ def nvdbFeat2qgisProperties( mittobj, egIds):
     else: 
         qgisprops.append( mittobj.metadata['startdato'] + 'T00:00:00' ) 
     
-    for eg in egIds: 
+    for idx, eg in enumerate( egIds ): 
         
-        qgisprops.append( mittobj.egenskapverdi(eg))
+        # Merk at indeksen her er forskjøvet med 5 relativt til NVDB-egenskapene, fordi vi nettopp la til en del metadatafelt først i tabellen
+        # (NVDB ID, versjon, startdato, sluttdato, sist modifisert)
+        egType = qgisEg[idx+5] 
+        egVal = mittobj.egenskapverdi(egIds[idx]) 
+
+        # Denne logikken er ikke nødvendig, likevel - vi omgår hele problemet ved å sette max_text_length = -1 (dvs uendelig stor plass)
+        # Sett global variabel max_text_length = f.eks. 40000 hvis du vil gjeninføre denne logikken. 
+        # if isinstance( egVal, str) and len( egVal ) > max_text_length: 
+        #     egVal = json.dumps( f'Egenskapsverdi { egType } SLETTET, tekstfelt med lengde {len(egVal)} > max_text_length {max_text_length} tegn'  )
+        #     print( egVal )
+            
+        qgisprops.append( egVal )
     
     return qgisprops
 
@@ -346,7 +363,7 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
 
             segmentcount = 0 
             # Qgis attributter = utvalgte metadata + egenskapverdier etter datakatalogen 
-            egenskaper = nvdbFeat2qgisProperties( mittobj, egIds ) 
+            egenskaper = nvdbFeat2qgisProperties( mittobj, egIds, qgisEg ) 
             
             # Vi kan ha flere geometrivisninger samtidig. 
             # Løkke for å løpe gjennom dem. 

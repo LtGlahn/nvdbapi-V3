@@ -50,8 +50,13 @@ from nvdbapiv3 import nvdbFagdata, nvdbVegnett
 from nvdbapiV3qgis3 import  nvdb2kart, nvdbsok2qgis, url2kart, nvdb2kartListe
 
 ## Bruk linjene nedenfor for debugging
-# import imp
-# import nvdb2qgis3
-# import nvdbapi 
-# imp.reload(nvdb2qgis3 )
-#
+## Funksjonskallene på python-konsollet i QGIS blir da
+## 
+##      >>> sok = nvdbapiv3.nvdbFagdata(86)
+##      >>> nvdbapiV3qgis3.nvdb2kart( sok, iface )
+## 
+# import importlib
+# import nvdbapiV3qgis3
+# import nvdbapiv3  
+# importlib.reload(nvdbapiV3qgis3 )
+# importlib.reload(nvdbapiv3   )
