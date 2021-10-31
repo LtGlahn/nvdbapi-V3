@@ -150,8 +150,10 @@ def nvdb2kartListe(listeFagdata, iface, **kwargs):
     """
     if isinstance(listeFagdata, list):
         for value in listeFagdata:
-            nvdb2kart(nvdbFagdata(value), iface, **kwargs)
-
+            try: 
+                nvdb2kart(nvdbFagdata(value), iface, **kwargs)
+            except ValueError as err: 
+                print( f"Objekttype {value} finnes ikke: {err}")
 
 def nvdb2kart( nvdbref, iface, kunfagdata=True, kunvegnett=False, 
             miljo='prod',lagnavn=None, **kwargs):
