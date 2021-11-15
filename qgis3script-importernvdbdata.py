@@ -32,20 +32,44 @@ nvdb2kart( f, iface)
 nvdb2kart( 572672190, iface )
 
 """
-
 import sys
-# import os 
 
-# Endre stien til den mappen der du har lastet ned dette 
-# biblioteket https://github.com/LtGlahn/nvdbapi-V3 
-# 
-nvdblibrary = 'C:/Data/leveranser/nvdbapi-V3'
+
+#########################################################33
+##
+## Endre stien til den mappen der du har lastet ned dette 
+## reposet https://github.com/LtGlahn/nvdbapi-V3 
+## 
+## Merk at hvis du laster ned repos som zip-fil og høyrekikker->Pakk ut alle
+## så vil stien være NEDLASTING\\nvdbapi-V3-master\\nvdbapi-V3-master
+## 
+
+# nvdblibrary = 'C:/Data/leveranser/nvdbapi-V3'
+nvdblibrary = 'C:\\Users\\jajens\Downloads\\nvdbapi-V3-master\\nvdbapi-V3-master'
+# nvdblibrary = 'C:\Users\<DITT BRUKERNAVN>\Downloads\\nvdbapi-V3-master\nvdbapi-V3-master'
 # nvdblibrary = '/home/jan/Documents/jobb/nvdbapi-V3'
 
-if not [ k for k in sys.path if 'nvdbapi-V3' in k]: 
-    print( 'Føyer', nvdblibrary, 'til søkestien') 
-    sys.path.append(nvdblibrary)
 
+## Hvis vi ikke klarer å importere nvdbapiv3 så prøver vi å føye
+## mappen nvdblibrary til søkestien. 
+try: 
+    import nvdbapiv3
+except ModuleNotFoundError:
+    print( "Fant ikke nvdbapiv3 i sys.path, legger til mappen", nvdblibrary)
+    sys.path.append( nvdblibrary ) 
+    
+    try: 
+        import nvdbapiv3
+    except ModuleNotFoundError as e:
+        print( "\nImport av nvdbapiv3 feiler for", nvdblibrary  )
+        raise ModuleNotFoundError( "==> Variabel nvdblibrary skal peke til mappen https://github.com/LtGlahn/nvdbapi-V3  <==" )
+            
+    else: 
+        print( "SUKSESS - kan importere nvdbapiv3 etter at vi la til", nvdblibrary, "i sys.path" )
+else:
+    print( "HURRA - vi kan importere nvdbapiv3 " ) 
+
+## Her importerer vi de funksjonene vi trenger 
 from nvdbapiv3 import nvdbFagdata, nvdbVegnett
 from nvdbapiV3qgis3 import  nvdb2kart, nvdbsok2qgis, url2kart, nvdb2kartListe
 
@@ -60,3 +84,5 @@ from nvdbapiV3qgis3 import  nvdb2kart, nvdbsok2qgis, url2kart, nvdb2kartListe
 # import nvdbapiv3  
 # importlib.reload(nvdbapiV3qgis3 )
 # importlib.reload(nvdbapiv3   )
+
+
