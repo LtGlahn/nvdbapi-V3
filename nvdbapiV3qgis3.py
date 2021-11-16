@@ -111,10 +111,9 @@ def egenskaptype2qgis( egenskaptype):
 
     """
     defstring = egenskaptype['navn']
-    if 'Tall' in egenskaptype['egenskapstype']:
-        if 'desimaler' in egenskaptype.keys() and egenskaptype['desimaler'] > 0:  
-            defstring += ':double'
-        else: 
+    if 'flyttall' in egenskaptype['egenskapstype'].lower():
+        defstring += ':double'
+    elif 'heltall' in egenskaptype['egenskapstype'].lower():
             defstring += ':int' 
     elif 'Dato' == egenskaptype['egenskapstype']:
         defstring += ':date'  
