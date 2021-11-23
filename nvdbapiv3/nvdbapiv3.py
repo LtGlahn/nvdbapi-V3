@@ -359,10 +359,10 @@ class nvdbVegnett:
                     if not os.path.exists( loggfil): 
                         with open( loggfil, 'w' ) as f2: 
                             f2.write( 'Logger alle anrop mot NVDB api V2 fra nvdbapi.py\n' ) 
-                            f.write( r.url ) 
-                            f.write( '\n' ) 
-                            f.write( json.dumps( data, indent=4, ensure_ascii=False) )
-                            f.write( '\n' )                          
+                            f2.write( r.url ) 
+                            f2.write( '\n' ) 
+                            f2.write( json.dumps( data, indent=4, ensure_ascii=False) )
+                            f2.write( '\n' )                          
                 
                     with open(loggfil, 'a', encoding='utf-8' ) as f: 
                         f.write( '\n==========================\n' ) 
@@ -1364,7 +1364,7 @@ def hentrute( pos1, pos2, forb=None, **kwargs ):
         if len( returdata ) == 0: 
             print( 'beta/vegnett/rute: Tomt resultatsett:', r.url )
     else: 
-        print( 'beta/vegnett/rute: feilkode: ', r.status_code, r.st r.url )
+        print( 'beta/vegnett/rute: feilkode: ', r.status_code, r.st, r.url )
 
     return returdata 
 
