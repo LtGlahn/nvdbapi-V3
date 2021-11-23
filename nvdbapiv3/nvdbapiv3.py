@@ -1278,6 +1278,43 @@ def vegrefpunkt( vref, retur='veglenkeposisjon', forb=None ):
 
     return None 
 
+def veglenkepunkt( vpos, retur='wkt', forb=None ): 
+    """
+    Slår opp vegsystemreferanse i NVDBAPILES V3. Returnerer koordinater, vegsystemreferanse eller hele datastrukturen. 
+
+    https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/#/Vegnett/get_veg
+
+    ARGUMENTS: 
+        vpos - string, veglenkeposisjon på formatet .8225@21802 
+
+    KEYWORDS 
+        retur - string, en av 
+            - 'wkt', string, koordinater formattert som well known text (default)
+            - 'vegsystemreferanse' 
+            - 'komplett' : Dictionary med responsen fra NVDB api 
+
+        forb - En instans av nvdbapiforbindelse. Angis dersom du skal bruke et annet miljø enn PROD
+
+    RETURNS 
+        - string eller dictionary, se 'retur'-nøkkelord. Returnerer None hvis feiler 
+    """
+
+    if not forb: 
+        forb = apiforbindelse.apiforbindelse()
+    params = { 'veglenkesekvens' : vpos }
+    r = forb.les('/veg', params=params)
+    if r.ok: 
+        data = r.json() 
+        if 'ref' in retur.lower()  and 'vegsystemreferanse' in data.keys() and 'kortform' in data['vegsystemreferanse'].keys(): 
+            return data['vegsystemreferanse']['kortform']
+        elif retur.lower() == 'wkt' and 'geometri' in data.keys() and 'wkt' in data['geometri'].keys(): 
+            return data['geometri']['wkt']
+        elif retur.lower() == 'komplett': 
+            return data 
+
+    return None 
+
+
 def vegref2rute( vref1, vref2, forb=None, **kwargs ): 
     """
     Finner rute (liste med veglenke-biter) mellom to punkt angitt som vegsystemreferanse i NVDBAPILES V3. 
