@@ -1446,9 +1446,8 @@ def flatutvegnettsegment( vegnettsegment ):
     for mykey in struktur: 
         try: 
                 v1[mykey['navn']] = v1[mykey['verdi']['l1']][mykey['verdi']['l2']]
-        except KeyError: 
+        except (KeyError, TypeError): 
             pass                 
-
     # Gjør om feltoversikt fra liste-objekt til (kommaseparert) ren tekst 
     try: 
         v1['feltoversikt']  = ','.join( v1['feltoversikt'])
