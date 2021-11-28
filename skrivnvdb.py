@@ -438,9 +438,11 @@ def fagdata2skrivemal( liste_eller_forekomst, operasjon='delvisOppdater',
             skrivobj['gyldighetsperiode'] =  { "startdato": effektDato }
 
         elif operasjon == 'lukk':
-            skrivobj['lukkedato'] = effektDato 
-            skrivobj['kaskadelukking'] : kaskadelukking
-            
+            skrivobj['lukkedato']       = effektDato 
+            skrivobj['kaskadelukking']  = kaskadelukking
+            # fjerner egenskaper fra objekter som skal lukkes
+            skrivobj.pop( 'egenskaper', None )
+            skrivobj.pop( 'stedfesting', None )
 
         endringssett[operasjon]['vegobjekter'].append( skrivobj )
 
