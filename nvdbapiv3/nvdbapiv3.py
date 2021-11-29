@@ -1401,7 +1401,7 @@ def hentrute( pos1, pos2, forb=None, **kwargs ):
         if len( returdata ) == 0: 
             print( 'beta/vegnett/rute: Tomt resultatsett:', r.url )
     else: 
-        print( 'beta/vegnett/rute: feilkode: ', r.status_code, r.st, r.url )
+        print( 'beta/vegnett/rute: feilkode: ', r.status_code, r.url )
 
     return returdata 
 
