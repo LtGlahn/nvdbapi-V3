@@ -321,7 +321,7 @@ class apiforbindelse( ):
                                        proxies=self.proxies,
                                        headers=myheaders, 
                                        **kwargs)
-        except (SSLError, ChunkedEncodingError) as e:
+        except (SSLError, ChunkedEncodingError, ConnectionError) as e:
             venteperiode = 5
             print( 'Feilmelding ved henting av data, prøver på ny om', venteperiode, 'sekunder', e)
             sleep( 5 )
