@@ -14,7 +14,8 @@ import json
 import copy 
 import pdb
 from time import sleep
-from  requests.exceptions import SSLError, ChunkedEncodingError
+from requests.exceptions import SSLError, ChunkedEncodingError,  ConnectionError
+from urllib3.exceptions import ProtocolError # RemoteDisconnected
 
 class apiforbindelse( ):
     """
