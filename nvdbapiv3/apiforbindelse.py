@@ -15,7 +15,8 @@ import copy
 import pdb
 from time import sleep
 from requests.exceptions import SSLError, ChunkedEncodingError,  ConnectionError
-from urllib3.exceptions import ProtocolError # RemoteDisconnected
+from urllib3.exceptions import ProtocolError 
+from http.client import RemoteDisconnected
 
 class apiforbindelse( ):
     """
@@ -322,7 +323,7 @@ class apiforbindelse( ):
                                        proxies=self.proxies,
                                        headers=myheaders, 
                                        **kwargs)
-        except (SSLError, ChunkedEncodingError, ConnectionError, RemoteDisconnected, ProtocolError) as e:
+        except (SSLError, ChunkedEncodingError, ConnectionError, RemoteDisconnected, ProtocolError, RemoteDisconnected) as e:
             venteperiode = 5
             print( 'Feilmelding ved henting av data, prøver på ny om', venteperiode, 'sekunder', e)
             sleep( 5 )
