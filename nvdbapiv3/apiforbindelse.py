@@ -129,7 +129,7 @@ class apiforbindelse( ):
             realm : string, angir brukertype for innlogging skriveapi. 
                     'EMPLOYEE' er default (personlig bruker hos SVV), 
                     alternativt 'serviceaccount' (fjesløs systembruker)
-        
+                    TODO: Burde byttet begrep til user_type, ref https://nvdbapiles-v3.test.atlas.vegvesen.no/dokumentasjon/#autentisering 
         """
         
         if miljo: 
