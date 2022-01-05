@@ -126,10 +126,9 @@ class apiforbindelse( ):
             klient : None eller string, Øk sporbarhet ved å gjør det lettere å finne endringssettene dine i 
                                         APISKRIV sitt endringssett-panel 
 
-            REALM : string, angir brukertype for innlogging skriveapi. 
-                    'EMPLOYEE' er default (personlig bruker, ansatt i SVV), 
-                    andre verdier er 'SERVICE_ACCOUNT' (fjesløs systembruker)
-                    eller 'EXTERNAL' (personlig bruker ikke ansatt i SVV)
+            realm : string, angir brukertype for innlogging skriveapi. 
+                    'EMPLOYEE' er default (personlig bruker hos SVV), 
+                    alternativt 'serviceaccount' (fjesløs systembruker)
         
         """
         
