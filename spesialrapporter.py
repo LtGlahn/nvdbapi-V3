@@ -317,10 +317,19 @@ def tunnelrapport( mittfilter=None  ):
                             't67_Rehabiliteringsår', 't67_Malte tunnelvegger', 't67_Prosjektreferanse', 
                             't67_Brutus_Id', 't105_Fartsgrense', 't540_År, gjelder for', 't540_ÅDT, total', 
                             't540_ÅDT, andel lange kjøretøy' ]
+    # Kan ikke ta for gitt at alle kolonnene finnes: 
+    kolonner_finnes = set( mellomresultat3.columns ) 
+    komprimertKolonner = list( kolonner_finnes.intersection( set( komprimertKolonner) ) )
+
     komprimert = mellomresultat3.drop_duplicates( subset=komprimertKolonner ).copy()
 
-    slett = ['t67_nvdbId', 't67_kommune', 't67_fylke', 't67_vref', 't67_startposisjon', 
+    # slett = ['t67_nvdbId', 't67_kommune', 't67_fylke', 't67_vref', 't67_startposisjon', 
+    #             't67_sluttposisjon', 't67_segmentlengde', 't67_geometri']
+
+
+    slett = ['t67_nvdbId', 't67_kommune', 't67_fylke', 't67_startposisjon', 
                 't67_sluttposisjon', 't67_segmentlengde', 't67_geometri']
+
 
     komprimert.drop( columns=slett, inplace=True )
 
