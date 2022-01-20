@@ -649,3 +649,42 @@ def skrivexcel( filnavn, dataFrameListe, sheet_nameListe=[], indexListe=[], slet
 
     writer.save( )
     print( f"skrev {len( dataFrameListe )} faner til {filnavn} ")
+
+def vegreferanselengder( vegref ): 
+    """
+    Finner lengder basert på meterverdi av vegreferanse
+
+    Takler helt fint dette med kryssdeler og sideanlegg, men forutsetter at vegsystemreferansen er formulert med 
+    start- og sluttmeter, dvs du må ha m<start>-<slutt> bakerst i strengen, eksempel "FV44 S7D1 m6297-6305" 
+
+    Hvis du har flere vegsystemreferanser kan du skille dem fra hverandre med komma, eksempel "FV4302 S1D1 m40-44,FV4302 S1D1 m300 KS1 m40-41"
+
+    Gir ingen feilmelding hvis tolking av input-tekst feiler
+    
+    ARGUMENTS
+        vegref : String, tekststreng som inneholder kommaseparert liste med vegsystemreferanser
+
+    KEYWORDS 
+        None 
+
+    RETURNS
+        lengde: Integer, heltall med lengde 
+    """
+    vrefbiter = vegref.split(',')
+    lengde = 0 
+    for vref in vrefbiter: 
+        if '-' in vref: 
+            biter = vref.split( '-')
+            tilM = biter[-1]
+            fraM = biter[-2].split()[-1]
+
+            try: 
+                fraM = int( ''.join( filter( str.isdigit, fraM)))
+                tilM = int( tilM )
+            except ValueError: 
+                pass
+            else: 
+                lengde += abs( tilM - fraM   )
+
+    return lengde 
+    
