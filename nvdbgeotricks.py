@@ -586,3 +586,66 @@ def filtrerfeltoversikt( feltoversikt, mittfilter=['vanlig', 'K', 'R' ]):
 
     return data 
         
+def skrivexcel( filnavn, dataFrameListe, sheet_nameListe=[], indexListe=[], slettgeometri=True ):
+    """
+    Skriver liste med dataFrame til excel, med kolonnebredde=lengste element i header eller datainnhold
+
+    Skipper kolonner med navn "geometri" eller "geometry" 
+
+    ARGUMENTS
+        filnavn : Navn på excel-fil 
+
+        dataFrameListe : Liste med dataframe, eller en enkelt dataFrame / geodataframe 
+
+    KEYWORDS
+        sheet_nameListe : [] Liste med navn på fanene i exel-arket. Hvis tom liste brukes Fane1, Fane2...
+
+        indexListe : [] Angir om index skal med som første kolonne(r), liste med True eller False. Default: Uten index. 
+
+        slettgeometri : True . Sletter geometrikolonner 
+    """
+
+    # Håndterer en enkelt dataframe => putter i liste med ett element
+    if ~isinstance( dataFrameListe, list ): 
+        dataFrameListe = [ dataFrameListe ]
+
+    writer = pd.ExcelWriter( filnavn, engine='xlsxwriter')
+
+
+    for (idx, endf ) in enumerate( dataFrameListe): 
+
+        # Sikrer at vi ikke har sideeffekter på orginal dataframe
+        mydf = endf.copy()
+
+        if slettgeometri: 
+            sletteliste = ['geometri', 'geometry']
+            for slettkol in sletteliste: 
+                if slettkol in mydf: 
+                    mydf.drop( columns=slettkol, inplace=True )
+
+        pdb.set_trace()
+        # Navn på blad (ark, sheet_name) i excel-fila
+        if sheet_nameListe and isinstance( sheet_nameListe, list) and len( sheet_nameListe) <= idx+1: 
+            arknavn = sheet_nameListe[idx]
+        else: 
+            arknavn = 'Ark' + str( idx+1 )
+
+        # Skal vi ha med indeks? 
+        if indexListe and isinstance( indexListe, list) and len( indexListe) <= idx+1: 
+            brukindex = indexListe[idx]
+        else: 
+            brukindex = False 
+
+        mydf.to_excel(writer, sheet_name=arknavn, index=brukindex)
+
+
+        # Auto-adjust columns' width. 
+        # Fra https://towardsdatascience.com/how-to-auto-adjust-the-width-of-excel-columns-with-pandas-excelwriter-60cee36e175e
+        for column in mydf:
+            if str(column ) not in sletteliste: 
+                column_width = max(mydf[column].astype(str).map(len).max(), len(column)) + 3
+                col_idx = mydf.columns.get_loc(column)
+                writer.sheets[arknavn].set_column(col_idx, col_idx, column_width)
+
+    writer.save( )
+    print( f"skrev {len( dataFrameListe )} faner til {filnavn} ")
