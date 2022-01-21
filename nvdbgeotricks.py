@@ -606,7 +606,8 @@ def skrivexcel( filnavn, dataFrameListe, sheet_nameListe=[], indexListe=[], slet
     """
 
     # Håndterer en enkelt dataframe => putter i liste med ett element
-    if ~isinstance( dataFrameListe, list ): 
+
+    if not isinstance( dataFrameListe, list ): 
         dataFrameListe = [ dataFrameListe ]
 
     writer = pd.ExcelWriter( filnavn, engine='xlsxwriter')
@@ -623,7 +624,6 @@ def skrivexcel( filnavn, dataFrameListe, sheet_nameListe=[], indexListe=[], slet
                 if slettkol in mydf: 
                     mydf.drop( columns=slettkol, inplace=True )
 
-        pdb.set_trace()
         # Navn på blad (ark, sheet_name) i excel-fila
         if sheet_nameListe and isinstance( sheet_nameListe, list) and len( sheet_nameListe) <= idx+1: 
             arknavn = sheet_nameListe[idx]
