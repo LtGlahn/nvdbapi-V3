@@ -323,7 +323,10 @@ class nvdbVegnett:
     
         # if not self.apiurl in path: 
         if not 'http' in path: 
-            url = ''.join(( self.apiurl, path)) 
+            if path[0] == '/':
+                url = ''.join(( self.forbindelse.apiurl, path))
+            else: 
+                url = '/'.join(( self.forbindelse.apiurl, path))
         else: 
             url = path 
 
