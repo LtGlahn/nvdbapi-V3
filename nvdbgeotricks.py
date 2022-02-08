@@ -154,7 +154,7 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner' ):
                 f"A.{col_sluttA} > B.{col_startB} "
             )
 
-    print( qry )
+    # print( qry )
 
     conn = sqlite3.connect( ':memory:')
     dfA.to_sql( 'A', conn, index=False )
