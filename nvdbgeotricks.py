@@ -331,7 +331,7 @@ def records2gpkg( minliste, filnavn, lagnavn ):
 
 
 
-def nvdb2gpkg( objekttyper, filnavn='datadump', mittfilter=None, vegnett=True, vegsegmenter=False, geometri=True):
+def nvdb2gpkg( objekttyper, filnavn='datadump', mittfilter=None, vegnett=True, vegsegmenter=False, geometri=True, forb=None):
     """
     Lagrer NVDB vegnett og angitte objekttyper til geopackage
 
@@ -355,6 +355,19 @@ def nvdb2gpkg( objekttyper, filnavn='datadump', mittfilter=None, vegnett=True, v
         Standardverdiene vegsegmenter=False, geometri=True er valgt ut fra antagelsen om at du ønsker 
         en rad per objekt, uten duplisering. 
 
+        forb=None eller en instans av nvdbapiv3.apiforbindelse(). Dette objektet håndterer innlogging i NVDB api LES, som er 
+                    påkrevd hvis du ønsker å lese skjermede objekttyper. Eksempel
+    
+    EKSEMPEL
+        Lagre skjermede data for 903 Bruksklasse, spesialtransport, uoffisiell og  905 Bruksklasse, normaltransport uoffisiell sammen 
+        med vegnettsdata på E6 i Oslo kommune
+        
+        import nvdbapiv3
+        import nvdbgeotricks  
+        forb = nvdbapiv3.apiforbindelse()
+        forb.login( username=DITTNVDBBRUKERNAVN )
+        nvdbgeotricks.nvdb2gpkg( [903, 905], mittfilter={'vegsystemreferanse' : 'Ev6', 'kommune' : 301}, forb=forb )
+
     RETURNS 
         None 
     """
@@ -364,12 +377,16 @@ def nvdb2gpkg( objekttyper, filnavn='datadump', mittfilter=None, vegnett=True, v
 
     if not isinstance(objekttyper, list ): 
         objekttyper = [ objekttyper ]
+        
+    if not forb: 
+        forb = nvdbapiv3.apiforbindelse()
 
     for enObjTypeId in objekttyper: 
 
         enObjTypeId = int( enObjTypeId )
 
         sok = nvdbapiv3.nvdbFagdata( enObjTypeId  )
+        sok.forbindelse = forb 
         if mittfilter: 
             sok.filter( mittfilter )
 
@@ -388,6 +405,7 @@ def nvdb2gpkg( objekttyper, filnavn='datadump', mittfilter=None, vegnett=True, v
 
     if vegnett: 
         veg = nvdbapiv3.nvdbVegnett()
+        veg.forbindelse = forb 
         if mittfilter: 
             junk = mittfilter.pop( 'egenskap', None)
             junk = mittfilter.pop( 'overlapp', None)
