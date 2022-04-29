@@ -428,7 +428,7 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
                     print( mittobj.id, "punkt", "\n\t", punktgeom, 
                             "\n\t", mygeoms[-1].asWkt()[0:100])
 
-            if gt == 'vegkart': 
+            if gt == 'vegkart' and mittobj and mittobj['geometri'] and 'wkt' in mittobj.geometri['wkt']: 
                 mygeoms.append( QgsGeometry.fromWkt( mittobj.geometri['wkt'] ) )  
                 beste_gt_suksess = True
             
