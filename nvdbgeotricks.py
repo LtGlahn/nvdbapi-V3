@@ -15,6 +15,7 @@ from copy import deepcopy
 import sqlite3
 
 from shapely import wkt 
+from shapely.geometry import Point, LineString
 # from shapely.ops import unary_union
 import pandas as pd 
 import geopandas as gpd 
@@ -706,3 +707,54 @@ def vegreferanselengder( vegref ):
 
     return lengde 
     
+
+def shapelycut( line, distance): 
+    """
+    Kutter ei linje i to på angitt punkt, målt som antall meter (dvs koordinatsystem-enheter) fra starten av linja
+
+    Hentet fra shapely-dokumentasjonen, tilpasset både 2D og 3D koordinater
+    https://shapely.readthedocs.io/en/stable/manual.html#linear-referencing-methods 
+
+    Merk at alle avstander i shapely regnes i ren 2D, dvs ut fra X og Y i kartplane. 
+    Eventuelle Z-koordinater blir riktig interpolert, men Z-verdier spiller ingen rolle i beregning av avstand. 
+    For en 10% stigning vil differansen i 2D versus 3D være om lag 5%. Samtidig er det noen argumenter
+    for det å være 100% konsekvent med å regne avstander i kartplan (x,y) - hvilket er det valget shapely har tatt. 
+
+    ARGUMENTS
+        line - Shapely LineString objekt
+
+        distance - Avstand fra starten av linja til det punktet der vi skal kutte, i meter (eller mer presist: Koordinatsystem-enheter)
+
+    KEYWORDS
+        N/A
+
+    RETURNS 
+        liste med to shapely LineString - objekter, det første fra start av linja til angitt distanse (der den gamle linja ble kuttet), 
+        den andre linja fra kuttpunkt til slutt. 
+        Merk at hvis distance = 0 eller > line.lenght så returneres den oppprinnelige geometrien, dvs kun ett shapely-objekt i lista
+
+    TODO: 
+      -  Er det behov for å angi kuttpunkt som andel (dvs tall mellom 0 og 1) i stedet for fysiske avstander? 
+    """
+
+    if distance <= 0.0 or distance >= line.length:
+        return [LineString(line)]
+    coords = list(line.coords)
+    for i, p in enumerate(coords):
+        pd = line.project(Point(p))
+        if pd == distance: # --------- Angitt punkt matcher eksakt med et punkt langs linja, trenger ikke interpolere 
+            return [
+                LineString(coords[:i+1]),
+                LineString(coords[i:])]
+        if pd > distance:  # ---------------- Må interpolere, fordi vi ligger et sted mellom foregående og neste punkt
+            cp = line.interpolate(distance)
+            if line.has_z: # -------------------------------- 3D koordinater
+                return[ LineString( coords[:i] + [(cp.x, cp.y, cp.z)]), 
+                        LineString( [(cp.x, cp.y, cp.z)] + coords[i:] )] 
+                
+            else:         # --------------------------------- 2D koordinater
+                return [
+                    LineString(coords[:i] + [(cp.x, cp.y)]),
+                    LineString([(cp.x, cp.y)] + coords[i:])]
+
+
