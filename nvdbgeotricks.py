@@ -20,6 +20,7 @@ from shapely.geometry import Point, LineString
 import pandas as pd 
 import geopandas as gpd 
 from datetime import datetime
+import numpy as np
 
 import nvdbapiv3
 from nvdbapiv3 import apiforbindelse
@@ -757,4 +758,77 @@ def shapelycut( line, distance):
                     LineString(coords[:i] + [(cp.x, cp.y)]),
                     LineString([(cp.x, cp.y)] + coords[i:])]
 
+
+def finnoverlappgeometri( geom1, geom2, frapos1, tilpos1, frapos2, tilpos2): 
+    """
+    Tar to LineString-geometrier og "klipper til" felles geometrisk overlapp basert på dimmensjonsløse lineære posisjoner. 
+
+    Eks (frapos1, tilpos1) = (0 0.8) og (frapos2, tilpos2) = (0.5, 1) gir overlappet (0.5, 0.8) Vi tar den korteste av geometriene
+    (i dette tilfelle geom2) og klipper vekk det som er utafor (0.5, 0.8). På veien dit må vi selvsagt regne om fra 
+    lineære posisjoner til fysiske avstander, dvs hvor mange meter tilsvarer intervallene 0.5-0.8 og 0.8-1 på geom2? 
+
+    Returnerer tom geometri (dvs LineString(), uten koordinater) og None, None hvis det ikke er gyldig overlapp 
+
+    ARGUMENTS
+        geom1, geom2 : Shapely LineString - objekter som skal finne overlapp 
+
+    RETURNS 
+        (nyGeom, nyFrapos, nyTilpos) : Tuple med ny geometri og nye lineære posisjoner
+
+    """
+
+    # Velger en geometri 
+    if geom1.length < geom2.length: 
+        kortgeom = geom1 
+        kort_frapos = frapos1
+        kort_tilpos = tilpos1
+        lang_frapos = frapos2
+        lang_tilpos = tilpos2 
+    else: 
+        kortgeom =  geom2 
+        kort_frapos = frapos2
+        kort_tilpos = tilpos2
+        lang_frapos = frapos1
+        lang_tilpos = tilpos1 
+
+    # Sjekker om vi i det hele tatt har overlapp:
+    if frapos1 < tilpos2 and tilpos1 > frapos2: 
+        pass # godkjent
+    else: 
+        print( f"Ingen overlapp på disse lineærposisjonene {frapos1}-{tilpos1} og {frapos2}-{tilpos2} ")
+        return (LineString(), None, None )
+
+    # Sjekker om det ene settet med geometrier fullstendig overlapper med det andre. 
+    # I så fall returnerer vi bare den korteste geometrien 
+    if (frapos1 <= frapos2 and tilpos1 >= tilpos2) or (frapos2 >= frapos1 and tilpos2 <= frapos1): 
+        print( f"Fullstendig overlapp {frapos1}-{tilpos1} og {frapos2}-{tilpos2} ")
+        return (kuttgeom, max(frapos1, frapos2), min( tilpos1, tilpos2) )
+
+    # Siden vi jobber med den korteste geometrien (og har behandlet det trivielle tilfellet der den lengste 
+    # fullstendig overlapper den korteste) så må den korteste geometrien kuttes enten i starten eller i slutten. 
+    if kort_frapos < lang_frapos:  
+        kuttpos = lang_frapos # Den korteste geometrien ligger på starten av den lengste. 
+        geomindex = 1         # Dvs når vi kutter den korte geometrien så forkaster vi den første biten
+                              # (som ligger foran der overlapp-sone), og tar vare på den siste   
+    else: 
+        kuttpos = lang_tilpos # Den korteste geometrien ligger på slutten av den lengste
+        geomindex = 0         # Vi forkaster den siste biten (som er bak overlapp-sonen), og tar vare på den første biten
+
+    # Sanity check 
+    assert kuttpos > kort_frapos and kuttpos < kort_tilpos,  "Feil logikk i vår håndtering av lineære posisjoner" 
+
+    dpos_hele = np.float64( kort_tilpos ) - np.float64( kort_frapos )
+    dpos_kutt = np.float64( kuttpos ) - np.float64( kort_frapos )
+    fraction_kutt = dpos_kutt / dpos_hele 
+    ny_lengde = fraction_kutt * np.float64( kortgeom.length )
+    assert ny_lengde <= np.float64( kortgeom.length ), "Ny lengde må være kortere enn opprinnelig lengde"
+    geomliste = shapelycut( kortgeom, ny_lengde )
+    # from IPython import embed; embed() # DEBUG
+    if len( geomliste ) == 0: 
+        print( "Fikk ingen gyldig geometri fra nvdbgeotricks.shapelycut???")
+        return (LineString(), None, None )
+    elif len( geomliste ) == 1: 
+        return ( geomliste[0],  max(frapos1, frapos2), min( tilpos1, tilpos2) )
+    elif len( geomliste ) == 2: 
+        return ( geomliste[geomindex],  max(frapos1, frapos2), min( tilpos1, tilpos2) )
 
