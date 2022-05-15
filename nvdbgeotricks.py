@@ -25,7 +25,7 @@ import numpy as np
 import nvdbapiv3
 from nvdbapiv3 import apiforbindelse
 
-def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner' ): 
+def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeometri=True  ): 
     """
     Finner overlapp mellom to (geo)pandas (geo)dataframes med veglenkeposisjoner. 
     
@@ -67,8 +67,13 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner' ):
         prefixB=None Valgfri tekststreng med det prefikset som skal føyes til navn i dfB. Hvis ikke angitt så komponerer vi 
                      prefiks ut fra objektTypeID, for eksempel "67_" for 67 Tunnelløp. 
 
-        join = 'inner' | 'left' . Hva slags sql-join vi skal gjøre, mest aktuelle er 'INNER' eller 'LEFT'. I prinsippet en hvilke
+        join = 'inner' | 'left' . Hva slags sql-join vi skal gjøre, mest aktuelle er 'INNER' (default) eller 'LEFT'. I prinsippet en hvilke
                     som helst variant som er støttet av sqlite3.
+
+        klippgeometri = True (default) | False. Klipper geometri slik at den får riktig utstrekning ihht overlapp på veglenkeposisjoner.
+
+        klippvegreferanse = True (default) | False. Vil endre "vref"-kolonnen slik at meterverdiene får riktig overlapp-utstrekning (ved å ta maksimum 
+                                                    og minimumsverdi av fra- og tilmeter for de to dataframene)
 
     RETURNS
         Pandas DataFrame, eller Geopandas Geodataframe, avhengig av hva dfA er for slag. 
@@ -86,6 +91,8 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner' ):
     col_startA  = 'startposisjon'   
     col_sluttA  = 'sluttposisjon'
     col_relposA = 'relativPosisjon'
+    col_geomA   = 'geometry'
+    col_stedfestingA = 'stedfesting'
 
     if prefixA: 
         # Tester om prefikset er i bruk
@@ -96,6 +103,8 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner' ):
         col_startA  = prefixA + col_startA
         col_sluttA  = prefixA + col_sluttA
         col_relposA = prefixA + col_relposA 
+        col_geomA   = prefixA + col_geomA 
+        col_stedfestingA = prefixA + col_stedfestingA
 
     # Gjetter på prefix B om den ikke finnes. 
     if not prefixB: 
@@ -113,6 +122,26 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner' ):
     col_startB  = prefixB + 'startposisjon' 
     col_sluttB  = prefixB + 'sluttposisjon'
     col_relposB = prefixB + 'relativPosisjon'
+    col_geomB   = prefixB + 'geometry'
+    col_stedfestingB = prefixB + 'stedfesting'
+
+    # For noen datasett, f.eks fra QGIS, så må vi brette ut stedfestingsinformasjon
+    if not col_vlinkA in dfA.columns and col_stedfestingA in dfA.columns and '-' in dfA.iloc[0][col_stedfestingA]: 
+        tmp = dfA[col_stedfestingA].apply( splittstedfesting ) 
+        dfA[col_startA] = tmp[0]
+        dfA[col_sluttA] = tmp[1]
+        dfA[col_vlinkA] = tmp[2]
+    if not col_vlinkB in dfB.columns and col_stedfestingB in dfB.columns and '-' in dfB.iloc[0][col_stedfestingB]: 
+        tmp = dfB[col_stedfestingB].apply( splittstedfesting )
+        dfB[col_startB] = tmp[0]
+        dfB[col_sluttB] = tmp[1]
+        dfB[col_vlinkB] = tmp[2]
+
+    # Må gjøre om shapely-objekter til Well Known Text, ellers klager sql'en vår 
+    if isinstance( dfA.iloc[0][col_geomA], LineString): 
+        dfA[col_geomA] = dfA[col_geomA].apply( lambda x : x.wkt )
+    if isinstance( dfB.iloc[0][col_geomB], LineString): 
+        dfB[col_geomB] = dfB[col_geomB].apply( lambda x : x.wkt )
 
     # Kvalitetssjekk på at vi har det som trengs: 
     assert col_vlinkA in dfA.columns, f"finnoverlapp: Fant ikke kolonne {col_vlinkA} i dfA {dfA.columns} "
@@ -181,11 +210,50 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner' ):
     #
     # joined = pd.read_sql_query( qry, conn)        
 
+
+
+    if klippgeometri: 
+        if col_geomA in joined.columns and col_geomB in joined.columns: 
+
+            tmp = joined.apply( lambda x : finnoverlappgeometri( x[col_geomA], x[col_geomB], x[col_startA], x[col_sluttA], x[col_startB], x[col_sluttB]  ) , axis=1) 
+            joined['geometry']      = tmp.apply( lambda x : x[0] )
+            joined['startposisjon'] = tmp.apply( lambda x : x[1] )
+            joined['sluttposisjon'] = tmp.apply( lambda x : x[2] )
+
+            joined = gpd.GeoDataFrame( joined, geometry='geometry', crs='epsg:5973')
+
     return joined 
 
 
     # raise NotImplementedError( "Har ikke fått laget denne ennå, sjekk om noen dager")
 
+def splittstedfesting( mystring):
+    """
+    Splitter en stedfesting-streng på formen 0-1@1158097 i tre tall, dvs (0, 1, 1158097)
+
+    ARGUMENTS: 
+        mystring = Tekststreng på formen 0.0-1.0@1158097 
+
+    KEYWORDS: 
+        N/A
+    
+    RETURNS
+        Tuple med (fraposisjon, tilposisjon, veglenkesekvensid)  
+
+        Returnerer (None, None, None) hvis feiler 
+    """
+
+    frapos, tilpos, vlenkid = None, None, None  
+    try: 
+        splitt1 = mystring.split( '@')
+        splitt2 = splitt1[0].split( '-')
+        frapos = float( splitt2[0] )
+        tilpos = float( splitt2[1] )
+        vlenkid = int( splitt1[1] ) 
+    except (IndexError, ValueError): 
+        print( f"splittstedfesting feiler på tekst {mystring}")
+
+    return pd.Series( [frapos, tilpos, vlenkid]) 
 
 
 def finnDatter( morDf, datterDf, prefixMor=None, prefixDatter=None, ignorerDatterPrefix=False   ): 
@@ -759,7 +827,7 @@ def shapelycut( line, distance):
                     LineString([(cp.x, cp.y)] + coords[i:])]
 
 
-def finnoverlappgeometri( geom1, geom2, frapos1, tilpos1, frapos2, tilpos2): 
+def finnoverlappgeometri( geom1:LineString, geom2:LineString, frapos1:float, tilpos1:float, frapos2:float, tilpos2:float): 
     """
     Tar to LineString-geometrier og "klipper til" felles geometrisk overlapp basert på dimmensjonsløse lineære posisjoner. 
 
@@ -769,6 +837,8 @@ def finnoverlappgeometri( geom1, geom2, frapos1, tilpos1, frapos2, tilpos2):
 
     Returnerer tom geometri (dvs LineString(), uten koordinater) og None, None hvis det ikke er gyldig overlapp 
 
+    Hvis en av geometriene er None, tom eller har null lengde så returneres den andre geometrien og tilhørende veglenkeposisjoner
+
     ARGUMENTS
         geom1, geom2 : Shapely LineString - objekter som skal finne overlapp 
 
@@ -776,6 +846,18 @@ def finnoverlappgeometri( geom1, geom2, frapos1, tilpos1, frapos2, tilpos2):
         (nyGeom, nyFrapos, nyTilpos) : Tuple med ny geometri og nye lineære posisjoner
 
     """
+
+    # Har vi fått WKT? Prøver å konvertere til shapely-objekter
+    if isinstance( geom1, str): 
+        geom1 = wkt.loads( geom1 )
+    if isinstance( geom2, str): 
+        geom2 = wkt.loads( geom2 )
+
+    # Sjekker om begge geometriene er gyldige, returnerer den andre hvis ikke
+    if not isinstance( geom1, LineString) or geom1.length == 0:
+        return (geom2, frapos2, tilpos2)
+    elif not isinstance( geom2, LineString ) or geom2.length == 0: 
+        return( geom1, frapos1, tilpos1 )
 
     # Velger en geometri 
     if geom1.length < geom2.length: 
@@ -800,9 +882,10 @@ def finnoverlappgeometri( geom1, geom2, frapos1, tilpos1, frapos2, tilpos2):
 
     # Sjekker om det ene settet med geometrier fullstendig overlapper med det andre. 
     # I så fall returnerer vi bare den korteste geometrien 
-    if (frapos1 <= frapos2 and tilpos1 >= tilpos2) or (frapos2 >= frapos1 and tilpos2 <= frapos1): 
+    #     (geom1 utstrekning er subsett av geom2) ELLER (geom2 utstrekning er subsett av geom1)
+    if (frapos1 >= frapos2 and tilpos1 <= tilpos2) or (frapos2 >= frapos1 and tilpos2 <= tilpos1): 
         print( f"Fullstendig overlapp {frapos1}-{tilpos1} og {frapos2}-{tilpos2} ")
-        return (kuttgeom, max(frapos1, frapos2), min( tilpos1, tilpos2) )
+        return (kortgeom, max(frapos1, frapos2), min( tilpos1, tilpos2) )
 
     # Siden vi jobber med den korteste geometrien (og har behandlet det trivielle tilfellet der den lengste 
     # fullstendig overlapper den korteste) så må den korteste geometrien kuttes enten i starten eller i slutten. 
@@ -815,7 +898,7 @@ def finnoverlappgeometri( geom1, geom2, frapos1, tilpos1, frapos2, tilpos2):
         geomindex = 0         # Vi forkaster den siste biten (som er bak overlapp-sonen), og tar vare på den første biten
 
     # Sanity check 
-    assert kuttpos > kort_frapos and kuttpos < kort_tilpos,  "Feil logikk i vår håndtering av lineære posisjoner" 
+    assert kuttpos >= kort_frapos and kuttpos <= kort_tilpos,  "Feil logikk i vår håndtering av lineære posisjoner" 
 
     dpos_hele = np.float64( kort_tilpos ) - np.float64( kort_frapos )
     dpos_kutt = np.float64( kuttpos ) - np.float64( kort_frapos )
@@ -830,5 +913,5 @@ def finnoverlappgeometri( geom1, geom2, frapos1, tilpos1, frapos2, tilpos2):
     elif len( geomliste ) == 1: 
         return ( geomliste[0],  max(frapos1, frapos2), min( tilpos1, tilpos2) )
     elif len( geomliste ) == 2: 
-        return ( geomliste[geomindex],  max(frapos1, frapos2), min( tilpos1, tilpos2) )
+        return geomliste[geomindex],  max(frapos1, frapos2), min( tilpos1, tilpos2) 
 
