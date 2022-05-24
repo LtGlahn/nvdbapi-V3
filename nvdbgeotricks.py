@@ -13,17 +13,23 @@ import re
 import pdb
 from copy import deepcopy
 import sqlite3
+import json
+import string
+from sys import prefix
+from xmlrpc.client import Boolean 
 
 from shapely import wkt 
+from shapely.geometry import Point, LineString
 # from shapely.ops import unary_union
 import pandas as pd 
 import geopandas as gpd 
 from datetime import datetime
+import numpy as np
 
 import nvdbapiv3
 from nvdbapiv3 import apiforbindelse
 
-def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner' ): 
+def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeometri=False,  klippvegsystemreferanse=True, debug=False ): 
     """
     Finner overlapp mellom to (geo)pandas (geo)dataframes med veglenkeposisjoner. 
     
@@ -52,8 +58,6 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner' ):
         3) Fjern "overflødige" kolonner fra mellomliggende resultater, gjerne kombinert med tricks 2) 
     
     Samme navnelogikk er brukt i funksjonen finndatter.  
-
-    TODO: Funksjonen håndterer ikke dictionary-elementer. Spesielt relasjon-strukturen (dictionary) gir oss problemer. 
     
     ARGUMENTS
         dfA, dfB - Pandas dataframe eller Geopandas geodataframe, eller kombinasjon. Returverdi blir identisk med dfA. 
@@ -65,14 +69,20 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner' ):
         prefixB=None Valgfri tekststreng med det prefikset som skal føyes til navn i dfB. Hvis ikke angitt så komponerer vi 
                      prefiks ut fra objektTypeID, for eksempel "67_" for 67 Tunnelløp. 
 
-        join = 'inner' | 'left' . Hva slags sql-join vi skal gjøre, mest aktuelle er 'INNER' eller 'LEFT'. I prinsippet en hvilke
+        join = 'inner' | 'left' . Hva slags sql-join vi skal gjøre, mest aktuelle er 'INNER' (default) eller 'LEFT'. I prinsippet en hvilke
                     som helst variant som er støttet av sqlite3.
+
+        klippgeometri = False (default) | True. Klipper geometri slik at den får riktig utstrekning ihht overlapp på veglenkeposisjoner.
+
+        klippvegsystemreferanse = True (default) | False. Endrer eller oppretter kolonnen "vegsystemreferanse" slik at meterverdiene får riktig overlapp-utstrekning 
+                                                    (ved å ta maksimum og minimumsverdi av fra- og tilmeter for de to dataframene)
+
+        debug = False (default) | True . Printer ut mer detaljer om hva som skjer underveis
 
     RETURNS
         Pandas DataFrame, eller Geopandas Geodataframe, avhengig av hva dfA er for slag. 
 
     TODO: Inputdata er Vegnett + vegnett eller vegobjekter + vegnett ? (Trengs dette?)   
-
 
     """
 
@@ -84,6 +94,8 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner' ):
     col_startA  = 'startposisjon'   
     col_sluttA  = 'sluttposisjon'
     col_relposA = 'relativPosisjon'
+    col_geomA   = 'geometry'
+    col_stedfestingA = 'stedfesting'
 
     if prefixA: 
         # Tester om prefikset er i bruk
@@ -94,6 +106,8 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner' ):
         col_startA  = prefixA + col_startA
         col_sluttA  = prefixA + col_sluttA
         col_relposA = prefixA + col_relposA 
+        col_geomA   = prefixA + col_geomA 
+        col_stedfestingA = prefixA + col_stedfestingA
 
     # Gjetter på prefix B om den ikke finnes. 
     if not prefixB: 
@@ -111,6 +125,38 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner' ):
     col_startB  = prefixB + 'startposisjon' 
     col_sluttB  = prefixB + 'sluttposisjon'
     col_relposB = prefixB + 'relativPosisjon'
+    col_geomB   = prefixB + 'geometry'
+    col_stedfestingB = prefixB + 'stedfesting'
+
+    # For noen datasett, f.eks fra QGIS, så må vi brette ut stedfestingsinformasjon
+    if not col_vlinkA in dfA.columns and col_stedfestingA in dfA.columns and '-' in dfA.iloc[0][col_stedfestingA]: 
+        tmp = dfA[col_stedfestingA].apply( splittstedfesting ) 
+        dfA[col_startA] = tmp[0]
+        dfA[col_sluttA] = tmp[1]
+        dfA[col_vlinkA] = tmp[2]
+    if not col_vlinkB in dfB.columns and col_stedfestingB in dfB.columns and '-' in dfB.iloc[0][col_stedfestingB]: 
+        tmp = dfB[col_stedfestingB].apply( splittstedfesting )
+        dfB[col_startB] = tmp[0]
+        dfB[col_sluttB] = tmp[1]
+        dfB[col_vlinkB] = tmp[2]
+
+    # Må gjøre om shapely-objekter til Well Known Text, ellers klager sql'en vår 
+    if isinstance( dfA.iloc[0][col_geomA], LineString): 
+        dfA[col_geomA] = dfA[col_geomA].apply( lambda x : x.wkt )
+    if isinstance( dfB.iloc[0][col_geomB], LineString): 
+        dfB[col_geomB] = dfB[col_geomB].apply( lambda x : x.wkt )
+
+    # Har vi dictionary? Det liker ikke sql'en vår, gjør om til string 
+    for col in dfA.columns: 
+        if isinstance( dfA.iloc[0][col], dict ): 
+            dfA[col] = dfA[col].apply( lambda x : json.dumps( x, ensure_ascii=False, indent=4 ))
+            print( f"Datasett A: Gjør om kolonne {col} fra dictionary til JSON tekst" )
+
+    for col in dfB.columns: 
+        if isinstance( dfB.iloc[0][col], dict ): 
+            dfB[col] = dfB[col].apply( lambda x : json.dumps( x, ensure_ascii=False, indent=4 ))
+            print( f"Datasett B: Gjør om kolonne {col} fra dictionary til JSON tekst" )
+
 
     # Kvalitetssjekk på at vi har det som trengs: 
     assert col_vlinkA in dfA.columns, f"finnoverlapp: Fant ikke kolonne {col_vlinkA} i dfA {dfA.columns} "
@@ -154,7 +200,8 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner' ):
                 f"A.{col_sluttA} > B.{col_startB} "
             )
 
-    # print( qry )
+    if debug: 
+        print( "Join-spørring:\n", qry )
 
     conn = sqlite3.connect( ':memory:')
     dfA.to_sql( 'A', conn, index=False )
@@ -179,11 +226,160 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner' ):
     #
     # joined = pd.read_sql_query( qry, conn)        
 
+
+
+    if klippgeometri: 
+        if col_geomA in joined.columns and col_geomB in joined.columns: 
+
+            tmp = joined.apply( lambda x : finnoverlappgeometri( x[col_geomA], x[col_geomB], x[col_startA], x[col_sluttA], x[col_startB], x[col_sluttB], debug=debug  ) , axis=1) 
+            joined['geometry']      = tmp.apply( lambda x : x[0] )
+            joined['startposisjon'] = tmp.apply( lambda x : x[1] )
+            joined['sluttposisjon'] = tmp.apply( lambda x : x[2] )
+
+            joined = gpd.GeoDataFrame( joined, geometry='geometry', crs='epsg:5973')
+            joined['segmentlengde'] = joined['geometry'].apply( lambda x: x.length )
+
+
+    if klippvegsystemreferanse: 
+        # Må finne vegsystemreferanse-kolonner
+        kanKlippe = True  
+        if not prefixA: 
+            prefixA = ''
+
+        if prefixA + 'vref' in dfA.columns: 
+            col_vrefA = prefixA + 'vref'
+        elif prefixA + 'vegsystemreferanse' in dfA.columns: 
+            col_vrefA = prefixA + 'vegsystemreferanse'
+        else: 
+            kanKlippe = False 
+            print( 'Fant ikke kolonner for vegreferanser i datasett A')
+
+        if prefixB + 'vref' in dfB.columns: 
+            col_vrefB = prefixB + 'vref'
+        elif prefixA + 'vegsystemreferanse' in dfB.columns: 
+            col_vrefB = prefixB + 'vegsystemreferanse'
+        else: 
+            kanKlippe = False 
+            print( 'Fant ikke kolonner for vegreferanser i datasett B')
+
+        if kanKlippe: 
+            joined['vegsystemreferanse'] = joined.apply( lambda x : vegsystemreferanseoverlapp( x[col_vrefA], x[col_vrefB]  ), axis=1 )
+
     return joined 
 
 
-    # raise NotImplementedError( "Har ikke fått laget denne ennå, sjekk om noen dager")
 
+def splittvegsystemreferanse( vegsystemreferanse:string ): 
+    """
+    Deler en vegsystemreferanse opp i fra-meter, tilmeter og resten. 
+
+    ARGUMENTS: 
+        vegsystemreferanse  - tekst string
+
+    KEYWORDS: 
+        N/A
+
+    RETURNS
+        (vegsystemreferanserot, frameter, tilmeter) : Tuple med elementene vegsystemreferanserot (tekst string), frameter (int) og tilmeter (int)
+
+    Eksempel: 
+        ('EV6 K S78D1 ', 0, 674 ) = splittvegsystemreferanse( 'EV6 K S78D1 m0-674' )
+        ('EV6 K S78D1 m454 SD1 ', 0, 112 ) = splittvegsystemreferanse( 'EV6 K S78D1 m454 SD1 m0-112' )
+        ('EV6 K S78D1 m454 SD1 ', 14, 14 ) = splittvegsystemreferanse( 'EV6 K S78D1 m454 SD1 m14' )
+
+    TODO: Kommer vi noensinne til å møte meterverdier med høyere presisjon enn nærmeste meter? 
+
+    """
+    vrefrot = ''
+    frameter = None 
+    tilmeter = None 
+
+    # Store eller små bokstaver? 
+    if 'M' in vegsystemreferanse: 
+        skrivstorM = True 
+        vegsystemreferanse = vegsystemreferanse.replace( 'M', 'm' )
+    else: 
+        skrivstorM = False 
+
+    try: 
+
+        if '-' in vegsystemreferanse: #                Strekning med fra- og til
+            splitt1 = vegsystemreferanse.split( '-' )
+            tilmeter = int( splitt1[-1]) 
+            splitt2 = splitt1[0].split( 'm')
+            frameter = int( splitt2[-1])
+        else:                         #                Punkt på formen EV6 K S78D1 m99
+            splitt2 = vegsystemreferanse.split( 'm' )
+            frameter = int( splitt2[-1] )
+            tilmeter = int( splitt2[-1] )
+
+        vrefrot = ''.join( splitt2[0:-1])
+
+    except (IndexError, ValueError) as err: 
+        print( f'nvdbgeotricks.splittvegsystemreferanse: Klarer ikke finne fra-til meterverdier ut fra teksten "{vegsystemreferanse}" ' )
+
+    if skrivstorM: 
+        vrefrot = vrefrot.translate( 'm', 'M')
+
+    return (vrefrot, frameter, tilmeter )
+
+def vegsystemreferanseoverlapp( vref1:string, vref2:string ): 
+    """
+    Finner felles overlapp (hvis det finnes) for to vegsystemreferanesr 
+
+    ARGUMENTS
+        vref1, vref2 : Tekst, De to vegsystemreferansene med (potensiell) overlapp 
+
+    KEYWORDS: 
+        N/A
+
+    RETURNS
+        overlappvref : Tekst, 
+
+    EKSEMPEL: 
+        'EV6 K S78D1 m99-300' = vegsystemreferanseoverlapp( 'EV6 K S78D1 m0-300', 'EV6 K S78D1 m99-674' ) 
+    """
+
+    (vrefrot1, fra1, til1) = splittvegsystemreferanse( vref1 ) 
+    (vrefrot2, fra2, til2) = splittvegsystemreferanse( vref2 ) 
+
+    if fra1 <= til2 and fra2 <= til1 and vrefrot1.lower().strip() == vrefrot2.lower().strip(): 
+        return vrefrot1 + 'm' + str(  max( fra1, fra2) ) + '-' + str( min( til1, til2 ))
+
+    else: 
+        print( f'nvdbgeotricks.vegsystemreferanseoverlapp: Ikke overlapp mellom vegsystemreferansene {vref1} og {vref2} ')  
+        # from IPython import embed; embed() # DEBUG
+
+    return ''
+
+
+def splittstedfesting( mystring):
+    """
+    Splitter en stedfesting-streng på formen 0-1@1158097 i tre tall, dvs (0, 1, 1158097)
+
+    ARGUMENTS: 
+        mystring = Tekststreng på formen 0.0-1.0@1158097 
+
+    KEYWORDS: 
+        N/A
+    
+    RETURNS
+        Tuple med (fraposisjon, tilposisjon, veglenkesekvensid)  
+
+        Returnerer (None, None, None) hvis feiler 
+    """
+
+    frapos, tilpos, vlenkid = None, None, None  
+    try: 
+        splitt1 = mystring.split( '@')
+        splitt2 = splitt1[0].split( '-')
+        frapos = float( splitt2[0] )
+        tilpos = float( splitt2[1] )
+        vlenkid = int( splitt1[1] ) 
+    except (IndexError, ValueError): 
+        print( f"splittstedfesting feiler på tekst {mystring}")
+
+    return pd.Series( [frapos, tilpos, vlenkid]) 
 
 
 def finnDatter( morDf, datterDf, prefixMor=None, prefixDatter=None, ignorerDatterPrefix=False   ): 
@@ -706,3 +902,146 @@ def vegreferanselengder( vegref ):
 
     return lengde 
     
+
+def shapelycut( line, distance): 
+    """
+    Kutter ei linje i to på angitt punkt, målt som antall meter (dvs koordinatsystem-enheter) fra starten av linja
+
+    Hentet fra shapely-dokumentasjonen, tilpasset både 2D og 3D koordinater
+    https://shapely.readthedocs.io/en/stable/manual.html#linear-referencing-methods 
+
+    Merk at alle avstander i shapely regnes i ren 2D, dvs ut fra X og Y i kartplane. 
+    Eventuelle Z-koordinater blir riktig interpolert, men Z-verdier spiller ingen rolle i beregning av avstand. 
+    For en 10% stigning vil differansen i 2D versus 3D være om lag 5%. Samtidig er det noen argumenter
+    for det å være 100% konsekvent med å regne avstander i kartplan (x,y) - hvilket er det valget shapely har tatt. 
+
+    ARGUMENTS
+        line - Shapely LineString objekt
+
+        distance - Avstand fra starten av linja til det punktet der vi skal kutte, i meter (eller mer presist: Koordinatsystem-enheter)
+
+    KEYWORDS
+        N/A
+
+    RETURNS 
+        liste med to shapely LineString - objekter, det første fra start av linja til angitt distanse (der den gamle linja ble kuttet), 
+        den andre linja fra kuttpunkt til slutt. 
+        Merk at hvis distance = 0 eller > line.lenght så returneres den oppprinnelige geometrien, dvs kun ett shapely-objekt i lista
+
+    TODO: 
+      -  Er det behov for å angi kuttpunkt som andel (dvs tall mellom 0 og 1) i stedet for fysiske avstander? 
+    """
+
+    if distance <= 0.0 or distance >= line.length:
+        return [LineString(line)]
+    coords = list(line.coords)
+    for i, p in enumerate(coords):
+        pd = line.project(Point(p))
+        if pd == distance: # --------- Angitt punkt matcher eksakt med et punkt langs linja, trenger ikke interpolere 
+            return [
+                LineString(coords[:i+1]),
+                LineString(coords[i:])]
+        if pd > distance:  # ---------------- Må interpolere, fordi vi ligger et sted mellom foregående og neste punkt
+            cp = line.interpolate(distance)
+            if line.has_z: # -------------------------------- 3D koordinater
+                return[ LineString( coords[:i] + [(cp.x, cp.y, cp.z)]), 
+                        LineString( [(cp.x, cp.y, cp.z)] + coords[i:] )] 
+                
+            else:         # --------------------------------- 2D koordinater
+                return [
+                    LineString(coords[:i] + [(cp.x, cp.y)]),
+                    LineString([(cp.x, cp.y)] + coords[i:])]
+
+
+def finnoverlappgeometri( geom1:LineString, geom2:LineString, frapos1:float, tilpos1:float, frapos2:float, tilpos2:float, debug=False ): 
+    """
+    Tar to LineString-geometrier og "klipper til" felles geometrisk overlapp basert på dimmensjonsløse lineære posisjoner. 
+
+    Eks (frapos1, tilpos1) = (0 0.8) og (frapos2, tilpos2) = (0.5, 1) gir overlappet (0.5, 0.8) Vi tar den korteste av geometriene
+    (i dette tilfelle geom2) og klipper vekk det som er utafor (0.5, 0.8). På veien dit må vi selvsagt regne om fra 
+    lineære posisjoner til fysiske avstander, dvs hvor mange meter tilsvarer intervallene 0.5-0.8 og 0.8-1 på geom2? 
+
+    Returnerer tom geometri (dvs LineString(), uten koordinater) og None, None hvis det ikke er gyldig overlapp 
+
+    Hvis en av geometriene er None, tom eller har null lengde så returneres den andre geometrien og tilhørende veglenkeposisjoner
+
+    ARGUMENTS
+        geom1, geom2 : Shapely LineString - objekter som skal finne overlapp 
+
+    KEYWORDS
+        debug: Boolean, False (default) | True. Skriver ut mer detaljer om hva som skjer 
+
+    RETURNS 
+        (nyGeom, nyFrapos, nyTilpos) : Tuple med ny geometri og nye lineære posisjoner
+
+    """
+
+    # Har vi fått WKT? Prøver å konvertere til shapely-objekter
+    if isinstance( geom1, str): 
+        geom1 = wkt.loads( geom1 )
+    if isinstance( geom2, str): 
+        geom2 = wkt.loads( geom2 )
+
+    # Sjekker om begge geometriene er gyldige, returnerer den andre hvis ikke
+    if not isinstance( geom1, LineString) or geom1.length == 0:
+        return (geom2, frapos2, tilpos2)
+    elif not isinstance( geom2, LineString ) or geom2.length == 0: 
+        return( geom1, frapos1, tilpos1 )
+
+    # Velger en geometri 
+    if geom1.length < geom2.length: 
+        kortgeom = geom1 
+        kort_frapos = frapos1
+        kort_tilpos = tilpos1
+        lang_frapos = frapos2
+        lang_tilpos = tilpos2 
+    else: 
+        kortgeom =  geom2 
+        kort_frapos = frapos2
+        kort_tilpos = tilpos2
+        lang_frapos = frapos1
+        lang_tilpos = tilpos1 
+
+    # Sjekker om vi i det hele tatt har overlapp:
+    if frapos1 < tilpos2 and tilpos1 > frapos2: 
+        pass # godkjent
+    else: 
+        print( f"nvdbgeotricks.finnoverlappgeometri: Ingen overlapp på disse lineærposisjonene {frapos1}-{tilpos1} og {frapos2}-{tilpos2} ")
+        return (LineString(), None, None )
+
+    # Sjekker om det ene settet med geometrier fullstendig overlapper med det andre. 
+    # I så fall returnerer vi bare den korteste geometrien 
+    #     (geom1 utstrekning er subsett av geom2) ELLER (geom2 utstrekning er subsett av geom1)
+    if (frapos1 >= frapos2 and tilpos1 <= tilpos2) or (frapos2 >= frapos1 and tilpos2 <= tilpos1): 
+        if debug: 
+            print( f"nvdbgeotricks.finnoverlappgeometri:Fullstendig overlapp {frapos1}-{tilpos1} og {frapos2}-{tilpos2} ")
+        return (kortgeom, max(frapos1, frapos2), min( tilpos1, tilpos2) )
+
+    # Siden vi jobber med den korteste geometrien (og har behandlet det trivielle tilfellet der den lengste 
+    # fullstendig overlapper den korteste) så må den korteste geometrien kuttes enten i starten eller i slutten. 
+    if kort_frapos < lang_frapos:  
+        kuttpos = lang_frapos # Den korteste geometrien ligger på starten av den lengste. 
+        geomindex = 1         # Dvs når vi kutter den korte geometrien så forkaster vi den første biten
+                              # (som ligger foran der overlapp-sone), og tar vare på den siste   
+    else: 
+        kuttpos = lang_tilpos # Den korteste geometrien ligger på slutten av den lengste
+        geomindex = 0         # Vi forkaster den siste biten (som er bak overlapp-sonen), og tar vare på den første biten
+
+    # Sanity check 
+    assert kuttpos >= kort_frapos and kuttpos <= kort_tilpos,  "Feil logikk i vår håndtering av lineære posisjoner" 
+
+    dpos_hele = np.float64( kort_tilpos ) - np.float64( kort_frapos )
+    dpos_kutt = np.float64( kuttpos ) - np.float64( kort_frapos )
+    fraction_kutt = dpos_kutt / dpos_hele 
+    ny_lengde = fraction_kutt * np.float64( kortgeom.length )
+    assert ny_lengde <= np.float64( kortgeom.length ), "Ny lengde må være kortere enn opprinnelig lengde"
+    geomliste = shapelycut( kortgeom, ny_lengde )
+    # from IPython import embed; embed() # DEBUG
+    if len( geomliste ) == 0: 
+        print( "nvdbgeotricks.finnoverlappgeometri: Fikk ingen gyldig geometri fra nvdbgeotricks.shapelycut???")
+        return (LineString(), None, None )
+    elif len( geomliste ) == 1: 
+        return ( geomliste[0],  max(frapos1, frapos2), min( tilpos1, tilpos2) )
+    elif len( geomliste ) == 2: 
+        return geomliste[geomindex],  max(frapos1, frapos2), min( tilpos1, tilpos2) 
+
