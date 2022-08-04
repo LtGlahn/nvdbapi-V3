@@ -512,7 +512,7 @@ class nvdbVegnett:
         print( 'Pagineringsinfo: Antall objekt i databuffer=', len( self.data['objekter']))
         print( json.dumps( self.paginering, indent = 4)) 
                 
-    def to_records(self): 
+    def to_records(self, **kwargs): 
         """
         Eksporterer søk for vegnett til liste med NVDB api V3 segmentert vegnett, littegrann forflatet
 
@@ -522,7 +522,12 @@ class nvdbVegnett:
         ARGUMENTS
             None
         KEYWORDS 
-            None 
+            droppRiksvegruter : True (defalt) Tar vekk informasjon om riksvegruter. Sett til False for å 
+                                                få med dictionary med riksvegrute-informasjon
+
+            droppKontrakter : True (default) Tar vekk informasjon om kontraktsområder. Sett til False for å 
+                                                få med dictionary med kontraktsområder-informasjon 
+
         Returns
             Liste med segmentert vegnett fra NVDB api V3, forflatet for enklere bruk 
         """
@@ -531,7 +536,7 @@ class nvdbVegnett:
         v1 = self.nesteForekomst()
         while v1: 
 
-            v1 = flatutvegnettsegment( v1 )
+            v1 = flatutvegnettsegment( v1, **kwargs )
             data.append( v1 )
             v1 = self.nesteForekomst()
 
@@ -1357,7 +1362,7 @@ def vegref2rute( vref1, vref2, forb=None, **kwargs ):
     return returdata
 
 
-def hentrute( pos1, pos2, forb=None, **kwargs ): 
+def hentrute( pos1, pos2, forb=None, droppRiksvegruter=True, droppKontrakter=True, **kwargs ): 
     """
     Henter vegnett langs rute fra pos1 => pos2 
 
@@ -1369,6 +1374,17 @@ def hentrute( pos1, pos2, forb=None, **kwargs ):
 
     KEYWORDS
         forb: Instans av objekttype apiforbindelse. Brukes for å teste funksjonalitet i andre miljø enn PROD
+
+        droppRiksvegruter : True (defalt) Tar vekk informasjon om riksvegruter. Sett til False for å 
+                                            få med dictionary med riksvegrute-informasjon
+
+        droppKontrakter : True (default) Tar vekk informasjon om kontraktsområder. Sett til False for å 
+                                            få med dictionary med kontraktsområder-informasjon         
+
+        Alle andre nøkkelord blir tolket som spørreparametre (filter) i spørringen til beta/vegnett/rute, 
+        se dokumentasjon for https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/#/Vegnett/get_beta_vegnett_rute 
+
+        TODO: Fjern beta-delen av URL når NVDB api oppgraderer vekk beta-stempelet
 
     RETURNS 
         liste med dictionaries, formulert på samme måte som det du får
@@ -1398,7 +1414,7 @@ def hentrute( pos1, pos2, forb=None, **kwargs ):
 
         else: 
             for segment in data['vegnettsrutesegmenter']: 
-                v1 = flatutvegnettsegment( segment )
+                v1 = flatutvegnettsegment( segment, droppRiksvegruter=droppRiksvegruter, droppKontrakter=droppKontrakter )
                 returdata.append( v1 )
 
         if len( returdata ) == 0: 
@@ -1408,7 +1424,7 @@ def hentrute( pos1, pos2, forb=None, **kwargs ):
 
     return returdata 
 
-def flatutvegnettsegment( vegnettsegment ): 
+def flatutvegnettsegment( vegnettsegment, droppRiksvegruter=True, droppKontrakter=True  ): 
     """
     Flater ut et veglenkesegment til en forenklet dictionary-struktur 
 
@@ -1422,8 +1438,12 @@ def flatutvegnettsegment( vegnettsegment ):
         vegnettsegment - dictionary med data for et vegnettsegment 
 
     KEYWORDS 
-        None 
-    
+        droppRiksvegruter : True (defalt) Tar vekk informasjon om riksvegruter. Sett til False for å 
+                                            få med dictionary med riksvegrute-informasjon
+
+        droppKontrakter : True (default) Tar vekk informasjon om kontraktsområder. Sett til False for å 
+                                            få med dictionary med kontraktsområder-informasjon 
+
     RETURNS 
         dictionary, input-data med vegnettsinformasjon omarbeidet til flat struktur 
     """
@@ -1487,8 +1507,10 @@ def flatutvegnettsegment( vegnettsegment ):
         except KeyError: 
             pass 
     
-    v1.pop( 'kontraktsområder', None)
-    v1.pop( 'riksvegruter', None)    
+    if droppKontrakter: 
+        v1.pop( 'kontraktsområder', None)
+    if droppRiksvegruter: 
+        v1.pop( 'riksvegruter', None)    
 
     return v1 
 
