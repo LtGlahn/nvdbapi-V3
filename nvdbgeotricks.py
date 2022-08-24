@@ -268,6 +268,41 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
     return joined 
 
 
+def joinvegsystemreferanser( vegsystemreferanser:list ):
+    """
+    Slår sammen en liste med vegsystemreferanser til en (muligens) kortere liste, basert på om meterverdier overlapper eller er tilstøtende
+    Eks joinvegsystemreferanser( [ 'KV1244 S2D1 m787-826', 'KV1244 S2D1 m826-926' ]) => [ 'KV1244 S2D1 m787-926' ]
+    """
+
+    data = []
+    for vref in vegsystemreferanser: 
+        data.append( splittvegsystemreferanse( vref)  )
+
+    mydf = pd.DataFrame( data, columns=['vrefrot','fra', 'til'])
+    mydf.sort_values( by=['vrefrot', 'fra', 'til'], inplace=True )
+
+    nyevref = []
+    tempVref = {}
+
+    for ix, row in mydf.iterrows(): 
+
+        if tempVref == {}: # Start på iterasjonen, eller forrige runde mislyktes
+            tempVref = { 'vrefrot' : row['vrefrot'], 'fra' : row['fra'], 'til' : row['til'] } 
+        else: 
+            if tempVref['vrefrot'].lower() == row['vrefrot'].lower() and tempVref['fra'] <= row['til'] and tempVref['til'] >= row['fra']: 
+                tempVref['fra'] = min( row['fra'], tempVref['fra'])
+                tempVref['til'] = max( row['til'], tempVref['til'])
+            else: 
+                nyevref.append( f"{tempVref['vrefrot']}m{tempVref['fra']}-{tempVref['til']}" )
+                tempVref = {}
+
+    # Må føye til det aller siste elementet. Dette er enten vrefRot (hvis det var suksess å sammeligne aller siste raden med
+    # foregående verdier). Hvis den aller siste sammenligningen feilet så bruker vi dataene fra aller den aller siste raden (==row): 
+    if tempVref == {}: 
+        tempVref =  { 'vrefrot' : row['vrefrot'], 'fra' : row['fra'], 'til' : row['til'] } 
+    nyevref.append(f"{tempVref['vrefrot']}m{tempVref['fra']}-{tempVref['til']}" )
+        
+    return nyevref
 
 def splittvegsystemreferanse( vegsystemreferanse:string ): 
     """
