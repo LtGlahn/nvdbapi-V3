@@ -555,9 +555,9 @@ def records2gpkg( minliste, filnavn, lagnavn ):
     minGdf = gpd.GeoDataFrame( mindf, geometry='geometry', crs=5973 )       
     # må droppe kolonne vegsegmenter hvis data er hentet med vegsegmenter=False 
     if 'vegsegmenter' in minGdf.columns:
-        minGdf.drop( 'vegsegmenter', 1, inplace=True)
+        minGdf.drop( columns='vegsegmenter', inplace=True)
 
-    minGdf.drop( 'geometri', 1, inplace=True)
+    minGdf.drop( columns='geometri', inplace=True)
     minGdf.to_file( filnavn, layer=lagnavn, driver="GPKG")  
 
 
@@ -645,7 +645,7 @@ def nvdb2gpkg( objekttyper, filnavn='datadump', mittfilter=None, vegnett=True, v
         rec = veg.to_records()
         mindf = pd.DataFrame( rec)
         mindf['geometry'] = mindf['geometri'].apply( wkt.loads )
-        mindf.drop( 'geometri', 1, inplace=True)
+        mindf.drop( columns='geometri', inplace=True)
         minGdf = gpd.GeoDataFrame( mindf, geometry='geometry', crs=5973 )       
         minGdf.to_file( filnavn, layer='vegnett', driver="GPKG")  
 
@@ -744,19 +744,9 @@ def firefeltrapport( mittfilter={}):
     if len( data ) > 1: 
         mindf = pd.DataFrame( data )
         mindf['geometry'] = mindf['geometri'].apply( wkt.loads )
-        mindf.drop( 'geometri', 1, inplace=True)
-        mindf.drop( 'kontraktsområder', 1, inplace=True)
-        mindf.drop( 'riksvegruter', 1, inplace=True) 
-        mindf.drop( 'href', 1, inplace=True) 
-        mindf.drop( 'metadata', 1, inplace=True) 
-        mindf.drop( 'kortform', 1, inplace=True) 
-        mindf.drop( 'veglenkenummer', 1, inplace=True) 
-        mindf.drop( 'segmentnummer', 1, inplace=True) 
-        mindf.drop( 'startnode', 1, inplace=True) 
-        mindf.drop( 'sluttnode', 1, inplace=True) 
-        mindf.drop( 'referanse', 1, inplace=True) 
-        mindf.drop( 'målemetode', 1, inplace=True) 
-        mindf.drop( 'måledato', 1, inplace=True) 
+        mindf.drop( columns=['geometri', 'kontraktsområder', 'riksvegruter', 'href', 'metadata',  
+                                'kortform', 'veglenkenummer', 'segmentnummer', 'startnode', 'sluttnode',  
+                                'referanse', 'målemetode', 'måledato'], inplace=True) 
         minGdf = gpd.GeoDataFrame( mindf, geometry='geometry', crs=5973 ) 
         return minGdf
     else: 
