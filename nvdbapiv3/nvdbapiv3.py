@@ -21,7 +21,7 @@ from warnings import warn
 import os
 from copy import deepcopy
 from time import sleep
-import pdb
+# import pdb
 from datetime import datetime
 import dateutil.parser
 import re
@@ -438,7 +438,7 @@ class nvdbVegnett:
                             contactsfile,  '\n',   
                     '\n{ "X-Client" : "YOUR SYSTEM",\n', 
                     '"X-Kontaktperson" : "ola.nordmann@eposten.din" }\n' ))
-            warn( mytext ) 
+            # warn( mytext ) 
 
     def miljo(self, *args):
         """Kun internt på vegvesen-nettet!
