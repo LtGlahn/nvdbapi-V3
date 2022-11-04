@@ -15,7 +15,6 @@ Sjekk README.md for detaljer, og https://github.com/LtGlahn/nvdbapi-V3/issues fo
 
 """
 
-import six # python 2 vs 3 compability library
 import json
 import requests
 from warnings import warn
@@ -977,7 +976,7 @@ class nvdbFagObjekt():
         
         # If we have integers as strings => cast to int
         # Makes the logic less messy... 
-        if isinstance( relasjon, six.string_types) and relasjon.isdigit():
+        if isinstance( relasjon, str) and relasjon.isdigit():
             relasjon = int(relasjon)
         
         if not relasjon: 
@@ -996,7 +995,7 @@ class nvdbFagObjekt():
      
             return None
             
-        elif isinstance( relasjon, six.string_types):
+        elif isinstance( relasjon, str):
             if relasjon.lower() == 'mor' or relasjon.lower() == 'foreldre':
                 if 'foreldre' in self.relasjoner:
                     return self.relasjoner['foreldre']
