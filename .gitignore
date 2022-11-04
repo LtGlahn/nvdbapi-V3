@@ -112,3 +112,4 @@ datadumps/
 figures/
 _map.html
 *.ipynb
+tempdata/
