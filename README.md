@@ -18,7 +18,7 @@ Hovedrutinen *nvdbapiv3.py* er skrevet i python3, men burde også fungere med py
 
 # Installer 
 
-Søk og datanedlasting med `nvdbapi-v3` og spørringer mot NVDB api LES med `apiforbindelse` er publisert som en pipy-modul, og kan installeres med
+Søk og datanedlasting med `nvdbapi-v3` og spørringer mot NVDB api LES med `apiforbindelse` er publisert som en [pypi-modul](https://pypi.org/project/nvdbapi-v3/), og kan installeres med
 
 ```
 pip install nvdbapi-v3
@@ -30,7 +30,7 @@ eller
 pip3 install nvdbapiv3
 ```
 
-Men - dette reposet https://github.com/LtGlahn/nvdbapi-V3 inneholder også en ganske mye kode for dataanalyse, bearbeiding etc. Dette er IKKE tatt med i pipy-modulen. Noe av grunnen er at dataanalytikere liker å velge verktøy selv. I tillegg reduserer vi risiko for versjonskonflikt drastisk ved at pipy-modulen har færrest mulig avhengigheter ut over standardbiblioteket til python - og installasjonen med pip går veldig mye kjappere. Så dersom du synes koden min for GIS-analyser er nyttig så må du [laste ned reposet](https://github.com/LtGlahn/nvdbapi-V3) og så installere f.eks [geopandas](https://geopandas.org/en/stable/) på egen hånd. 
+Men - dette reposet https://github.com/LtGlahn/nvdbapi-V3 inneholder også en ganske mye kode for dataanalyse, bearbeiding etc. Dette er IKKE tatt med i pypi-modulen. Noe av grunnen er at dataanalytikere liker å velge verktøy selv. I tillegg reduserer vi risiko for versjonskonflikt drastisk ved at pypi-modulen har færrest mulig avhengigheter ut over standardbiblioteket til python - og installasjonen med pip går veldig mye kjappere. Så dersom du synes koden min for GIS-analyser er nyttig så må du [laste ned reposet](https://github.com/LtGlahn/nvdbapi-V3) og så installere f.eks [geopandas](https://geopandas.org/en/stable/) på egen hånd. 
 
 # Prinsipper 
 
