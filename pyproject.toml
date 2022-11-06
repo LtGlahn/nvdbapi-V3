@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nvdbapi-v3"
-version = "0.1.1"
+version = "1.0.0"
 description = "\"Read data from Norwegian government road database NVDB api https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon\""
 authors = ["LtGlahn <jensen72@gmail.com>"]
 license = "MIT"
