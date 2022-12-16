@@ -39,24 +39,29 @@ class nvdbVegnett:
     Holder alle parametre som inngår i dialogen med NVDB api. 
 
     Grovt sett skal vi ha disse komponentene / funksjonene: 
-        - Enkle metoder for å sette søkekriterier
-        (geografisk filter) 
+        - Enkle metoder for å sette søkefilter
+        (geografisk filter, egenskapsfilter som veglenketype etc)
+        Et filter er en dictionary  
         
         - Smart utnyttelse av NVDB api'ets pagineringsfunksjon. 
-            - Liste med objekter man kan iterere over
-            - Hent neste "batch" med objekter 
-            - Hent hvert enkelt objekt
+
+    Vi er kun en tynn "wrapper" som henter segmentert vegnett fra NVDB api LES, og viser til dokumentasjon 
+    for dette endepunktet for mer info om aktuelle søkefiltre etc. 
+    https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/#/Vegnett/get_vegnett_veglenkesekvenser_segmentert 
 
     n = nvdbVegnett() 
-    v = n.nesteForekomst()
-    while v: 
+    n.filter( {'kommune' : 5001 })            # Veger i Trondheim kommune
+    n.filter( {'vegsystemreferanse' : 'Ev' }) # Europaveger - som addert med forrige filter blir til Europaveger i Trondheim
+    for v in n: 
         print v['id']  # Gjør noe spennende
-        v = n.nesteForekomst()
 
+
+    Filter kan også settes når søkeobjektet oppretes med nøkkelordet "filter", eksempel
+    n = nvdbVegnett( filter={'vegsystemreferanse' : 'Ev', 'kommune' : 5001 })
     """
     
     
-    def __init__( self, miljo=None, debug=False):
+    def __init__( self, miljo=None, debug=False, filter=None ):
         
         
         self.filterdata = {}
@@ -91,6 +96,9 @@ class nvdbVegnett:
         self.miljo( miljo)
 
         self.debug = debug
+
+        if isinstance( filter, dict ): 
+            self.filterdata = filter 
 
 
     def nestePaginering(self):
@@ -585,7 +593,7 @@ class nvdbFagdata(nvdbVegnett):
     Holder alle parametre som inngår i dialogen med NVDB api. 
 
     Grovt sett har vi disse funksjonene: 
-        - Enkle metoder for å sette søkekriterier
+        - Enkle metoder for å sette søkefilter
         (geografisk filter, egenskapsfilter m.m.) 
 
         - Enkle metoder for å hente, lagre og inspisere alle NVDB fagdata
@@ -599,9 +607,12 @@ class nvdbFagdata(nvdbVegnett):
         - Statistikk for dette søket  
 
     # EKSEMPEL    
-    n = nvdb(45) # Søkeobjekt for objekttype 45, dvs Bomstasjon
+    n = nvdbFagdata(45) # Søkeobjekt for objekttype 45, dvs Bomstasjon
     n.filter( { 'egenskap' :  '1820>=20' } ) # Filterer bomstasjoner med takst liten bil >= 20kr. 
     
+    Filteret kan også settes som parameter når du oppretter søkeobjektet, eksempel 
+    n = nvdbFagdata( 45, filter={'kommune' : 5001})
+
     # EKSEMPEL: Iterer over alle bomstasjoner
     n = nvdbFagdata(45) 
     bomst = n.nesteForekomst()
@@ -613,7 +624,7 @@ class nvdbFagdata(nvdbVegnett):
     
     
     
-    def __init__( self, objTypeID, miljo=None, debug=False):
+    def __init__( self, objTypeID, miljo=None, debug=False, filter=None ):
 
 
         self.headers =   { 'accept' : 'application/vnd.vegvesen.nvdb-v3-rev1+json', 
@@ -666,6 +677,9 @@ class nvdbFagdata(nvdbVegnett):
         self.objektTypeDef = self.anrope( '/'.join(( 'vegobjekttyper', 
                                             str(objTypeID))) )
         self.objektTypeId = objTypeID 
+
+        if isinstance( filter, dict ): 
+            self.filterdata = filter 
 
     def statistikk(self): 
         if self.objektTypeId: 
