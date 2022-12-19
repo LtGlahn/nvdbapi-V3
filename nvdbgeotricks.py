@@ -84,6 +84,12 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
 
     TODO: Inputdata er Vegnett + vegnett eller vegobjekter + vegnett ? (Trengs dette?)   
 
+    TODO: crs=5973 er hardkodet, bør være generisk 
+
+    TODO: Left join
+
+    TODO: Datasett med punkt, det er uprøvd og noe umodent, trolig noen bugs som må finnes og fjernes. 
+
     """
 
     # Lager kopier, så vi ikke får kjipe sideeffekter av orginaldatasettet 
@@ -140,10 +146,20 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
         dfB[col_sluttB] = tmp[1]
         dfB[col_vlinkB] = tmp[2]
 
+    # Må gjøre om GeoDataFrame => DataFrame
+    # Returnerer GeodataFrame hvis dfA er GDF
+    returner_GeoDataFrame = False 
+    if isinstance( dfA, gpd.geodataframe.GeoDataFrame): 
+        dfA = pd.DataFrame(dfA)
+        returner_GeoDataFrame = True  
+
+    if isinstance( dfB, gpd.geodataframe.GeoDataFrame): 
+        dfB = pd.DataFrame(dfB)
+
     # Må gjøre om shapely-objekter til Well Known Text, ellers klager sql'en vår 
-    if isinstance( dfA.iloc[0][col_geomA], LineString): 
+    if isinstance( dfA.iloc[0][col_geomA], LineString) or isinstance( dfA.iloc[0][col_geomA], Point): 
         dfA[col_geomA] = dfA[col_geomA].apply( lambda x : x.wkt )
-    if isinstance( dfB.iloc[0][col_geomB], LineString): 
+    if isinstance( dfB.iloc[0][col_geomB], LineString) or isinstance( dfB.iloc[0][col_geomB], Point): 
         dfB[col_geomB] = dfB[col_geomB].apply( lambda x : x.wkt )
 
     # Har vi dictionary? Det liker ikke sql'en vår, gjør om til string 
@@ -236,7 +252,6 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
             joined['startposisjon'] = tmp.apply( lambda x : x[1] )
             joined['sluttposisjon'] = tmp.apply( lambda x : x[2] )
 
-            joined = gpd.GeoDataFrame( joined, geometry='geometry', crs='epsg:5973')
             joined['segmentlengde'] = joined['geometry'].apply( lambda x: x.length )
 
 
@@ -264,6 +279,11 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
 
         if kanKlippe: 
             joined['vegsystemreferanse'] = joined.apply( lambda x : vegsystemreferanseoverlapp( x[col_vrefA], x[col_vrefB]  ), axis=1 )
+
+    if returner_GeoDataFrame: 
+        if isinstance( joined.iloc[0]['geometry'], str): 
+            joined['geometry'] = joined['geometry'].apply( wkt.loads )
+        joined = gpd.GeoDataFrame( joined, geometry='geometry', crs=5973 )
 
     return joined 
 

@@ -10,6 +10,7 @@ https://anaconda.org/conda-forge/deepdiff
 """
 import re
 from copy import deepcopy
+import json
 
 from deepdiff import DeepDiff
 # Må ha deepdiff installert på systemet!
@@ -18,9 +19,13 @@ from deepdiff import DeepDiff
 # https://anaconda.org/conda-forge/deepdiff
 
 
-def sammenlignEgenskaper( vegobjekter ): 
+import nvdbapiv3
+
+def sammenlignEgenskaper( vegobjekter, forb=None ): 
     """
-    Sammenligner egenskapsverdier, stedfesting og datter-relasjoner for en liste med vegobjekter
+    Sammenligner egenskapsverdier, stedfesting og datter-relasjoner for en liste med vegobjekter / objektversjoner
+
+    Denne listen kan være dictionary lest direkte fra LES vegobjekter, eller lenke til objektversjon
     
     Returnerer dictionary med nøklene "identiske" og "avviker". 
 
@@ -51,7 +56,19 @@ def sammenlignEgenskaper( vegobjekter ):
     kanskje_identiske = { }
     avviker   = {   }
 
+    if not forb: 
+        forb = nvdbapiv3.apiforbindelse( )
+
     startobj = vegobjekter[0]
+    if isinstance( startobj, str): 
+        r = forb.les( startobj )
+        if r.ok: 
+            startobj = r.json()
+        else: 
+            raise ValueError( f"Klarte ikke hente data med href {r.url}"  )
+
+    if not isinstance( startobj, dict): 
+        raise ValueError( f"Input data må være dictionary eller URL til objektversjon som faktisk finnes")
     
     # dictionary med alle egenskapvarianter
     startobj['egenskapdict'] = { x['navn'] : x for x in startobj['egenskaper']  }
@@ -65,6 +82,17 @@ def sammenlignEgenskaper( vegobjekter ):
         kanskje_identiske[egenskap] = startobj['egenskapdict'][egenskap]
 
     for obj in vegobjekter[1:]:
+
+        if isinstance( obj, str): 
+            r = forb.les( obj )
+            if r.ok: 
+                obj = r.json()
+            else: 
+                raise ValueError( f"Klarte ikke hente data med href {r.url}"  )
+
+        if not isinstance( obj, dict): 
+            raise ValueError(  f"Input data må være dictionary eller URL til objektversjon som faktisk finnes" )
+
 
         obj['egenskapdict'] = { x['navn'] : x for x in obj['egenskaper'] }
 #         objEgenskaper = plukkutEgenskaper( [ x['navn'] for x in obj['egenskaper'] ], plukkType='egenskaper' )
@@ -106,8 +134,6 @@ def sammenlignEgenskaper( vegobjekter ):
                 junk = kanskje_identiske.pop( egenskap )
 
     return { 'identiske' : kanskje_identiske, 'avviker' : avviker}
-
-
 
 def plukkutEgenskaper( egenskapsNavn, plukkType='egenskaper'): 
     """
@@ -194,4 +220,184 @@ def wkt2bambusListe( mywkt:str ):
     tempList = tempstr.split()
     return tempList
     
+def dekodLesFeilmelding( responsobjekt ): 
+    """
+    Prøver å fiske ut LES-feilmeldinger fra requests respons-objekt
+
+    Eks: 
+
+        http 410 Gone 
+        [   {
+                code: 4016,
+                message: "Feature 914876641, version 2 of type 241 gone!",
+                help_url: "https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/"
+            }
+        ]
+
+      blir til tekststrengen "http 410 Gone : Feature 914876641, version 2 of type 241 gone!"
+
+    """
+    melding = str( responsobjekt.status_code ) + " " + responsobjekt.reason
+    msg = ''
+    try: 
+        info = responsobjekt.json()
+        if isinstance( info, list) and len( info ) > 0 and 'message' in info[0]: 
+            msg = info[0]['message']
+        else: 
+            msg = responsobjekt.text
+    except JSONDecodeError: 
+        msg = responsobjekt.text
+
+    melding += ' : ' + msg 
+    return melding 
+
+def stedfestingSammendrag( stedfesting ): 
+    """
+    Komprimerer dictionary med stedfesting til kompakt tekststreng. 
+    """
+    retval = {}
+    # Punkt 
+    if stedfesting['navn'] == 'PunktTilknytning': 
+        retval = str( stedfesting['relativPosisjon']) + '@' + str( stedfesting['veglenkesekvensid'])
+        if 'retning' in stedfesting: 
+            retval += ' ' + stedfesting['retning']
+            
+        if 'sideposisjon' in stedfesting: 
+            retval += ' ' + stedfesting['sideposisjon']
+            
+        if 'kjørefelt' in stedfesting and len( stedfesting['kjørefelt'] ) > 0 : 
+            retval += ' felt: ' + '#'.join( stedfesting['kjørefelt'] )
     
+    elif stedfesting['navn'] == 'Liste av lokasjonsattributt': 
+        # Liste med stedfestingverdier 
+        tempdata = { }
+        
+        for linje in stedfesting['innhold']: 
+            
+            tempdata[ linje['veglenkesekvensid'] ] = str( linje['startposisjon'] ) + '-' + \
+                    str( linje['sluttposisjon']) + '@' + str( linje['veglenkesekvensid']  ) 
+            
+            if 'retning' in linje: 
+                tempdata[ linje['veglenkesekvensid'] ] += ' ' + linje['retning']
+
+            if 'sideposisjon' in linje: 
+                tempdata[ linje['veglenkesekvensid'] ] += ' ' + linje['sideposisjon']
+
+            if 'kjørefelt' in linje and len( linje['kjørefelt'] ) > 0 : 
+                tempdata[ linje['veglenkesekvensid'] ] += ' felt: ' + '#'.join( linje['kjørefelt'] )
+            
+        # Sorterer på veglenkesekvensId 
+        vlenkid = list( tempdata.keys())
+        vlenkid.sort()
+        tempList = [ tempdata[x] for x in vlenkid ]
+        retval = ','.join( tempList )
+            
+    else: 
+        print( f"Kan ikke dekode stedfesting")
+        print( stedfesting )
+    
+    return retval 
+    
+def objektdatoer( objektId, forb=None  ): 
+    """
+    Printer start- og sluttdato for alle objektversjoner for et objekt
+
+    ARGUMENTS
+        objektId - int: NVDB ID til objektet som skal undersøkes
+
+    KEYWORDS
+        forb : None eller et objekt av typen nvdbapiv3.apiforbindelse, som håndterer kommunikasjon mot LES 
+    
+    RETURNS
+        none 
+    """
+
+    if not forb: 
+        forb = nvdbapiv3.apiforbindelse()
+
+    r = forb.les( '/vegobjekt', params={'id' : str( objektId ) } )
+    if r.ok: 
+        siste_objdata = r.json()
+        
+        if 'href' in siste_objdata: 
+            siste_objektversjon = int( siste_objdata['href'].split('/')[-1] )
+            data = []
+            if siste_objektversjon > 1: 
+                 for vid in range( 1, siste_objektversjon): 
+                    r2 = forb.les( '/vegobjekter/' + str( siste_objdata['metadata']['type']['id'] ) + '/' + str( objektId) + '/' + str(vid) )
+                    if r2.ok: 
+                        data.append( r2.json() )
+                    else: 
+                        print( f"Fant ikke data: {r2.url}")
+                        data.append( { 'id' : objektId, 'href' : '',  'metadata' : { 'startdato' : '---- -- -- ---- -- -- <= MANGLER / trolig fjernet?', 'versjon' : vid } }  )
+
+            data.append( siste_objdata )
+
+            # Ser om det ligger noen høyere versjoner på lur, vet aldri? 
+            for vid in range( siste_objektversjon+1, siste_objektversjon+2):
+                r2 = forb.les( '/vegobjekt/' + str( siste_objdata['metadata']['type']['id'] ) + '/' + str( objektId) )
+                if r2.ok: 
+                    data.append( r2.json() )
+                
+
+            print( f"Versjoner for NVDB objektid {objektId} type { siste_objdata['metadata']['type']['id']} {siste_objdata['metadata']['type']['navn']}  ")
+            for obj in data: 
+                sluttdato = '----      '
+                if 'sluttdato' in obj['metadata']: 
+                    sluttdato = obj['metadata']['sluttdato']
+                print( f"{obj['id']} versjon {obj['metadata']['versjon']} {obj['metadata']['startdato']} {sluttdato} \t {obj['href']} ")
+
+        else: 
+            print( f"Ugyldig svar på spørring {r.url} \n{r.text[:250]}.... ")
+    else: 
+        print( f"Kan ikke hente NVDB objekt {objektId} : http { dekodLesFeilmelding( r ) } ")
+
+
+def egenskapsavvikDetaljert( egenskapAnalyse:dict, eldsteVersjon:int ): 
+    """
+    Gir en detaljert oppsummering av de egenskapverdiene som er ulike for to objekter / objektversjoner
+    
+    Returnerer dictionary med to oppføringer per egenskapverdi: En for hver objekt / objektversjon
+    """
+    
+    retval = {}
+    
+    for myKey in egenskapAnalyse['avviker'].keys(): 
+        
+        for ojbVersjonId in egenskapAnalyse['avviker'][myKey].keys():
+            junk, versjonsId = ojbVersjonId.split( 'versjon')
+
+            if int( versjonsId ) == eldsteVersjon: 
+                eldreYngre = ' Eldre'
+            else: 
+                eldreYngre = ' Yngre'
+            
+            if 'verdi' in egenskapAnalyse['avviker'][myKey][ojbVersjonId]: 
+                retval[ 'AVVIK ' + myKey + eldreYngre ] = egenskapAnalyse['avviker'][myKey][ojbVersjonId]['verdi']
+            elif 'ssosiert' in myKey and 'innhold' in egenskapAnalyse['avviker'][myKey][ojbVersjonId]:
+                # Relasjoner er på formen 
+                # {'Assosierte Rekkverksende': {'370453487versjon3': {'id': 220057,
+                # 'navn': 'Assosierte Rekkverksende',
+                # 'egenskapstype': 'Liste',
+                # 'datatype': 'Liste',
+                # 'innhold': [{'id': 200057,
+                # 'navn': 'Assosiert Rekkverksende',
+                # 'egenskapstype': 'Assosiasjon',
+                # 'datatype': 'Assosiasjon',
+                # 'verdi': 370453468}]},
+                temp3 = [ str( x['verdi'] ) for x in egenskapAnalyse['avviker'][myKey][ojbVersjonId]['innhold'] ]
+                temp3.sort()
+                retval[ 'AVVIK ' + myKey + eldreYngre ] = ','.join( temp3)
+                
+            elif 'PunktTilknytning' == egenskapAnalyse['avviker'][myKey][ojbVersjonId]['navn']: 
+                retval['AVVIK stedfesting' + eldreYngre ] = stedfestingSammendrag( egenskapAnalyse['avviker'][myKey][ojbVersjonId] )
+                
+            elif 'Liste av lokasjonsattributt' == egenskapAnalyse['avviker'][myKey][ojbVersjonId]['navn']: 
+                retval['AVVIK stedfesting' + eldreYngre ] = stedfestingSammendrag( egenskapAnalyse['avviker'][myKey][ojbVersjonId] )
+            else:
+                print( f"SKjønte ikke datainnholdet her {myKey} - {ojbVersjonId}" )
+                print( egenskapAnalyse['avviker'][myKey][ojbVersjonId] )
+                
+
+                
+    return retval 

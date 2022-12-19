@@ -336,3 +336,64 @@ def tunnelrapport( mittfilter=None  ):
     return (mellomresultat3, komprimert )
 
 
+def KOSTRAfiltrering( data:pd.DataFrame, trafikantgruppe='K'  ): 
+    """
+    Filtrerer vegnett og fagdata etter KOSTRA-regelverket (fjerner adskilte løp=MOT, sideanlegg og konnekteringslenker)
+
+    Bruk trafikantgruppe=None eller trafikantgruppe='G' for å få med både G/S veg og kjøreveg, evt bare G/S-veg
+
+    ARGUMENTS
+        data : Pandas DataFrame laget ut fra .to_records() funksjonen til nvdb vegnett eller nvdb fagdata søkeobjekt
+                    til nvdbapiv3 - biblioteket https://github.com/LtGlahn/nvdbapi-V3 
+
+    KEYWORDS
+        trafikantgruppe : Defaultverdi = 'K'. Filtrerer på om det er vegnett for kjørende ('K') eller for gående+syklende ('G')
+                    bruk verdien None dersom du ønsker alt vegnett (både gående og syklende)
+
+    RETURNS
+        pandas dataframe: Returnerer en selvstendig (redigerbar) pandas DataFrame med samme datastruktur som det du sendte inn
+                    Inngangsdata skal IKKE bli endret pga "call-by-references", vi lager en kopi og reduserer denne med relevante
+                    filtre.  
+    """
+
+    mydata = data.copy()
+
+    ## Felles for vegnett og fagdata
+
+    # Fjerner sideanlegg
+    mydata = mydata[ ~mydata['vref'].str.contains( 'SD') ]
+
+    # Fjerner adskilte løp = Mot
+    mydata = mydata[ mydata['adskilte_lop'] != 'Mot' ] 
+
+    # Verifisere at det ikke er noe kødd med skrivemåte adskilte løp
+    test = [x.lower() for x in list( mydata['adskilte_lop'].unique()) if not pd.isnull(x) ]
+    if 'mot' in test: 
+        raise ValueError( f"Oppdater spesialrapporter.py/kostrafiltrering med nye skrivemåter adskilte løp: {test1} " )
+
+    # Trafikantgruppe
+    if trafikantgruppe:
+        if isinstance( trafikantgruppe, str) and trafikantgruppe in [ 'G', 'K']:
+            mydata = mydata[ mydata['trafikantgruppe'] == trafikantgruppe ]
+        else: 
+            raise ValueError( f"Ugyldig verdi '{trafikantgruppe}' for  trafikantgruppe, må være enten 'G' eller 'K'")
+
+
+    ## Ulik behandling av vegnett og fagdata
+    if 'typeVeg_sosi' in mydata.columns: 
+
+        # Fjerner konnekteringslenker og evt kjørebane/kjørefelt i samme operasjon
+        mydata = mydata[ mydata['type'] == 'HOVED']
+
+    elif 'nvdbId' in mydata.columns: 
+
+        # Fjerner konnekteringslenker og evt kjørebane/kjørefelt i samme operasjon
+        mydata = mydata[ mydata['veglenkeType'] == 'HOVED']
+        
+    else: 
+        raise ValueError( f"Fant ikke de kolonnene jeg forventet av NVDB fagdata eller NVDB vegnett" )
+
+    # Kopierer slik at du kan redigere på sluttresultatet, dvs ikke en dataFrame som er et subsett av 
+    # en annen dataframe med pekere (index) til orginal-DataFrame 
+    retdata = mydata.copy()
+    return retdata
