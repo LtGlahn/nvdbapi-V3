@@ -366,6 +366,9 @@ def KOSTRAfiltrering( data:pd.DataFrame, trafikantgruppe='K'  ):
     # Fjerner adskilte løp = Mot
     mydata = mydata[ mydata['adskilte_lop'] != 'Mot' ] 
 
+    # Typeveg
+    mydata = mydata[ mydata['typeVeg'].isin([ 'Kanalisert veg','Enkel bilveg','Rampe','Rundkjøring','Gatetun' ])]
+
     # Verifisere at det ikke er noe kødd med skrivemåte adskilte løp
     test = [x.lower() for x in list( mydata['adskilte_lop'].unique()) if not pd.isnull(x) ]
     if 'mot' in test: 
@@ -378,22 +381,21 @@ def KOSTRAfiltrering( data:pd.DataFrame, trafikantgruppe='K'  ):
         else: 
             raise ValueError( f"Ugyldig verdi '{trafikantgruppe}' for  trafikantgruppe, må være enten 'G' eller 'K'")
 
-
-    ## Ulik behandling av vegnett og fagdata
+    ## Ulike kolonnenavn vegnett og fagdata
     if 'typeVeg_sosi' in mydata.columns: 
-
-        # Fjerner konnekteringslenker og evt kjørebane/kjørefelt i samme operasjon
-        mydata = mydata[ mydata['type'] == 'HOVED']
+        typeVegCOL = 'type'
 
     elif 'nvdbId' in mydata.columns: 
-
-        # Fjerner konnekteringslenker og evt kjørebane/kjørefelt i samme operasjon
-        mydata = mydata[ mydata['veglenkeType'] == 'HOVED']
-        
+        typeVegCOL = 'veglenkeType'
+         
     else: 
         raise ValueError( f"Fant ikke de kolonnene jeg forventet av NVDB fagdata eller NVDB vegnett" )
+
+    # Fjerner konnekteringslenker og evt kjørebane/kjørefelt i samme operasjon
+    mydata = mydata[ mydata[typeVegCOL] == 'HOVED']
 
     # Kopierer slik at du kan redigere på sluttresultatet, dvs ikke en dataFrame som er et subsett av 
     # en annen dataframe med pekere (index) til orginal-DataFrame 
     retdata = mydata.copy()
+    
     return retdata
