@@ -25,11 +25,12 @@ import pandas as pd
 import geopandas as gpd 
 from datetime import datetime
 import numpy as np
+import pyproj 
 
 import nvdbapiv3
 from nvdbapiv3 import apiforbindelse
 
-def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeometri=False,  klippvegsystemreferanse=True, debug=False ): 
+def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeometri=False,  klippvegsystemreferanse=True, debug=False, crs=5973 ): 
     """
     Finner overlapp mellom to (geo)pandas (geo)dataframes med veglenkeposisjoner. 
     
@@ -79,12 +80,17 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
 
         debug = False (default) | True . Printer ut mer detaljer om hva som skjer underveis
 
+        crs = 5973 Koordinatsystem, default=EPSG:5973. For NVDB data vil det være innmari snålt å bruke noe annet. Hvis dfA er en GeoDataFrame
+                    så henter vi crs-verdi fra dfA (hvis den finnes). 
+
+                    Lat/lon bør konverteres til UTM koordinater. Dette biblioteket forutsetter at det gir mening å behandle koordinater som 
+                    kartesiske størrelser. Hvilket funker fint på UTM, er trolig littegrann haltende men kanskje greit nok for Google Merkator, men 
+                    katastrofe for lat/lon på norske breddegrader (men lat/lon kan funke sånn noenlunde nær ekvator). 
+                    
     RETURNS
         Pandas DataFrame, eller Geopandas Geodataframe, avhengig av hva dfA er for slag. 
 
     TODO: Inputdata er Vegnett + vegnett eller vegobjekter + vegnett ? (Trengs dette?)   
-
-    TODO: crs=5973 er hardkodet, bør være generisk 
 
     TODO: Left join
 
@@ -146,10 +152,17 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
         dfB[col_sluttB] = tmp[1]
         dfB[col_vlinkB] = tmp[2]
 
+
+    if crs != 5973: 
+        print( f"Advarsel - CRS={crs} avviker fra 5973, som er det vi vanligvis bruker. Sikker på at det er riktig?")
+
     # Må gjøre om GeoDataFrame => DataFrame
     # Returnerer GeodataFrame hvis dfA er GDF
     returner_GeoDataFrame = False 
     if isinstance( dfA, gpd.geodataframe.GeoDataFrame): 
+        if isinstance( dfA.crs, pyproj.crs.crs.CRS) and dfA.crs != crs:
+            print( f"Endrer angitt CRS={crs} => {dfA.crs} hentet fra første GeoDataFrame-argument dfA") 
+            crs = dfA.crs 
         dfA = pd.DataFrame(dfA)
         returner_GeoDataFrame = True  
 
@@ -283,7 +296,7 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
     if returner_GeoDataFrame: 
         if isinstance( joined.iloc[0]['geometry'], str): 
             joined['geometry'] = joined['geometry'].apply( wkt.loads )
-        joined = gpd.GeoDataFrame( joined, geometry='geometry', crs=5973 )
+        joined = gpd.GeoDataFrame( joined, geometry='geometry', crs=crs )
 
     return joined 
 
