@@ -169,7 +169,7 @@ while ettNvdbObj:
 	ettNvdbObj = sokeObj.nesteForekomst()
 ```
 
-I stedet for _nesteForekomst_ - logikken har vi nå støtte for de generelle python-metodene for å iterere over søkeobjektet.  (__next__, __iter__). Vi anbefaler å bruke de generelle python-metodene:
+I stedet for _nesteForekomst_ - logikken har vi nå støtte for de generelle python-metodene for å iterere over søkeobjektet. Vi anbefaler å bruke de generelle python-metodene:
 
 ```
 for ettNvdbObj in sokeObj: 
@@ -177,6 +177,7 @@ for ettNvdbObj in sokeObj:
 ```
 
 Takk til [Francesco Frassinelli](https://github.com/frafra), som tok initiativ til denne forbedringen. 
+
 ---
 ### info()
 
