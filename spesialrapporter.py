@@ -336,7 +336,7 @@ def tunnelrapport( mittfilter=None  ):
     return (mellomresultat3, komprimert )
 
 
-def KOSTRAfiltrering( data:pd.DataFrame, trafikantgruppe='K'  ): 
+def KOSTRAfiltrering( data:pd.DataFrame, trafikantgruppe='K', alledata=False  ): 
     """
     Filtrerer vegnett og fagdata etter KOSTRA-regelverket (fjerner adskilte løp=MOT, sideanlegg og konnekteringslenker)
 
@@ -350,6 +350,9 @@ def KOSTRAfiltrering( data:pd.DataFrame, trafikantgruppe='K'  ):
         trafikantgruppe : Defaultverdi = 'K'. Filtrerer på om det er vegnett for kjørende ('K') eller for gående+syklende ('G')
                     bruk verdien None dersom du ønsker alt vegnett (både gående og syklende)
 
+        alledata = False, bool. Hvis du setter denne lik True så får du returnert orginaldatasettet tagget med verdiene 
+                    'KOSTRAveg' eller 'IKKE Kostra-Veg' i den nye kolonnen 'KOSTRA-statistikk' 
+
     RETURNS
         pandas dataframe: Returnerer en selvstendig (redigerbar) pandas DataFrame med samme datastruktur som det du sendte inn
                     Inngangsdata skal IKKE bli endret pga "call-by-references", vi lager en kopi og reduserer denne med relevante
@@ -357,6 +360,11 @@ def KOSTRAfiltrering( data:pd.DataFrame, trafikantgruppe='K'  ):
     """
 
     mydata = data.copy()
+    if not alledata: 
+        mydata['KOSTRA-statistikk'] = 'IKKE Kostra-Veg'
+        col_temp_indeks_SLETT = 'SLETT_asdfasdfasdf'
+        mydata[col_temp_indeks_SLETT] = mydata.index 
+        orginaldata = mydata.copy()
 
     ## Felles for vegnett og fagdata
 
@@ -397,5 +405,11 @@ def KOSTRAfiltrering( data:pd.DataFrame, trafikantgruppe='K'  ):
     # Kopierer slik at du kan redigere på sluttresultatet, dvs ikke en dataFrame som er et subsett av 
     # en annen dataframe med pekere (index) til orginal-DataFrame 
     retdata = mydata.copy()
+
+    if not alledata: 
+        retdata['KOSTRA-statistikk'] = 'KOSTRAveg'
+        ikkeKostra = orginaldata[ ~orginaldata[col_temp_indeks_SLETT].isin( retdata[col_temp_indeks_SLETT] )]
+        retdata = pd.concat( [ retdata, ikkeKostra ] )
+        retdata.drop( columns=col_temp_indeks_SLETT, inplace=True )
     
     return retdata
