@@ -20,6 +20,7 @@ from xmlrpc.client import Boolean
 
 from shapely import wkt 
 from shapely.geometry import Point, LineString
+from shapely.ops import transform 
 # from shapely.ops import unary_union
 import pandas as pd 
 import geopandas as gpd 
@@ -1103,3 +1104,78 @@ def finnoverlappgeometri( geom1:LineString, geom2:LineString, frapos1:float, til
     elif len( geomliste ) == 2: 
         return geomliste[geomindex],  max(frapos1, frapos2), min( tilpos1, tilpos2) 
 
+def swapXY( mygeom):
+    """
+    Bytter akserekkefølge på shapely-objekt, f.eks fra (lat,lon) => (lon, lat)
+
+    Den akademiske definisjonen på EPSG:4326 følger geografiske fagtradisjon og definerer 
+    at akserekkefølgen er (lat, lon). NVDB api er tro mot denne definisjonen. Mange utviklere 
+    (og matematikere) er fastlåst i sitt tankesett om at X alltid kommer foran Y når objekter  
+    skal plasseres i et koordinatsystem, uavhengig av hva EPSG-definisjonen skulle mene om akserekkefølgen.
+
+    Mange (men ikke alle) kartprogrammer forventer derfor akserekkefølgen (lon,lat) på inngangsdata.  
+
+    Denne funksjonen forsøker å bøte på problemet ved å tilby lettvint ombytting av akserekkefølgen, uavhengig 
+    av geometritype (punkt, linje, flate...) og uavhengig av om objektet er 2D eller 3D. 
+
+    Funksjonen bruker shapely-bibiloteket, som må finnes på systemet. 
+    """ 
+    if mygeom.has_z:
+        mygeom = transform(lambda x, y,z: (y, x, z), mygeom)
+    else: 
+        mygeom = transform(lambda x, y: (y, x), mygeom)
+    return mygeom 
+
+
+def nvdbsok2geojson( sokeobjekt, filnavn, mittfilter=None, srid=4326, **kwargs ): 
+    """
+    Tar et NVDB søkeobjekt og lagrer som geojson med (lon,lat [,Z] ) koordinater - merk rekkefølgen. 
+
+    Søkeobjektet blir modifisert med 'srid' : 4326. Eventuelle andre filtre er uberørt. Du kan 
+    også føye til filtre med nøkkelordet mittfilter=dict, eksempel mittfilter={'kommune':5001}
+
+    Funksjonen bruker bibliotekene shapely, pandas og geopandas, som må være installert på systemet. 
+
+    ARGUMENTS
+        sokeobjekt : NVDB søkeobjekt fra nvdbapiv3.nvdbFagdata( <NVDB objektType.ID>) eller nvdbapiv3.nvdbVegnett()
+
+        filnavn: str, navn på geojson-fila. 
+
+    KEYWORDS 
+        mittfilter: None eller dictionary med de egenskapene du skal fitrere på
+
+        srid: 4326 (alternativt kan du bruke 5973 hvis du synes det er en god idé med UTM 33 koordinater i geojson)
+
+        Alle andre nøkkelord sendes videre til .to_records() - funksjonen, se docstring for denne samt 
+        dokumentasjon på https://github.com/LtGlahn/nvdbapi-V3#torecords 
+
+        .to_records() har en del valg på hva som skal være kilde for geometri (vegnett vs egengeometri, hvis den finnes). 
+        Default er at geometri hentes fra vegnettet og at du får en forekomst per vegsegment hvis objektet har en 
+        utstrekning over mer enn ett vegsegment. 
+        Bruk kombinasjonen ` vegsegmenter=False, geometri=True  ` hvis du ønsker det motsatte (dvs såkalt "egengeometri")
+
+    RETURNS 
+        None 
+    """
+
+    if srid == 4326: 
+        sokeobjekt.filter( {'srid' : 4326 })
+    elif srid  == 5973:
+        pass
+    elif isinstance( srid, str):
+        if srid.lower() == 'utm33':
+            srid = 5973 
+        elif srid.lower( ) == 'wgs84': 
+            srid = 4326 
+        else:
+            raise ValueError( f"Ugyldig verdi for srid={srid} må enten være 5973, 4326, 'wgs84' eller 'utm33' ")            
+    else:
+        raise ValueError( f"Ugyldig verdi for srid={srid} må enten være 5973, 4326, 'wgs84' eller 'utm33' ")
+
+    if not isinstance( filnavn, str): 
+        raise ValueError( f"Filnavn må være av type str, ikke type {type(filnavn)} ")
+
+    mydf = pd.DataFrame( sokeobjekt.to_records( **kwargs ))
+    mydf['geometry'] = mydf['geometri'].apply( wkt.loads )
+    myGdf = gpd.GeoDataFrame( mydf, geometry='geometry', crs=5973 )
+    myGdf.to_file( filnavn, driver='GeoJSON')
