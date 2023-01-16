@@ -57,7 +57,7 @@ Analysebiblioteket [Pandas](https://pandas.pydata.org/), med den kartorienterte 
 
 ## Jeg vil ha NVDB-data på geojson format
 
-Se [dette eksemplet](https://gist.github.com/LtGlahn/5a6993ee4d36e675fa74f5a6d6d61b01)
+Se [dette eksemplet](https://gist.github.com/LtGlahn/5a6993ee4d36e675fa74f5a6d6d61b01) og funksjonen `nvdbsok2geojson` i fila `nvdbgeotricks.py`. 
    
 ## nvdbVegnett 
 
