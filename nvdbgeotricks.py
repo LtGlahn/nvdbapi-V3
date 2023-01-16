@@ -1180,4 +1180,12 @@ def nvdbsok2geojson( sokeobjekt, filnavn, mittfilter=None, srid=4326, **kwargs )
     if srid == 4326: 
         mydf['geometry'] = mydf['geometry'].apply( swapXY )
     myGdf = gpd.GeoDataFrame( mydf, geometry='geometry', crs=srid )
+
+    # Geopandas kan ikke  lagre datatypen lister, aner ikke hvorfor
+    # Så elementene vegsegmenter og relasjoner må fjernes, hvis de finnes 
+    kanskjeslett = set(  ['vegsegmenter', 'relasjoner'] )
+    slettdisse = kanskjeslett.intersection( list( myGdf.columns ))
+    if  len( slettdisse ) > 0: 
+        myGdf.drop( columns=list(slettdisse), inplace=True )
+
     myGdf.to_file( filnavn, driver='GeoJSON')
