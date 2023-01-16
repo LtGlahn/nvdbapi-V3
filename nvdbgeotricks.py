@@ -1158,9 +1158,9 @@ def nvdbsok2geojson( sokeobjekt, filnavn, mittfilter=None, srid=4326, **kwargs )
         None 
     """
 
-    if srid == 4326: 
-        sokeobjekt.filter( {'srid' : 4326 })
-    elif srid  == 5973:
+    sokeobjekt.filter( {'srid' : srid })
+
+    if srid == 4326 or srid  == 5973:
         pass
     elif isinstance( srid, str):
         if srid.lower() == 'utm33':
@@ -1177,5 +1177,7 @@ def nvdbsok2geojson( sokeobjekt, filnavn, mittfilter=None, srid=4326, **kwargs )
 
     mydf = pd.DataFrame( sokeobjekt.to_records( **kwargs ))
     mydf['geometry'] = mydf['geometri'].apply( wkt.loads )
-    myGdf = gpd.GeoDataFrame( mydf, geometry='geometry', crs=5973 )
+    if srid == 4326: 
+        mydf['geometry'] = mydf['geometry'].apply( swapXY )
+    myGdf = gpd.GeoDataFrame( mydf, geometry='geometry', crs=srid )
     myGdf.to_file( filnavn, driver='GeoJSON')
