@@ -360,7 +360,7 @@ def KOSTRAfiltrering( data:pd.DataFrame, trafikantgruppe='K', alledata=False  ):
     """
 
     mydata = data.copy()
-    if not alledata: 
+    if alledata: 
         mydata['KOSTRA-statistikk'] = 'IKKE Kostra-Veg'
         col_temp_indeks_SLETT = 'SLETT_asdfasdfasdf'
         mydata[col_temp_indeks_SLETT] = mydata.index 
@@ -406,7 +406,7 @@ def KOSTRAfiltrering( data:pd.DataFrame, trafikantgruppe='K', alledata=False  ):
     # en annen dataframe med pekere (index) til orginal-DataFrame 
     retdata = mydata.copy()
 
-    if not alledata: 
+    if alledata: 
         retdata['KOSTRA-statistikk'] = 'KOSTRAveg'
         ikkeKostra = orginaldata[ ~orginaldata[col_temp_indeks_SLETT].isin( retdata[col_temp_indeks_SLETT] )]
         retdata = pd.concat( [ retdata, ikkeKostra ] )
