@@ -17,6 +17,8 @@ import json
 import string
 from sys import prefix
 from xmlrpc.client import Boolean 
+from numbers import Number
+
 
 from shapely import wkt 
 from shapely.geometry import Point, LineString
@@ -153,7 +155,6 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
         dfB[col_sluttB] = tmp[1]
         dfB[col_vlinkB] = tmp[2]
 
-
     if crs != 5973: 
         print( f"Advarsel - CRS={crs} avviker fra 5973, som er det vi vanligvis bruker. Sikker på at det er riktig?")
 
@@ -192,10 +193,6 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
     assert col_vlinkA in dfA.columns, f"finnoverlapp: Fant ikke kolonne {col_vlinkA} i dfA {dfA.columns} "
     assert col_vlinkB in dfB.columns, f"finnoverlapp: Fant ikke kolonne {col_vlinkB} i dfB {dfB.columns} "
 
-    # Har vi punkt-vs punkt? Spesialcase. De andre tifellene (linje vs linje, punkt-linje eller linje-punkt)
-    # kan vi håndtere fint ved å trickse med å sette startposisjon, sluttposisjon - navnente lik  relativPosisjon - kolonnen
-    # Vi kategoriserer de to 
-
     typeA = ''
     typeB = ''
     if col_startA in dfA.columns and col_sluttA in dfA.columns: 
@@ -216,19 +213,14 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
     else: 
         raise ValueError( f"Finner ikke kolonner for veglenkeposisjon: {col_startB, col_sluttB} eller {col_relposB} i dfB ")
 
-    if typeA == 'PUNKT' and typeB == 'PUNKT': 
-        qry = ( f"select * from A\n"
-                f"{join.upper()} JOIN B ON\n"
-                f"A.{col_vlinkA} = B.{col_vlinkB} and\n"
-                f"A.{col_relposA} = B{col_relposB} "
-            )
-    else: 
-        qry = ( f"select * from A\n"
-                f"{join.upper()} JOIN B ON\n"
-                f"A.{col_vlinkA} = B.{col_vlinkB} and\n"
-                f"A.{col_startA} < B.{col_sluttB} and\n"
-                f"A.{col_sluttA} > B.{col_startB} "
-            )
+    assert ( typeA == 'LINJE' and typeB == 'LINJE' ), f"Håndtering av punktobjekt midlertidig deaktivert, må ha strekningsobjekt som inngangsdata"
+
+    qry = ( f"select * from A\n"
+            f"{join.upper()} JOIN B ON\n"
+            f"A.{col_vlinkA} = B.{col_vlinkB} and\n"
+            f"A.{col_startA} < B.{col_sluttB} and\n"
+            f"A.{col_sluttA} > B.{col_startB} "
+        )
 
     if debug: 
         print( "Join-spørring:\n", qry )
@@ -236,38 +228,16 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
     conn = sqlite3.connect( ':memory:')
     dfA.to_sql( 'A', conn, index=False )
     dfB.to_sql( 'B', conn, index=False )
-    joined = pd.read_sql_query( qry, conn )
-
-    # EKSEMPELKODE!
-    # LBger virituell database, slik at vi kan gjøre SQL-spørringer
-    # conn = sqlite3.connect( ':memory:')
-    # temp2010.to_sql( 'v2010', conn, index=False )
-    # temp2009.to_sql( 'v2009', conn, index=False )
-
-    # qry = """
-    # select  max( v2010.startposisjon, v2009.d2009_startposisjon ) as frapos, 
-    #         min( v2010.sluttposisjon, v2009.d2009_sluttposisjon ) as tilpos, 
-    #         * from v2009
-    #         INNER JOIN v2010 ON 
-    #         v2009.d2009_veglenkesekvensid = v2010.veglenkesekvensid and
-    #         v2009.d2009_startposisjon     < v2010.sluttposisjon and 
-    #         v2009.d2009_sluttposisjon     > v2010.startposisjon
-    # """
-    #
-    # joined = pd.read_sql_query( qry, conn)        
-
-
+    inner_joined = pd.read_sql_query( qry, conn )
 
     if klippgeometri: 
-        if col_geomA in joined.columns and col_geomB in joined.columns: 
+        if col_geomA in inner_joined.columns and col_geomB in inner_joined.columns: 
 
-            tmp = joined.apply( lambda x : finnoverlappgeometri( x[col_geomA], x[col_geomB], x[col_startA], x[col_sluttA], x[col_startB], x[col_sluttB], debug=debug  ) , axis=1) 
-            joined['geometry']      = tmp.apply( lambda x : x[0] )
-            joined['startposisjon'] = tmp.apply( lambda x : x[1] )
-            joined['sluttposisjon'] = tmp.apply( lambda x : x[2] )
-
-            joined['segmentlengde'] = joined['geometry'].apply( lambda x: x.length )
-
+            tmp = inner_joined.apply( lambda x : finnoverlappgeometri( x[col_geomA], x[col_geomB], x[col_startA], x[col_sluttA], x[col_startB], x[col_sluttB], debug=debug  ) , axis=1) 
+            inner_joined['geometry']      = tmp.apply( lambda x : x[0] )
+            inner_joined['startposisjon'] = tmp.apply( lambda x : x[1] )
+            inner_joined['sluttposisjon'] = tmp.apply( lambda x : x[2] )
+            inner_joined['segmentlengde'] = inner_joined['geometry'].apply( lambda x: x.length )
 
     if klippvegsystemreferanse: 
         # Må finne vegsystemreferanse-kolonner
@@ -292,15 +262,25 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
             print( 'Fant ikke kolonner for vegreferanser i datasett B')
 
         if kanKlippe: 
-            joined['vegsystemreferanse'] = joined.apply( lambda x : vegsystemreferanseoverlapp( x[col_vrefA], x[col_vrefB]  ), axis=1 )
+            inner_joined['vegsystemreferanse'] = inner_joined.apply( lambda x : vegsystemreferanseoverlapp( x[col_vrefA], x[col_vrefB]  ), axis=1 )
 
     if returner_GeoDataFrame: 
-        if isinstance( joined.iloc[0]['geometry'], str): 
-            joined['geometry'] = joined['geometry'].apply( wkt.loads )
-        joined = gpd.GeoDataFrame( joined, geometry='geometry', crs=crs )
+        if isinstance( inner_joined.iloc[0]['geometry'], str): 
+            inner_joined['geometry'] = inner_joined['geometry'].apply( wkt.loads )
+        inner_joined = gpd.GeoDataFrame( inner_joined, geometry='geometry', crs=crs )
 
-    return joined 
+    return inner_joined 
 
+def nvdbsok2GDF( sokeobjekt, **kwargs ): 
+    """
+    Konverterer et NVDB søkeobjekt til geodataframe 
+
+    Eventuelle nøkkelord-argumenter sendes til funksjonen sokeobjekt.to_records( )
+    """
+    mydf = pd.DataFrame( sokeobjekt.to_records( **kwargs ))
+    mydf['geometry'] = mydf['geometri'].apply( wkt.loads )
+    myGDF = gpd.GeoDataFrame( mydf, geometry='geometry', crs=5973)
+    return myGDF
 
 def joinvegsystemreferanser( vegsystemreferanser:list ):
     """
@@ -1010,6 +990,120 @@ def shapelycut( line, distance):
                 return [
                     LineString(coords[:i] + [(cp.x, cp.y)]),
                     LineString([(cp.x, cp.y)] + coords[i:])]
+
+
+
+def antioverlapp( listeA:list, listeB:list, debug=False ): 
+    """
+    Finner de veglenkeposisjonene i listeA som IKKE overlapper med det som finnes i listeB
+
+    ARGUMENTS
+        listeA, listeB - liste med tupler med fra- og tilposisjoner langs samme veglenkesekvens
+        Hver tuple har to flyttalls-verdier med 8 siffers presisjon som angir hhv fra- og tilposisjon på vegnettet 
+        Vi sorterer og rydder opp i (slår sammen) evt internt overlapp i listeA eller listeB 
+
+    KEYWORDS
+        N/A
+
+    RETURNS
+        Liste med tupler 
+    """
+
+    def validerVeglenkeposTupler( listeA ): 
+        """
+        Intern funksjon for antioverlapp 
+        Sjekker at en liste inneholder tupler med veglenkeposisjoner der fra-posisjon <= til-posisjon
+
+        Returnerer True hvis godkjent, eller kaster en AssertionError 
+        """
+
+        assert isinstance( listeA, list), "Input argument må være liste"
+        for myItem in listeA: 
+            assert isinstance( myItem, tuple ),  "Input argument må være liste som inneholder tupler "
+            assert len( myItem ) == 2, "Hvert tuple må ha to elementer"
+            assert isinstance( myItem[0], Number) and isinstance( myItem[1], Number), "Hvert element i tuple må være et tall"
+            assert myItem[0] >= 0 and myItem[1] <= 1, f"Hvert element i tuple må være et tall mellom 0 og 1, fant ( {myItem[0]}, {myItem[1]} )"
+            assert myItem[0] <= myItem[1], f"Det første tallet i tuple må være mindre eller lik det andre tallet, fant ( {myItem[0]}, {myItem[1]} )"
+
+        return True 
+
+    assert validerVeglenkeposTupler( listeA), "Validering av listeA feiler, skal være liste med tuple(r) med fra-til posisjon"
+    listeA.sort()
+    assert isinstance( listeB, list), "Input argument #2 må være en liste"
+
+    # Slår først sammen evt internt overlapp i listeA 
+    tmp = []
+    tempStart = listeA[0][0]
+    tempSlutt = listeA[0][1]
+    for  vlenk in listeA: 
+        if vlenk[0] > tempSlutt: 
+            tmp.append( (tempStart, tempSlutt ))
+            tempStart = vlenk[0]
+            tempSlutt = vlenk[1]
+
+        elif vlenk[1] > tempSlutt: 
+            tempSlutt = vlenk[1]
+
+    tmp.append( (tempStart, tempSlutt ))
+    listeA = tmp 
+
+    if len( listeB) > 0: 
+        assert validerVeglenkeposTupler( listeB ), f"Validering av listeB feiler, skal være liste med tuple(r) med fra-til posisjon"  
+        listeB.sort( )
+        
+        # Slår sammen evt internt overlapp i listeB
+        tmp = []
+        tempStart = listeB[0][0]
+        tempSlutt = listeB[0][1]
+        for  vlenk in listeB: 
+            if vlenk[0] > tempSlutt: 
+                tmp.append( (tempStart, tempSlutt ))
+                tempStart = vlenk[0]
+                tempSlutt = vlenk[1]
+
+            elif vlenk[1] > tempSlutt: 
+                tempSlutt = vlenk[1]
+
+        tmp.append( (tempStart, tempSlutt ))
+        listeB = tmp 
+
+        # Itererer over listeA og listeB: 
+
+        # Algoritmen her forutsetter en velordnet, sortert liste der
+        # evt interne overlapp i vlenkA eller vlenkB er slått sammen. 
+        tmp = []
+        for vlenkA in listeA: 
+            tempStart = vlenkA[0]
+            tempSlutt = vlenkA[1]
+            fullstendigOverlapp = False 
+
+            for vlenkB in listeB: 
+
+                # vlenkB dekker vlenkA fullstendig 
+                if vlenkB[0] <= tempStart and vlenkB[1] >= tempSlutt: 
+                    fullstendigOverlapp = True  
+
+                # vlenkB starter litt til høyre for starten på vlenkA
+                # Da må vi kutte. Den biten til venstre lagres. 
+                # Hvis det finnes en bit til høyre så sjekkes den mot neste 
+                # vlenkB-element i listeB  
+                if vlenkB[0] >= tempStart and vlenkB[0] <= tempSlutt: 
+                    tmp.append( (tempStart, vlenkB[0]) )                # Lagrer venstre bit, fram til starten av vlenkB 
+                    if vlenkB[1] < tempSlutt:                           # Finnes det en bit til høyre? 
+                        tempStart = vlenkB[1]                           #   JA => "Kutter" ved å flytte startpunkt => slutten av vlenkB
+                    else:                                               #   NEI => vlenkB dekker resten av vlenkA 
+                        fullstendigOverlapp = True  
+
+            # Lagrer unna den biten som gjenstår etter at vi er ferdige med å kutte - hvis det gjenstår noe, da
+            if not fullstendigOverlapp: 
+                tmp.append( (tempStart, tempSlutt ) )
+
+        if debug: 
+            print( f"Anti-overlapp {listeA} med {listeB} => {tmp}  \n\n")
+        return tmp 
+
+    else: # listeB er tom
+        return listeA
 
 
 def finnoverlappgeometri( geom1:LineString, geom2:LineString, frapos1:float, tilpos1:float, frapos2:float, tilpos2:float, debug=False ): 
