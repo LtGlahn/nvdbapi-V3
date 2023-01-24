@@ -34,14 +34,15 @@ from nvdbapiv3 import apiforbindelse
 
 def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeometri=False,  klippvegsystemreferanse=True, debug=False, crs=5973 ): 
     """
-    Finner overlapp mellom to (geo)pandas (geo)dataframes med veglenkeposisjoner. 
+    Finner overlapp langs vegnettet mellom to (geo)pandas (geo)dataframes med veglenkeposisjoner av typen linje (fra-til)
     
     For å minimere navnekollisjon gir vi et prefiks til alle kolonnenanv i Dataframe B basert på objekttypen 
-    (prefikset kan overstyres med nøkkelord prefixB )
+    (prefiks for begge dataframes kan overstyres med nøkkelord prefixA, prefixB )
 
-    Returverdien er en dataframe med alle vegsegmenter som overlapper. Ett vegobjekt har gjerne flere vegsegmenter. 
-    Hvis man ønsker en rad per vegobjekt-kombinasjon må man filtrere inputada i forkant eller resultatene i 
-    etterkant. Det mest lettvinte er da å fjerne duplikater basert på Nvdb ID (vegobjekt id). 
+    Returverdien er en (geo)dataframe med alle vegsegmenter som overlapper. 
+    
+    Merk at ett vegobjekt gjerne har gjerne flere vegsegmenter. Hvis man ønsker en rad per vegobjekt må man selv 
+    kombinere objektets vegsegmenter til en sammenhengende linje. 
 
     Hvis du har en verdikjede hvor du ønsker å kombinere mange dataett (for eksempel mange ulike objekttyper) så 
     må du selv ta ansvar for å unngå navnekollisjon og forvirring. Vi har tre metoder: 
@@ -53,27 +54,31 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
         resultat1 = finnoverlapp( dfTunnellop, dfFartsgrenser  ) 
         resultat2 = finnoverlapp( resultat1, dfTrafikkmengde )
 
-        resultat2 har da tunnelløp koblet med fartsgrenser (med forstavelsen t105_ ) og trafikkmengde (med forstavelsen t540_ )
+
+        resultat1 har da tunnelløp koblet med fartsgrenser (med forstavelsen t105_), dvs kolonnen med fartsgrenseverdier heter 
+        t105_Fartsgrense. 
+        resultat2 har da resultat1 (tunnelløp pluss fartsmengde) kombinert med trafikkmengde (med forstavelsen t540_ ). 
+        Fartsgrenseverdiene i resultat2 har da forstavelsen t540_t105, dvs kolonnen med fartsgrenseverdier heter t540_t105_Fartsgrense. 
 
         2) Ta eksplisitt kontroll over prefiks med nøkkelordene prefixA, prefixB. Merk at prefiks kun føyes til kolonnenavn 
         dersom det ikke finnes fra før, så vi inngår prefiks av typen t67_t67_ 
 
         3) Fjern "overflødige" kolonner fra mellomliggende resultater, gjerne kombinert med tricks 2) 
-    
-    Samme navnelogikk er brukt i funksjonen finndatter.  
-    
+        
     ARGUMENTS
-        dfA, dfB - Pandas dataframe eller Geopandas geodataframe, eller kombinasjon. Returverdi blir identisk med dfA. 
+        dfA, dfB - Pandas dataframe eller Geopandas geodataframe, eller kombinasjon. Returverdi blir samme type som dfA. 
+
+        Merk at geodataframe må gjøres om til dataframe for at SQL-implementasjonen skal fungere. Så man kan få en mer effektiv verdikjede ved å 
+        konvertere til geodataframe etterpå. 
 
     KEYWORDS
         prefixA=None Valgfri tekststreng med det prefikset som skal føyes til navn i dfA, eller det prefikset som 
                      er brukt fordi dfA er resultatet fra en tidligere kobling 
 
         prefixB=None Valgfri tekststreng med det prefikset som skal føyes til navn i dfB. Hvis ikke angitt så komponerer vi 
-                     prefiks ut fra objektTypeID, for eksempel "67_" for 67 Tunnelløp. 
+                     prefiks ut fra objektTypeID, for eksempel "t67_" for 67 Tunnelløp. 
 
-        join = 'inner' | 'left' . Hva slags sql-join vi skal gjøre, mest aktuelle er 'INNER' (default) eller 'LEFT'. I prinsippet en hvilke
-                    som helst variant som er støttet av sqlite3.
+        join = 'INNER' eller 'LEFT' join er støttet.  
 
         klippgeometri = False (default) | True. Klipper geometri slik at den får riktig utstrekning ihht overlapp på veglenkeposisjoner.
 
@@ -87,7 +92,7 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
 
                     Lat/lon bør konverteres til UTM koordinater. Dette biblioteket forutsetter at det gir mening å behandle koordinater som 
                     kartesiske størrelser. Hvilket funker fint på UTM, er trolig littegrann haltende men kanskje greit nok for Google Merkator, men 
-                    katastrofe for lat/lon på norske breddegrader (men lat/lon kan funke sånn noenlunde nær ekvator). 
+                    katastrofe for lat/lon på norske breddegrader (lat/lon kan trolig funke sånn noenlunde nær ekvator). 
                     
     RETURNS
         Pandas DataFrame, eller Geopandas Geodataframe, avhengig av hva dfA er for slag. 
@@ -96,11 +101,21 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
 
     TODO: Left join
 
-    TODO: Datasett med punkt, det er uprøvd og noe umodent, trolig noen bugs som må finnes og fjernes. 
+    TODO: Med Left join på plass - bør vi refaktorere "innerjoin" geometrihåndtering? 
+
+    TODO: Datasett med punkt (midlertidig deaktivert mens vi jobber med left join)
 
     """
 
-    # Lager kopier, så vi ikke får kjipe sideeffekter av orginaldatasettet 
+    # Sjekker at vi har gyldige data
+    assert isinstance(dfA, pd.core.frame.DataFrame) or isinstance( dfA, gpd.geodataframe.GeoDataFrame), f"Argument dfA må være av type pandas eller geopandas (Geo)DataFrame"
+    assert isinstance(dfB, pd.core.frame.DataFrame) or isinstance( dfB, gpd.geodataframe.GeoDataFrame), f"Argument dfB må være av type pandas eller geopandas (Geo)DataFrame"
+    jointypes = ['LEFT', 'INNER']
+    assert isinstance( join, str), f"Join type må være tekststreng med en av verdiene {jointypes} "
+    join = join.upper()
+    assert join in jointypes, f"Ukjent join type {join}, må være en av tekstveridene {jointypes}"
+
+    # Lager kopier, så vi ikke gir kjipe sideeffekter på orginaldata utafor funksjonen 
     dfA = dfA.copy()
     dfB = dfB.copy()
 
@@ -110,6 +125,9 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
     col_relposA = 'relativPosisjon'
     col_geomA   = 'geometry'
     col_stedfestingA = 'stedfesting'
+    col_ferdig_vegsystemreferanse = 'vegsystemreferanse'    # Den ferdig klippede vegsystemreferansen 
+    col_backup_fraposisjon        = 'orginal_startposisjon'  # Tar vare på orginaldata for LEFT JOIN
+    col_backup_tilposisjon        = 'orginal_sluttposisjon'  # Tar vare på orginaldata for LEFT JOIN
 
     if prefixA: 
         # Tester om prefikset er i bruk
@@ -214,8 +232,30 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
 
     assert ( typeA == 'LINJE' and typeB == 'LINJE' ), f"Håndtering av punktobjekt midlertidig deaktivert, må ha strekningsobjekt som inngangsdata"
 
+    # Logikk for overlapp. 
+    # Vi må ALLTID finne INNER join, den trengs for å lage LEFT join   
+    # Det som er trøblete er å finne 1:1 forhold mellom veglenkeposisjoner, geometri og vegsystemreferanser. Dette ble først løst for INNER join. 
+    # 
+    # Løsningen for LEFT join består av 
+    #    1). De radene i dfA som IKKE inngå overhodet i INNER-join datasettet
+    #    2). Finne de bitene av vegnettet fra dfA der biter er "klippet vekk" i INNER-join datasettet, og konstruere disse bitene
+    #    3). Slå sammen datasett fra trinn 1) + trinn 2) med INNER-join datasettet
+    #   
+    # Trinn 2) kompliseres av at hvis f.eks to rekkverk overlapper hverandre i dfB så vil samme vegnett ha to representasjoner i INNER-join datasettet. 
+    # For å finne motsatsen kan vi ikke analysere hver rad i resultatdatasettet: Vi må betrakte hver rad i orginaldatasettet dfA, finne **samlet utstrekning** i 
+    # "innerjoin"-datasettet og så finne det som er "til overs".  Dette er jobben til funksjonen `antioverlapp`.` At vi tar høyde for mulig intern overlapp i dfB 
+    # er grunnen til at denne funksjonen er såpass komplisert. 
+    # 
+    # Lager først indeks-kolonne i dfA, denne brukes til å finne trinn 1). Slettes etterpå
+    temp_indexdfA_SLETT = 'SLETTMEG_arbeidsindeks_outer_join'
+    dfA[temp_indexdfA_SLETT] = dfA.index
+
+    # og tar vare på de orginale veglenkeposisjonene i dfA
+    dfA[col_backup_fraposisjon] = dfA[col_startA]
+    dfA[col_backup_tilposisjon] = dfA[col_sluttA]
+
     qry = ( f"select * from A\n"
-            f"{join.upper()} JOIN B ON\n"
+            f"INNER JOIN B ON\n"
             f"A.{col_vlinkA} = B.{col_vlinkB} and\n"
             f"A.{col_startA} < B.{col_sluttB} and\n"
             f"A.{col_sluttA} > B.{col_startB} "
@@ -261,14 +301,37 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
             print( 'Fant ikke kolonner for vegreferanser i datasett B')
 
         if kanKlippe: 
-            inner_joined['vegsystemreferanse'] = inner_joined.apply( lambda x : vegsystemreferanseoverlapp( x[col_vrefA], x[col_vrefB]  ), axis=1 )
+            inner_joined[col_ferdig_vegsystemreferanse] = inner_joined.apply( lambda x : vegsystemreferanseoverlapp( x[col_vrefA], x[col_vrefB]  ), axis=1 )
 
     if returner_GeoDataFrame: 
         if isinstance( inner_joined.iloc[0]['geometry'], str): 
             inner_joined['geometry'] = inner_joined['geometry'].apply( wkt.loads )
         inner_joined = gpd.GeoDataFrame( inner_joined, geometry='geometry', crs=crs )
 
-    return inner_joined 
+    if join == 'INNER':
+        # inner_joined.drop( columns=[temp_indexdfA_SLETT, col_backup_fraposisjon, col_backup_tilposisjon], inplace=True )
+        return inner_joined 
+    elif join == 'LEFT':
+        returdata = [ inner_joined ] # Liste med dataFrames som skal returneres
+        outer_ytterst = dfA[  ~dfA[temp_indexdfA_SLETT].isin( list( inner_joined[temp_indexdfA_SLETT].unique() )) ].copy()
+        if len( outer_ytterst ) > 0: 
+
+            # Vegsystemreferanse
+            if klippvegsystemreferanse and kanKlippe: 
+                outer_ytterst[col_ferdig_vegsystemreferanse] = outer_ytterst[col_vrefA]
+
+            returdata.append( outer_ytterst ) # Dette er de radene i dFa med veglenkesekvenser (0-1@veglenkesekvensid) som overhodet ikke finnes i dfB
+            
+        # Så det komplekse: Finne de bitene av vegnettet som delvis er klippet (forminsket) i innerjoin-datasettet. 
+        # To be written... 
+
+        retval = pd.concat( returdata, axis=0, ignore_index=True )
+        # retval.drop( columns=[temp_indexdfA_SLETT, col_backup_fraposisjon, col_backup_tilposisjon], inplace=True )
+        return retval 
+
+    else: 
+        raise ValueError(f"Ukjent join type {join}, og tro meg - THIS REALLY SHOLD NOT HAPPEN, vi sjekket for {join} in {jointypes} ved oppstart!" )
+
 
 def joinvegsystemreferanser( vegsystemreferanser:list ):
     """
