@@ -32,7 +32,7 @@ import pyproj
 import nvdbapiv3
 from nvdbapiv3 import apiforbindelse
 
-def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeometri=False,  klippvegsystemreferanse=True, debug=False, crs=5973 ): 
+def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeometri=True,  klippvegsystemreferanse=True, debug=False, crs=5973 ): 
     """
     Finner overlapp langs vegnettet mellom to (geo)pandas (geo)dataframes med veglenkeposisjoner av typen linje (fra-til)
     
@@ -99,7 +99,9 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
 
     TODO: Inputdata er Vegnett + vegnett eller vegobjekter + vegnett ? (Trengs dette?)   
 
-    TODO: Left join
+    TODO: Left join NESTEN OK, tror vi? 
+
+    TODO: Default oppførsel: Endrer verdier på de retu
 
     TODO: Med Left join på plass - bør vi refaktorere "innerjoin" geometrihåndtering? 
 
@@ -126,8 +128,9 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
     col_geomA   = 'geometry'
     col_stedfestingA = 'stedfesting'
     col_ferdig_vegsystemreferanse = 'vegsystemreferanse'    # Den ferdig klippede vegsystemreferansen 
-    col_backup_fraposisjon        = 'orginal_startposisjon'  # Tar vare på orginaldata for LEFT JOIN
-    col_backup_tilposisjon        = 'orginal_sluttposisjon'  # Tar vare på orginaldata for LEFT JOIN
+    col_backup_fraposisjon        = 'SLETT_orginal_startposisjon'  # Tar vare på orginaldata for LEFT JOIN
+    col_backup_tilposisjon        = 'SLETT_orginal_sluttposisjon'  # Tar vare på orginaldata for LEFT JOIN
+    col_backup_geometri           = 'SLETT_orginal_geometri'
 
     if prefixA: 
         # Tester om prefikset er i bruk
@@ -253,6 +256,7 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
     # og tar vare på de orginale veglenkeposisjonene i dfA
     dfA[col_backup_fraposisjon] = dfA[col_startA]
     dfA[col_backup_tilposisjon] = dfA[col_sluttA]
+    dfA[col_backup_geometri]    = dfA[col_geomA]
 
     qry = ( f"select * from A\n"
             f"INNER JOIN B ON\n"
@@ -309,7 +313,7 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
         inner_joined = gpd.GeoDataFrame( inner_joined, geometry='geometry', crs=crs )
 
     if join == 'INNER':
-        # inner_joined.drop( columns=[temp_indexdfA_SLETT, col_backup_fraposisjon, col_backup_tilposisjon], inplace=True )
+        # inner_joined.drop( columns=[temp_indexdfA_SLETT, col_backup_fraposisjon, col_backup_tilposisjon, col_backup_geometri], inplace=True )
         return inner_joined 
     elif join == 'LEFT':
         returdata = [ inner_joined ] # Liste med dataFrames som skal returneres
@@ -320,17 +324,162 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
             if klippvegsystemreferanse and kanKlippe: 
                 outer_ytterst[col_ferdig_vegsystemreferanse] = outer_ytterst[col_vrefA]
 
-            returdata.append( outer_ytterst ) # Dette er de radene i dFa med veglenkesekvenser (0-1@veglenkesekvensid) som overhodet ikke finnes i dfB
+            returdata.append( outer_ytterst ) # Dette er de radene i dFa med veglenkesekvenser  som overhodet ikke finnes i dfB
             
         # Så det komplekse: Finne de bitene av vegnettet som delvis er klippet (forminsket) i innerjoin-datasettet. 
-        # To be written... 
+        # Finner først de delene av innerjoin-datasettet med delvis overlapp
+        delvisOverlapp =  inner_joined[ ( inner_joined[col_startA] != inner_joined[col_backup_fraposisjon] ) | \
+                                        ( inner_joined[col_sluttA] != inner_joined[col_backup_tilposisjon] ) ]
+
+        # Itererer per rad i ORGINAL-datasettet (dfA), det er her indeksen temp_indexdfA_SLETT kommer inn 
+        # Nye og orginale veglenkeposisjoner legges i lister med tuple=(fra,til)
+        delvisOverlappRader = list( delvisOverlapp[temp_indexdfA_SLETT].unique() )
+        antioverlapp_liste = [] # Liste med dictionaries 
+        for ii in delvisOverlappRader: 
+            orginal = dfA[ dfA[temp_indexdfA_SLETT] == ii].iloc[0].to_dict()
+            df = delvisOverlapp[ delvisOverlapp[temp_indexdfA_SLETT] == ii]
+            nyeVposListe = []
+            for junk, row in df.iterrows(): 
+                nyeVposListe.append( ( row[col_startA], row[col_sluttA] ) )
+            aa = antioverlapp(  [( orginal[col_backup_fraposisjon], orginal[col_backup_tilposisjon] ) ], nyeVposListe, debug=debug )
+            if debug: 
+                print( f"Orginal=({orginal[col_startA]},{orginal[col_sluttA]}), overlapp={nyeVposListe} => Antioverlapp: {aa}")
+            for nyeVposisjoner in aa: 
+                nyttSeg = deepcopy( orginal )
+                orginalVposisjoner = (orginal[col_startA], orginal[col_sluttA])
+                nyttSeg[col_geomA]                      = klippgeometriVeglenkepos( orginal[col_geomA], orginalVposisjoner, nyeVposisjoner, debug=debug  )
+                nyttSeg[col_ferdig_vegsystemreferanse]  = estimerVegreferanse(      orginal[col_vrefA], orginalVposisjoner, nyeVposisjoner )
+                nyttSeg[col_startA] = nyeVposisjoner[0]
+                nyttSeg[col_sluttA] = nyeVposisjoner[1]
+                antioverlapp_liste.append( nyttSeg )
+
+        if len( antioverlapp_liste ) > 0: 
+            returdata.append(  pd.DataFrame( antioverlapp_liste ) )
 
         retval = pd.concat( returdata, axis=0, ignore_index=True )
-        # retval.drop( columns=[temp_indexdfA_SLETT, col_backup_fraposisjon, col_backup_tilposisjon], inplace=True )
+        # retval.drop( columns=[temp_indexdfA_SLETT, col_backup_fraposisjon, col_backup_tilposisjon, col_backup_geometri], inplace=True )
+        # SJEKK OM VI SKAL RETURNERE GEODATAFRAME!
         return retval 
 
     else: 
         raise ValueError(f"Ukjent join type {join}, og tro meg - THIS REALLY SHOLD NOT HAPPEN, vi sjekket for {join} in {jointypes} ved oppstart!" )
+
+def klippgeometriVeglenkepos( mygeom, orginalpos, nyepos, debug=False ): 
+    """
+    Klipper en geometri basert på dimmensjonsløse veglenkeposisjoner. Den nye geometrien matcher posisjonene i nyepos. 
+
+    Returnerer tom geometri hvis veglenkeposisjonene ikke overlapper. 
+    Returnerer orginalgeometri hvis de nye posisjonene har større utstrekning enn orginalposisjoner.
+    Returnerer evt bare den biten som er innafor orginalgeometri hvis enten start eller slutt er utafor orginalposisjoner
+
+    ARGUMENTS
+        mygeom      : Shapely geometriobjekt eller Well Known Text (WKT)-streng 
+
+        orginalpos  : tuple med fra-til veglenkeposisjoner for orginalgeometri
+
+        nyepos      : tuple med nye fra-til veglenkeposisjoner for den nye geometrien. 
+                           Nystart bør være >= orginal start, og ny slutt <= orginal start. 
+
+    KEYWORDS 
+        N/A 
+
+    RETURNS 
+        Samme som mygeom (Shapely geometriobjekt eller Well Known Tekst - string)
+    """
+
+    returnWKT = False 
+    if isinstance( mygeom, str):
+        mygeom = wkt.loads( mygeom )
+        returnWKT = True 
+
+    nygeom = deepcopy( mygeom )
+
+    assert isinstance( orginalpos, tuple) and isinstance( nyepos, tuple), "Input argument orginalpos og nyepos må være tuple"
+    assert orginalpos[1] >= orginalpos[0] and nyepos[1] >= nyepos[0], "Input argument orginalpos og nyepos må ha veglenkeposisjoner i stigende rekkefølge"
+    # assert nyepos[0] >= orginalpos[0] and nyepos[1] <= orginalpos[1], "Start/slutt veglenkeposisjon-verdiene i nyepos må overlappe med dem i orginalpos"
+
+    # # Har vi overlapp mellom gamle og nye veglenkeposisjoner? 
+    # if orginalpos[0] < nyepos[1] and orginalpos[1] > nyepos[0]: 
+    #     pass # Vi har overlapp
+    # else: # Tom geometri 
+    #     return LineString( )
+
+    # # Har vi fullstendig overlapp, dvs nyepos starter før og slutter etter orginaldataene?
+    # if nyepos[0] < orginalpos[0] and nyepos[1] > orginalpos[0]: 
+    #     nygeom = mygeom 
+    # elif 
+
+    # Lengden orginalgeometri med skaleringsfaktor
+    # lengde i meter (y) som funksjon av veglenkeposisjon (x): 
+    #       f(x) = ax 
+    # der a = lengde orginalgeometri / (orginal sluttposisjon-orginal startposisjon)
+    orginal_lengde = nygeom.length
+    LFAC = orginal_lengde / (orginalpos[1]-orginalpos[0])
+    orginal_startmeter = LFAC * orginalpos[0]
+
+    # Starter vi helt i begynnelsen på orginalgeometrien? Eller et stykke inn?
+    # hvis JA så klipper vi det til etterpå 
+    ny_reellmeterStart = 0          #  Målt i reell lengde på geometri 
+    ny_reellmeterSlutt = None 
+    if nyepos[0] > orginalpos[0]: 
+        ny_reellmeterStart  = LFAC * nyepos[0] - orginal_startmeter 
+    if nyepos[1] < orginalpos[0]: 
+        ny_reellmeterSlutt = LFAC * nyepos[1] - orginal_startmeter
+
+    if ny_reellmeterSlutt: 
+        nygeom = shapelycut( nygeom, ny_reellmeterSlutt )[0]
+    if ny_reellmeterStart > 0: 
+        nygeom = shapelycut( nygeom, ny_reellmeterStart)[1]
+
+    if debug: 
+        print( f"Geometrilengde={orginal_lengde}, startMeter={orginal_startmeter}, orginalpos={orginalpos}, nyepos={nyepos}  " )
+        print( f"  => klipper ut biten m{ny_reellmeterStart}-{ny_reellmeterSlutt} ")
+
+    if returnWKT: 
+        return nygeom.wkt
+    else: 
+        return nygeom
+
+
+def estimerVegreferanse( vegsystemreferanse:str, orginalpos:tuple, nyepos:tuple, debug=True):
+    """
+    Regner ut meterverdier og returnerer ny vegreferanse som matcher de nye veglenkeposisjonene
+
+    ARGUMENTS
+        vegsystemreferanse : Tekststreng med vegsystemreferanse
+
+        orginalpos: Tuple med veglenkeposisjoner (fra,til) som matcher vegsystemreferansen
+
+        nyepos: Tuple med de nye veglenkeposisjonene som vi skal regne ut 
+
+    KEYWORDS: 
+        N/A 
+
+    RETURNS
+        vegsystemreferanse - tekststreng som matcher de nye posisjonene
+    """
+
+    assert isinstance( orginalpos, tuple) and isinstance( nyepos, tuple), "Argument orginalpos og nyepos må være tuple"
+    assert orginalpos[1] >= orginalpos[0] and nyepos[1] >= nyepos[0], "Input argument orginalpos og nyepos må ha veglenkeposisjoner i stigende rekkefølge"
+    assert nyepos[0] >= orginalpos[0] and nyepos[1] <= orginalpos[1], "Start/slutt veglenkeposisjon-verdiene i nyepos må overlappe med dem i orginalpos"
+
+    (vegrefRot, fraM, tilM) = splittvegsystemreferanse( vegsystemreferanse )
+    # Finner lineær funksjon mellom veglenkeposisjon og meterverdier 
+    # meterverdi y = f(x) = a * x + C 
+    # der a = (tilMeter - fraMeter)/(tilpos - frapos)
+    #     C = fraMeter 
+
+    A = (tilM-fraM)/(orginalpos[1]-orginalpos[0])
+    C = fraM 
+    nyFraM = A * nyepos[0] + C
+    nyTilM = A * nyepos[1] + C
+
+    meterTekst = 'M'
+    if 'm' in vegsystemreferanse: 
+        meterTekst = 'm'
+
+    nyvegref = vegrefRot + meterTekst + str( int( nyFraM)) + '-' + str( int( nyTilM ) )
+    return nyvegref
 
 
 def joinvegsystemreferanser( vegsystemreferanser:list ):
@@ -393,6 +542,8 @@ def splittvegsystemreferanse( vegsystemreferanse:string ):
     vrefrot = ''
     frameter = None 
     tilmeter = None 
+
+    assert isinstance( vegsystemreferanse, str), "Funksjonen splittvegsystemreferanse må ha tekststreng som input"
 
     # Store eller små bokstaver? 
     if 'M' in vegsystemreferanse: 
@@ -624,6 +775,8 @@ def antioverlapp( listeA:list, listeB:list, debug=False ):
             tempSlutt = vlenk[1]
 
     tmp.append( (tempStart, tempSlutt ))
+    if debug: 
+        print( f"Orginal liste A={listeA}, ny liste A={tmp} ")
     listeA = tmp 
 
     if len( listeB) > 0: 
@@ -667,7 +820,8 @@ def antioverlapp( listeA:list, listeB:list, debug=False ):
                 # Hvis det finnes en bit til høyre så sjekkes den mot neste 
                 # vlenkB-element i listeB  
                 if vlenkB[0] >= tempStart and vlenkB[0] <= tempSlutt: 
-                    tmp.append( (tempStart, vlenkB[0]) )                # Lagrer venstre bit, fram til starten av vlenkB 
+                    if vlenkB[0] > tempStart:                           # Har vi en bit til venstre for starten av vlenkB? 
+                        tmp.append( (tempStart, vlenkB[0]) )            #   JA => Lagrer venstre bit, fram til starten av vlenkB 
                     if vlenkB[1] < tempSlutt:                           # Finnes det en bit til høyre? 
                         tempStart = vlenkB[1]                           #   JA => "Kutter" ved å flytte startpunkt => slutten av vlenkB
                     else:                                               #   NEI => vlenkB dekker resten av vlenkA 
@@ -683,6 +837,7 @@ def antioverlapp( listeA:list, listeB:list, debug=False ):
 
     else: # listeB er tom
         return listeA
+
 
 
 def finnoverlappgeometri( geom1:LineString, geom2:LineString, frapos1:float, tilpos1:float, frapos2:float, tilpos2:float, debug=False ): 
