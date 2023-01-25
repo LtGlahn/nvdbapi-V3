@@ -236,18 +236,20 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
     assert ( typeA == 'LINJE' and typeB == 'LINJE' ), f"Håndtering av punktobjekt midlertidig deaktivert, må ha strekningsobjekt som inngangsdata"
 
     # Logikk for overlapp. 
-    # Vi må ALLTID finne INNER join, den trengs for å lage LEFT join   
-    # Det som er trøblete er å finne 1:1 forhold mellom veglenkeposisjoner, geometri og vegsystemreferanser. Dette ble først løst for INNER join. 
+    # Vi må ALLTID finne INNER join, den trengs for å lage LEFT join med korrekt håndtering av delvis overlappende 
+    # vegsegmenter. Det som er trøblete er å finne 1:1 forhold mellom veglenkeposisjoner, geometri og vegsystemreferanser. 
+    # Dette ble først løst for INNER join. 
     # 
     # Løsningen for LEFT join består av 
     #    1). De radene i dfA som IKKE inngå overhodet i INNER-join datasettet
     #    2). Finne de bitene av vegnettet fra dfA der biter er "klippet vekk" i INNER-join datasettet, og konstruere disse bitene
     #    3). Slå sammen datasett fra trinn 1) + trinn 2) med INNER-join datasettet
     #   
-    # Trinn 2) kompliseres av at hvis f.eks to rekkverk overlapper hverandre i dfB så vil samme vegnett ha to representasjoner i INNER-join datasettet. 
-    # For å finne motsatsen kan vi ikke analysere hver rad i resultatdatasettet: Vi må betrakte hver rad i orginaldatasettet dfA, finne **samlet utstrekning** i 
-    # "innerjoin"-datasettet og så finne det som er "til overs".  Dette er jobben til funksjonen `antioverlapp`.` At vi tar høyde for mulig intern overlapp i dfB 
-    # er grunnen til at denne funksjonen er såpass komplisert. 
+    # Trinn 2) kompliseres av at hvis f.eks to rekkverk overlapper hverandre i dfB så vil samme vegnett ha to representasjoner 
+    # i INNER-join datasettet. For å finne motsatsen kan vi ikke analysere hver rad i resultatdatasettet: Vi må betrakte hver rad 
+    # i orginaldatasettet dfA, finne **samlet utstrekning** i "innerjoin"-datasettet og så finne det som er "til overs". 
+    # Dette er jobben til funksjonen `antioverlapp`.` At vi tar høyde for mulig intern overlapp i dfB er grunnen til at denne 
+    # funksjonen er såpass komplisert. 
     # 
     # Lager først indeks-kolonne i dfA, denne brukes til å finne trinn 1). Slettes etterpå
     temp_indexdfA_SLETT = 'SLETTMEG_arbeidsindeks_outer_join'
@@ -277,10 +279,10 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
         if col_geomA in inner_joined.columns and col_geomB in inner_joined.columns: 
 
             tmp = inner_joined.apply( lambda x : finnoverlappgeometri( x[col_geomA], x[col_geomB], x[col_startA], x[col_sluttA], x[col_startB], x[col_sluttB], debug=debug  ) , axis=1) 
-            inner_joined['geometry']      = tmp.apply( lambda x : x[0] )
+            inner_joined['geometry']      = tmp.apply( lambda x : x[0].wkt )
+            inner_joined['segmentlengde'] = tmp.apply( lambda x : x[0].length )
             inner_joined['startposisjon'] = tmp.apply( lambda x : x[1] )
             inner_joined['sluttposisjon'] = tmp.apply( lambda x : x[2] )
-            inner_joined['segmentlengde'] = inner_joined['geometry'].apply( lambda x: x.length )
 
     if klippvegsystemreferanse: 
         # Må finne vegsystemreferanse-kolonner
@@ -307,14 +309,16 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
         if kanKlippe: 
             inner_joined[col_ferdig_vegsystemreferanse] = inner_joined.apply( lambda x : vegsystemreferanseoverlapp( x[col_vrefA], x[col_vrefB]  ), axis=1 )
 
-    if returner_GeoDataFrame: 
-        if isinstance( inner_joined.iloc[0]['geometry'], str): 
-            inner_joined['geometry'] = inner_joined['geometry'].apply( wkt.loads )
-        inner_joined = gpd.GeoDataFrame( inner_joined, geometry='geometry', crs=crs )
-
     if join == 'INNER':
         # inner_joined.drop( columns=[temp_indexdfA_SLETT, col_backup_fraposisjon, col_backup_tilposisjon, col_backup_geometri], inplace=True )
+
+        if returner_GeoDataFrame: 
+            if isinstance( inner_joined.iloc[0]['geometry'], str): 
+                inner_joined['geometry'] = inner_joined['geometry'].apply( wkt.loads )
+            inner_joined = gpd.GeoDataFrame( inner_joined, geometry='geometry', crs=crs )
+
         return inner_joined 
+
     elif join == 'LEFT':
         returdata = [ inner_joined ] # Liste med dataFrames som skal returneres
         outer_ytterst = dfA[  ~dfA[temp_indexdfA_SLETT].isin( list( inner_joined[temp_indexdfA_SLETT].unique() )) ].copy()
@@ -367,6 +371,13 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
             returdata.append(  pd.DataFrame( antioverlapp_liste ) )
 
         retval = pd.concat( returdata, axis=0, ignore_index=True )
+
+        if returner_GeoDataFrame: 
+            if isinstance( retval.iloc[0]['geometry'], str): 
+                retval['geometry'] = retval['geometry'].apply( wkt.loads )
+            retval = gpd.GeoDataFrame( retval, geometry='geometry', crs=crs )
+
+
         # retval.drop( columns=[temp_indexdfA_SLETT, col_backup_fraposisjon, col_backup_tilposisjon, col_backup_geometri], inplace=True )
         # SJEKK OM VI SKAL RETURNERE GEODATAFRAME!
         return retval 
@@ -456,7 +467,7 @@ def estimerVegreferanse( vegsystemreferanse:str, orginalpos:tuple, nyepos:tuple,
     Regner ut cirka- meterverdier og returnerer ny vegreferanse som (nesten) matcher de nye veglenkeposisjonene
 
     Er litt upresis pga heltall-avrunding i både inngangsdata (meterverdier) og returdata. Blir fort en håndfull meter avvik. 
-    
+
     ARGUMENTS
         vegsystemreferanse : Tekststreng med vegsystemreferanse
 
