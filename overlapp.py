@@ -333,14 +333,21 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
 
         # Itererer per rad i ORGINAL-datasettet (dfA), det er her indeksen temp_indexdfA_SLETT kommer inn 
         # Nye og orginale veglenkeposisjoner legges i lister med tuple=(fra,til)
+        antioverlapp_liste = [] # Liste med dictionaries => ny dataframe med delvis (anti)overlapp-bitene
         delvisOverlappRader = list( delvisOverlapp[temp_indexdfA_SLETT].unique() )
-        antioverlapp_liste = [] # Liste med dictionaries 
         for ii in delvisOverlappRader: 
             orginal = dfA[ dfA[temp_indexdfA_SLETT] == ii].iloc[0].to_dict()
             df = delvisOverlapp[ delvisOverlapp[temp_indexdfA_SLETT] == ii]
             nyeVposListe = []
+            # Dictionary som gir oss oppslag mellom veglenkeposisjon og meterverdi 
+            vegsystemreferanser = { 'vrefRot'           : splittvegsystemreferanse( orginal[col_vrefA] )[0],   
+                                    orginal[col_startA] : splittvegsystemreferanse( orginal[col_vrefA] )[1],   
+                                    orginal[col_sluttA] : splittvegsystemreferanse( orginal[col_vrefA] )[2]  } 
             for junk, row in df.iterrows(): 
                 nyeVposListe.append( ( row[col_startA], row[col_sluttA] ) )
+                vegsystemreferanser[ row[col_startA] ]  = splittvegsystemreferanse( row[col_ferdig_vegsystemreferanse] )[1]
+                vegsystemreferanser[ row[col_sluttA] ]  = splittvegsystemreferanse( row[col_ferdig_vegsystemreferanse] )[2]
+
             aa = antioverlapp(  [( orginal[col_backup_fraposisjon], orginal[col_backup_tilposisjon] ) ], nyeVposListe, debug=debug )
             if debug: 
                 print( f"Orginal=({orginal[col_startA]},{orginal[col_sluttA]}), overlapp={nyeVposListe} => Antioverlapp: {aa}")
@@ -348,7 +355,10 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
                 nyttSeg = deepcopy( orginal )
                 orginalVposisjoner = (orginal[col_startA], orginal[col_sluttA])
                 nyttSeg[col_geomA]                      = klippgeometriVeglenkepos( orginal[col_geomA], orginalVposisjoner, nyeVposisjoner, debug=debug  )
-                nyttSeg[col_ferdig_vegsystemreferanse]  = estimerVegreferanse(      orginal[col_vrefA], orginalVposisjoner, nyeVposisjoner )
+                # nyttSeg[col_ferdig_vegsystemreferanse]  = estimerVegreferanse(      orginal[col_vrefA], orginalVposisjoner, nyeVposisjoner )
+                nyttSeg[col_ferdig_vegsystemreferanse]  = vegsystemreferanser['vrefRot'] + \
+                                                          'm' + str( vegsystemreferanser[nyeVposisjoner[0]] ) + \
+                                                          '-' + str( vegsystemreferanser[nyeVposisjoner[1]] )
                 nyttSeg[col_startA] = nyeVposisjoner[0]
                 nyttSeg[col_sluttA] = nyeVposisjoner[1]
                 antioverlapp_liste.append( nyttSeg )
@@ -443,8 +453,10 @@ def klippgeometriVeglenkepos( mygeom, orginalpos, nyepos, debug=False ):
 
 def estimerVegreferanse( vegsystemreferanse:str, orginalpos:tuple, nyepos:tuple, debug=True):
     """
-    Regner ut meterverdier og returnerer ny vegreferanse som matcher de nye veglenkeposisjonene
+    Regner ut cirka- meterverdier og returnerer ny vegreferanse som (nesten) matcher de nye veglenkeposisjonene
 
+    Er litt upresis pga heltall-avrunding i både inngangsdata (meterverdier) og returdata. Blir fort en håndfull meter avvik. 
+    
     ARGUMENTS
         vegsystemreferanse : Tekststreng med vegsystemreferanse
 
