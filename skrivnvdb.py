@@ -481,16 +481,16 @@ def lokasjon2skriv( lokasjonsegenskap, operasjon='delvisOppdater', ignorerSidepo
                               'retning' :   ll['retning']
                             } 
 
-        if len( ll['kjørefelt']) > 0 and not ignorerFelt: 
-            l2['kjørefelt'] = lokasjonsegenskap['kjørefelt']
+            if len( ll['kjørefelt']) > 0 and not ignorerFelt: 
+                l2['kjørefelt'] = lokasjonsegenskap['kjørefelt']
 
-        if 'sideposisjon' in lokasjonsegenskap and not ignorerSideposisjon: 
-            l2['sideposisjon'] = lokasjonsegenskap['sideposisjon']
+            if 'sideposisjon' in lokasjonsegenskap and not ignorerSideposisjon: 
+                l2['sideposisjon'] = lokasjonsegenskap['sideposisjon']
 
-        if 'delvis' in operasjon: 
-            l2['operasjon'] = 'ny'
+            if 'delvis' in operasjon: 
+                l2['operasjon'] = 'ny'
 
-        mal['linje'].append( l2 )
+            mal['linje'].append( l2 )
 
     else: 
         raise ValueError( 'Fant ikke ut av dette lokasjonsobjektet??? Skal være punkt eller linje?')
@@ -537,4 +537,7 @@ def splittMultippelStedfesting( ettNvdbObjekt  ):
 
     Dvs objekt A med stedfesting ->1,2,3 => Objekt A får oppdatert sin stedfesting til =1, 
         og vi oppretter nye objekt objekt B med stedfesting 2, C med stedfesting 3 
+
+    TODO: Implementer! (Evt dropp den, YANGNI)
     """
+    raise NotImplemented( "Denne funksjonen er ikke implementert ennå")
