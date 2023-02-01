@@ -273,20 +273,21 @@ def stedfestingSammendrag( stedfesting ):
         tempdata = { }
         
         for linje in stedfesting['innhold']: 
-            
-            tempdata[ linje['veglenkesekvensid'] ] = str( linje['startposisjon'] ) + '-' + \
-                    str( linje['sluttposisjon']) + '@' + str( linje['veglenkesekvensid']  ) 
+
+            # dictionary med nøkler bygget opp av veglenkesekvens ID pluss startposisjon
+            tmpvlinkId = str( linje['veglenkesekvensid'] ) + '-' + str( linje['startposisjon'] )
+            tempdata[ tmpvlinkId ] = str( linje['startposisjon'] ) + '-' + str( linje['sluttposisjon']) + '@' + str( linje['veglenkesekvensid']  ) 
             
             if 'retning' in linje: 
-                tempdata[ linje['veglenkesekvensid'] ] += ' ' + linje['retning']
+                tempdata[ tmpvlinkId ] += ' ' + linje['retning']
 
             if 'sideposisjon' in linje: 
-                tempdata[ linje['veglenkesekvensid'] ] += ' ' + linje['sideposisjon']
+                tempdata[ tmpvlinkId ] += ' ' + linje['sideposisjon']
 
             if 'kjørefelt' in linje and len( linje['kjørefelt'] ) > 0 : 
-                tempdata[ linje['veglenkesekvensid'] ] += ' felt: ' + '#'.join( linje['kjørefelt'] )
+                tempdata[ tmpvlinkId ] += ' felt: ' + '#'.join( linje['kjørefelt'] )
             
-        # Sorterer på veglenkesekvensId 
+        # Sorterer på veglenkesekvensId + startposisjon 
         vlenkid = list( tempdata.keys())
         vlenkid.sort()
         tempList = [ tempdata[x] for x in vlenkid ]
