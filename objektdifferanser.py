@@ -368,12 +368,14 @@ def egenskapsavvikDetaljert( egenskapAnalyse:dict, eldsteVersjon:int ):
             junk, versjonsId = ojbVersjonId.split( 'versjon')
 
             if int( versjonsId ) == eldsteVersjon: 
-                eldreYngre = ' Eldre'
+                eldreYngre = 'Eldre'
             else: 
-                eldreYngre = ' Yngre'
+                eldreYngre = 'Yngre'
+
+            infoKey = f"{eldreYngre} (v{versjonsId}) {myKey}"
             
             if 'verdi' in egenskapAnalyse['avviker'][myKey][ojbVersjonId]: 
-                retval[ 'AVVIK ' + myKey + eldreYngre ] = egenskapAnalyse['avviker'][myKey][ojbVersjonId]['verdi']
+                retval[ infoKey ] = egenskapAnalyse['avviker'][myKey][ojbVersjonId]['verdi']
             elif 'ssosiert' in myKey and 'innhold' in egenskapAnalyse['avviker'][myKey][ojbVersjonId]:
                 # Relasjoner er på formen 
                 # {'Assosierte Rekkverksende': {'370453487versjon3': {'id': 220057,
@@ -387,13 +389,13 @@ def egenskapsavvikDetaljert( egenskapAnalyse:dict, eldsteVersjon:int ):
                 # 'verdi': 370453468}]},
                 temp3 = [ str( x['verdi'] ) for x in egenskapAnalyse['avviker'][myKey][ojbVersjonId]['innhold'] ]
                 temp3.sort()
-                retval[ 'AVVIK ' + myKey + eldreYngre ] = ','.join( temp3)
+                retval[ infoKey ] = ','.join( temp3)
                 
             elif 'PunktTilknytning' == egenskapAnalyse['avviker'][myKey][ojbVersjonId]['navn']: 
-                retval['AVVIK stedfesting' + eldreYngre ] = stedfestingSammendrag( egenskapAnalyse['avviker'][myKey][ojbVersjonId] )
+                retval[ infoKey ] = stedfestingSammendrag( egenskapAnalyse['avviker'][myKey][ojbVersjonId] )
                 
             elif 'Liste av lokasjonsattributt' == egenskapAnalyse['avviker'][myKey][ojbVersjonId]['navn']: 
-                retval['AVVIK stedfesting' + eldreYngre ] = stedfestingSammendrag( egenskapAnalyse['avviker'][myKey][ojbVersjonId] )
+                retval[ infoKey ] = stedfestingSammendrag( egenskapAnalyse['avviker'][myKey][ojbVersjonId] )
             else:
                 print( f"SKjønte ikke datainnholdet her {myKey} - {ojbVersjonId}" )
                 print( egenskapAnalyse['avviker'][myKey][ojbVersjonId] )
