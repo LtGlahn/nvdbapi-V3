@@ -380,7 +380,7 @@ def KOSTRAfiltrering( data:pd.DataFrame, trafikantgruppe='K', alledata=False  ):
     # Verifisere at det ikke er noe kødd med skrivemåte adskilte løp
     test = [x.lower() for x in list( mydata['adskilte_lop'].unique()) if not pd.isnull(x) ]
     if 'mot' in test: 
-        raise ValueError( f"Oppdater spesialrapporter.py/kostrafiltrering med nye skrivemåter adskilte løp: {test1} " )
+        raise ValueError( f"Oppdater spesialrapporter.py/kostrafiltrering med nye skrivemåter adskilte løp: {test} " )
 
     # Trafikantgruppe
     if trafikantgruppe:
@@ -413,3 +413,52 @@ def KOSTRAfiltrering( data:pd.DataFrame, trafikantgruppe='K', alledata=False  ):
         retdata.drop( columns=col_temp_indeks_SLETT, inplace=True )
     
     return retdata
+
+def finnvegnummerForObjekt( nvdbObjekt:dict ):
+    """
+    Oppsummerer hvilke vegnummer et objekt har, i en datastruktur egnet for statistikk om multippel stedfesting
+
+    ARGUMENTS: 
+        nvdbObjekt - dictionary med vegobjekt hentet rett fra NVDB api LES
+
+    KEYWORDS: 
+        N/A
+
+    RETURNS
+        dictionary med vegkategori, vegnummer, objekt ID, fylke, kommune og litt til
+    """
+
+    vr = 'vegsystemreferanser'
+    vs = 'vegsystem'
+
+    return {  'nvdbId'       : nvdbObjekt['id'], 
+              'objektType'   :  f"{nvdbObjekt['metadata']['type']['id']} {nvdbObjekt['metadata']['type']['navn']} ", 
+              'vegkategori'  : ','.join( sorted( list( set( [ x[vs]['vegkategori']                                     for x in  nvdbObjekt['lokasjon'][vr] if vs in x ] )))),
+              'vegnummer'    : ','.join( sorted( list( set( [ x[vs]['vegkategori']+x[vs]['fase']+str(x[vs]['nummer'])  for x in  nvdbObjekt['lokasjon'][vr] if vs in x ] )))), 
+              'fylker'       : ','.join( [ str(x) for x in sorted( nvdbObjekt['lokasjon']['fylker'] ) ] ), 
+              'kommuner'     : ','.join( [ str(x) for x in sorted( nvdbObjekt['lokasjon']['kommuner']  ) ] ),
+              'stedfesting'  : ','.join( [ x['kortform'] for x in  nvdbObjekt['lokasjon']['stedfestinger'] ] ),
+              'geometri'     : nvdbObjekt['geometri']['wkt']
+      }
+
+def finnnVegnummerForSok( sokeobjekt, kunUlikeNummer=True ):
+    """
+    Finner vegkategori, vegnummer etc per vegobjekt for et NVDB api søkeobjekt / liste med nvdb Fagdata
+
+    Kan også brukes til å luke ut de objektene som har multippel stedfesting på flere vegnummer.  
+
+    Returnerer liste med dictionary som oppsummerer vegkategor, vegnummer, fylke etc per objekt
+    """
+
+    data = []
+    for nvdbObjekt in sokeobjekt: 
+        oppsummering = finnvegnummerForObjekt( nvdbObjekt )
+
+        if kunUlikeNummer: 
+            if ',' in oppsummering['vegnummer']: 
+                data.append( oppsummering )
+        else: 
+            data.append( oppsummering )
+
+    return data 
+
