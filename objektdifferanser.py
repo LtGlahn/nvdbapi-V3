@@ -33,7 +33,7 @@ def sammenlignEgenskaper( vegobjekter, forb=None ):
     Nøklene i denne er lik navnet på de egenskapene (stedfestingene, relasjonene) som finnes og er identisk 
     for alle objektene i listen
 
-    Avviker-oppføringen er litt mer komplisert. Slik som for "identis"-dictonary har vi en nøkkel lik nvnet på den 
+    Avviker-oppføringen er litt mer komplisert. Slik som for "identisk"-dictonary har vi en nøkkel lik nvnet på den 
     egenskapen (stedfestingen, relasjonen) som sammenlignes. Under her igjen er enda en dictionary, med en eller flere 
     nøkkel for hver objektversjon med denne egenskapen. Nøkkelen her er bygget opp etter mønster <NvdbID>versjon<versjonsNummer>.
     Datainnholdet er egenskapverdien for denne objektversjonen.  
