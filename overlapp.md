@@ -3,24 +3,26 @@
 NVDB har tre - 3 - parametre som beskriver posisjon og utbredelse langs vegnettet: 
 
   * Lineære posisjoner langs veglenkesekvens
-  * Geografiske koordinater
+  * Geografiske koordinater _i dette tilfellet langs vegnettet, dvs ikke s.k. egengeometri_. 
   * Vegsystemreferanse med meterverdier 
 
 Alle tre systemene kan brukes til å finne overlapp og manglende overlapp mellom to NVDB datasett. Utfordringen er 
-å lage metoder der resultatet blir riktig for _alle tre parametrene samtidig_. 
+å lage metoder der resultatet blir riktig for _alle tre parametrene samtidig_, og aller helst uten å måtte supplere med ytterligere oppslag mot NVDB LES api. 
 
-Gullstandarden er selvsagt å finne overlapp basert på veglenkeposisjoner, og det er den metoden vi bruker her. Posisjon
+**Gullstandarden er selvsagt å finne overlapp basert på veglenkeposisjoner**, og det er den metoden vi bruker her. Posisjon
 på veglenke oppgis alltid med 8 desimaler etter komma, noe som tilsvarer 0.1mm hvis veglenkesekvensen er 10km lang. Og 
-omsider har vi fått på plass metoder 
+omsider har vi fått på plass metoder der vi også får riktig geometri og vegreferanseverdier. 
 
-Geografiske koordinater kan selvsagt brukes, det er massevis av standard funksjonalitet i GIS verktøy som kan brukes til å 
+**Geografiske koordinater** kan selvsagt brukes, det er massevis av standard funksjonalitet i GIS verktøy som kan brukes til å 
 manipulere geometri ut fra romlige relasjoner, inklusive `geopandas` og `shapely` - bibliotekene. Men hvis du også ønsker riktige veglenkeposisjoner og vegsystemreferanser må du som regel hente dem i etterkant fra NVDB api LES. 
 
-Vegsystemreferansen den mest upresise av de tre (nærmeste hele meter), og den er i tillegg ferskvare: Vegreferanser kan og vil 
+**Vegsystemreferansen** er den mest upresise av de tre (nærmeste hele meter), 
+og den er i tillegg ferskvare: Vegreferanser kan og vil 
 endre verdi i takt med at vegnettet utvikler seg. Når det er sagt - analyser basert på hele meter fra vegsystemreferansen 
 funker greit innafor sin "hele meter" presisjon såfremt datasettene har samme tidsstempel 
 (evt at man har stålkontroll på at vegsystemreferansen ikke har endret seg mellom datauttakene). **Antagelsen om at 
 vegreferansesystemet ikke endres har skapt utrolig mye kluss opp igjennom for utallige analyser og sammenstillinger.** 
+For en del analyser er det også uheldig at alle resultater blir avrundet til hele meter. Og hvis du vil ha geometri og veglenkeposisjoner er du også her tvunget til å hente informasjon fra LES i etterkant. 
 
 # Metodeutvikling og utfordringer
 
@@ -28,14 +30,16 @@ En ekstra utfordring med NVDB veglenkesekvenser er at vi ikke har _*hele* veglen
 en sammenhengende bit (LinesString) 
 som starter med posisjon 0 og slutter i posisjon 1. Litt av grunnen er at noen av veglenkene langs en 
 veglenkesekvens kan være tatt ut av bruk (satt historisk). 
-Joda, det kunne la seg gjøre å rekonstruere den orginale veglenkesekvensen ut fra historiske data, men det er tidkrevende og plundrete og har sine utforringer. Med hele veglenkesekvensen (0-1) representert som en sammenhengde LineString-geometri ville vi vært mer robuste 
+Joda, det kunne la seg gjøre å rekonstruere den orginale veglenkesekvensen ut fra historiske data, men det er tidkrevende og plundrete og har sine utfordringer. Med hele veglenkesekvensen (0-1) representert som en sammenhengde LineString-geometri ville vi vært mer robuste 
 mot numerisk unøyaktighet når vi skal "klippe" geometrien i en vilkårlig veglenkeposisjon. 
 
-En annen utfordring er at LES ikke gir ut koordinatstreng med _measure_ verdier - `LineString(x0 y0 z0 M0, x1 y1 z1 M1, ...)`, der den fjerde verdien `M` angir hvilken veglenkeposisjon som gjelder for de geografiske koordinatene `(x,y,z)`. I så fall 
+En annen utfordring er at LES ikke gir ut koordinater med _measure_ verdier - `LineString(x0 y0 z0 M0, x1 y1 z1 M1, ...)`, der den fjerde verdien `M` angir hvilken veglenkeposisjon som gjelder for de geografiske koordinatene `(x,y,z)`. I så fall 
 er det jo grei sak å interpolere mellom de to koordinatpunktene med M-verdi nærmest inntil den ønskede veglenkeposisjonen.  
 
-Men med disse begrensingene så var det begrenset med metoder for manipulering av lineære referanser og geometri i de pythonbibliotekene jeg har undersøkt. Jeg 
-prøvde metoden der vi laget en lineær mapping mellom fysiske meter og de veglenkeposisjonene vi har i start og slutt av segmentet vårt: 
+Med disse begrensingene så var det magert utvalg med metoder for manipulering av lineære 
+referanser og geometri i de pythonbibliotekene jeg har undersøkt. Jeg 
+prøvde først en metode der vi laget en lineær funksjon for forholdet mellom fysiske meter 
+og de veglenkeposisjonene vi har i start og slutt av segmentet vårt: 
 ```python
 # Lengde i meter y= f(x) = a*x som funksjon av veglenkeposisjon x langs dette segmentet
 # der x er innafor intervallet [startposisjon, sluttposisjon ]
@@ -46,7 +50,7 @@ L = a * nyposisjon
 # som klipper geometrier i to i et punkt L meter fra starten  
 ```
 
-Metoden her fungerte, men ble altfor upresist: Geometrien vår kan være mellom 1m og flere titalls kilometer 
+Metoden fungerte, men ble altfor upresist: Geometrien vår kan være mellom 1m og flere titalls kilometer 
 (teoretisk), og denne lengden skal så deles på en differanse i veglenkeposisjon som kan være ørliten. 
 Dette er et uheldig delestykke, rent numerisk. 
 
