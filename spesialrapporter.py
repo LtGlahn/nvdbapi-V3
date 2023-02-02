@@ -431,15 +431,21 @@ def finnvegnummerForObjekt( nvdbObjekt:dict ):
     vr = 'vegsystemreferanser'
     vs = 'vegsystem'
 
-    return {  'nvdbId'       : nvdbObjekt['id'], 
-              'objektType'   :  f"{nvdbObjekt['metadata']['type']['id']} {nvdbObjekt['metadata']['type']['navn']} ", 
-              'vegkategori'  : ','.join( sorted( list( set( [ x[vs]['vegkategori']                                     for x in  nvdbObjekt['lokasjon'][vr] if vs in x ] )))),
-              'vegnummer'    : ','.join( sorted( list( set( [ x[vs]['vegkategori']+x[vs]['fase']+str(x[vs]['nummer'])  for x in  nvdbObjekt['lokasjon'][vr] if vs in x ] )))), 
-              'fylker'       : ','.join( [ str(x) for x in sorted( nvdbObjekt['lokasjon']['fylker'] ) ] ), 
-              'kommuner'     : ','.join( [ str(x) for x in sorted( nvdbObjekt['lokasjon']['kommuner']  ) ] ),
-              'stedfesting'  : ','.join( [ x['kortform'] for x in  nvdbObjekt['lokasjon']['stedfestinger'] ] ),
-              'geometri'     : nvdbObjekt['geometri']['wkt']
-      }
+    if 'geometri' in nvdbObjekt: 
+
+        return {  'nvdbId'       : nvdbObjekt['id'], 
+                'objektType'   :  f"{nvdbObjekt['metadata']['type']['id']} {nvdbObjekt['metadata']['type']['navn']} ", 
+                'vegkategori'  : ','.join( sorted( list( set( [ x[vs]['vegkategori']                                     for x in  nvdbObjekt['lokasjon'][vr] if vs in x ] )))),
+                'vegnummer'    : ','.join( sorted( list( set( [ x[vs]['vegkategori']+x[vs]['fase']+str(x[vs]['nummer'])  for x in  nvdbObjekt['lokasjon'][vr] if vs in x ] )))), 
+                'fylker'       : ','.join( [ str(x) for x in sorted( nvdbObjekt['lokasjon']['fylker'] ) ] ), 
+                'kommuner'     : ','.join( [ str(x) for x in sorted( nvdbObjekt['lokasjon']['kommuner']  ) ] ),
+                'lengde'       : nvdbObjekt['lokasjon']['lengde'],
+                'Antall vegsegmenter' : len( nvdbObjekt['vegsegmenter'] ), 
+                'stedfesting'  : ','.join( [ x['kortform'] for x in  nvdbObjekt['lokasjon']['stedfestinger'] ] ),
+                'geometri'     : nvdbObjekt['geometri']['wkt']
+        }
+    else:
+        return None 
 
 def finnnVegnummerForSok( sokeobjekt, kunUlikeNummer=True ):
     """
@@ -454,11 +460,13 @@ def finnnVegnummerForSok( sokeobjekt, kunUlikeNummer=True ):
     for nvdbObjekt in sokeobjekt: 
         oppsummering = finnvegnummerForObjekt( nvdbObjekt )
 
-        if kunUlikeNummer: 
-            if ',' in oppsummering['vegnummer']: 
+        # Får None hvis objektet mangler gyldig stedfesting (mangler geometri)
+        if oppsummering: 
+            if kunUlikeNummer: 
+                if ',' in oppsummering['vegnummer']: 
+                    data.append( oppsummering )
+            else: 
                 data.append( oppsummering )
-        else: 
-            data.append( oppsummering )
 
     return data 
 
