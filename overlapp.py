@@ -97,11 +97,9 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
     RETURNS
         Pandas DataFrame, eller Geopandas Geodataframe, avhengig av hva dfA er for slag. 
 
-    TODO: Inputdata er Vegnett + vegnett eller vegobjekter + vegnett ? (Trengs dette?)   
+    TODO: Inputdata er Vegnett + vegnett eller vegobjekter + vegnett ? (Trengs dette?) Verifisere at alt dette funker
 
-    TODO: Left join NESTEN OK, tror vi? 
-
-    TODO: Default oppførsel: Endrer verdier på de retu
+    TODO: Gå over variabelnavn i returnerte verdier. 
 
     TODO: Med Left join på plass - bør vi refaktorere "innerjoin" geometrihåndtering? 
 
@@ -447,7 +445,10 @@ def klippgeometriVeglenkepos( mygeom, orginalpos, nyepos, geomPunktVpos, debug=F
     if ny_reellmeterSlutt: 
         nygeom = shapelycut( nygeom, ny_reellmeterSlutt )[0]
     if ny_reellmeterStart > 0: 
-        nygeom = shapelycut( nygeom, ny_reellmeterStart)[1]
+        try: 
+            nygeom = shapelycut( nygeom, ny_reellmeterStart)[1]
+        except TypeError: 
+            nygeom = shapelycut( nygeom, ny_reellmeterStart, debug=True )
 
     if debug: 
         print( f"Geometrilengde={mygeom.length}, startMeter={ny_reellmeterStart}, orginalpos={orginalpos}, nyepos={nyepos}  " )
@@ -692,7 +693,7 @@ def vegreferanselengder( vegref ):
     return lengde 
     
 
-def shapelycut( line, distance): 
+def shapelycut( line, distance, debug=False ): 
     """
     Kutter ei linje i to på angitt punkt, målt som antall meter (dvs koordinatsystem-enheter) fra starten av linja
 
@@ -722,25 +723,43 @@ def shapelycut( line, distance):
     """
 
     if distance <= 0.0 or distance >= line.length:
-        return [LineString(line)]
+        return [ line ]
     coords = list(line.coords)
     for i, p in enumerate(coords):
-        pd = line.project(Point(p))
+        pd = line.project(Point(p)) # pd = projected distance, avstand fra start linje-> punkt Point(p)
         if pd == distance: # --------- Angitt punkt matcher eksakt med et punkt langs linja, trenger ikke interpolere 
+
+            if debug: 
+                pdb.set_trace()
+
             return [
                 LineString(coords[:i+1]),
                 LineString(coords[i:])]
-        if pd > distance:  # ---------------- Må interpolere, fordi vi ligger et sted mellom foregående og neste punkt
+        if pd > distance:  # ---------------- Må interpolere! Vi er kommet til koordinatpunkt like bortforbi vårt punkt
+
+            if debug: 
+                pdb.set_trace()
+          
             cp = line.interpolate(distance)
             if line.has_z: # -------------------------------- 3D koordinater
                 return[ LineString( coords[:i] + [(cp.x, cp.y, cp.z)]), 
                         LineString( [(cp.x, cp.y, cp.z)] + coords[i:] )] 
                 
             else:         # --------------------------------- 2D koordinater
-                return [
-                    LineString(coords[:i] + [(cp.x, cp.y)]),
-                    LineString([(cp.x, cp.y)] + coords[i:])]
+                return [ LineString(coords[:i] + [(cp.x, cp.y)]),
+                         LineString([(cp.x, cp.y)] + coords[i:])]
 
+        if pd == 0 and i == len( coords)-1: # Rundkjøring, hvilket betyr at siste koordinat = første koordinat. Dvs pd mappes til START av linja (0), ikke slutten! 
+                                            # Hvis vi er havnet her betyr det at vårt punkt ligger mellom siste og nest siste punkt på linja
+            cp = line.interpolate(distance)
+            if line.has_z: 
+                return[ LineString( coords[:i] + [(cp.x, cp.y, cp.z)]), 
+                        LineString( [(cp.x, cp.y, cp.z)] + coords[i:] )] 
+            else: 
+                return [ LineString(coords[:i] + [(cp.x, cp.y)]),
+                         LineString([(cp.x, cp.y)] + coords[i:])]
+
+    raise ValueError( f"Et eller anna rart, dette skulle ikke skje! Skal finne punkt {distance}m inn på {line.length}m lang linje med {len(coords)} koordinatpunkt")
 
 
 def antioverlapp( listeA:list, listeB:list, debug=False ): 
