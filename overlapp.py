@@ -18,7 +18,7 @@ import string
 from sys import prefix
 from xmlrpc.client import Boolean 
 from numbers import Number
-
+from importlib.metadata import version
 
 from shapely import wkt 
 from shapely.geometry import Point, LineString
@@ -348,17 +348,16 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
                                     orginal[col_startA] : splittvegsystemreferanse( orginal[col_vrefA] )[1],   
                                     orginal[col_sluttA] : splittvegsystemreferanse( orginal[col_vrefA] )[2]  } 
 
-            # Dictionary som gir oss punktgeometri for veglenkeposisjoner: 
-            geomPunktVpos = { orginal[col_startA] : wkt.loads( 'POINT Z' + str( wkt.loads( orginal[col_geomA]).coords[ 0]  ) ),
-                              orginal[col_sluttA] : wkt.loads( 'POINT Z' + str( wkt.loads( orginal[col_geomA]).coords[-1]  ) ) }
-
+            # Dictionary som gir oss punktgeometri for veglenkeposisjoner, dvs det første og siste punktet på segmentet
+            geomPunktVpos = { orginal[col_startA] : Point( wkt.loads( orginal[col_geomA]).coords[ 0]  ),
+                              orginal[col_sluttA] : Point( wkt.loads( orginal[col_geomA]).coords[-1]  ) }
 
             for junk, row in df.iterrows(): 
                 nyeVposListe.append( ( row[col_startA], row[col_sluttA] ) )
                 vegsystemreferanser[ row[col_startA] ]  = splittvegsystemreferanse( row[col_ferdig_vegsystemreferanse] )[1]
                 vegsystemreferanser[ row[col_sluttA] ]  = splittvegsystemreferanse( row[col_ferdig_vegsystemreferanse] )[2]
-                geomPunktVpos[       row[col_startA] ]  = wkt.loads( 'POINT Z' + str( wkt.loads( row[col_geomA] ).coords[ 0]  ) )
-                geomPunktVpos[       row[col_sluttA] ]  = wkt.loads( 'POINT Z' + str( wkt.loads( row[col_geomA] ).coords[-1]  ) )
+                geomPunktVpos[       row[col_startA] ]  = Point( wkt.loads( row[col_geomA] ).coords[ 0]  ) 
+                geomPunktVpos[       row[col_sluttA] ]  = Point( wkt.loads( row[col_geomA] ).coords[-1]  ) 
 
             aa = antioverlapp(  [( orginal[col_backup_fraposisjon], orginal[col_backup_tilposisjon] ) ], nyeVposListe, debug=debug )
             if debug: 
@@ -366,6 +365,7 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
             for nyeVposisjoner in aa: 
                 nyttSeg = deepcopy( orginal )
                 orginalVposisjoner = (orginal[col_startA], orginal[col_sluttA])
+
                 nyttSeg[col_geomA]                      = klippgeometriVeglenkepos( orginal[col_geomA], orginalVposisjoner, nyeVposisjoner, geomPunktVpos, debug=debug  )
                 # nyttSeg[col_ferdig_vegsystemreferanse]  = estimerVegreferanse(      orginal[col_vrefA], orginalVposisjoner, nyeVposisjoner )
                 nyttSeg[col_ferdig_vegsystemreferanse]  = vegsystemreferanser['vrefRot'] + \
@@ -395,11 +395,13 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
 
 def klippgeometriVeglenkepos( mygeom, orginalpos, nyepos, geomPunktVpos, debug=False ): 
     """
-    Klipper en geometri basert på dimmensjonsløse veglenkeposisjoner samt . Den nye geometrien matcher posisjonene i nyepos. 
+    Klipper en geometri basert på dimmensjonsløse veglenkeposisjoner samt dictionary med presis posisjon for de aktuelle posisjonene
 
     Returnerer tom geometri hvis veglenkeposisjonene ikke overlapper. 
     Returnerer orginalgeometri hvis de nye posisjonene har større utstrekning enn orginalposisjoner.
     Returnerer evt bare den biten som er innafor orginalgeometri hvis enten start eller slutt er utafor orginalposisjoner
+
+    OBS! Krever shapely 2.0.0 eller nyere 
 
     ARGUMENTS
         mygeom      : Shapely geometriobjekt eller Well Known Text (WKT)-streng 
@@ -409,7 +411,7 @@ def klippgeometriVeglenkepos( mygeom, orginalpos, nyepos, geomPunktVpos, debug=F
         nyepos      : tuple med nye fra-til veglenkeposisjoner for den nye geometrien. 
                            Nystart bør være >= orginal start, og ny slutt <= orginal start. 
 
-        geomPunktVpos : dictionary med geometri (shapely punktobjekter) for hver av veglenkeposisjonene 
+        geomPunktVpos : dictionary med geometri (shapely punktobjekter) for hver av de aktuelle veglenkeposisjonene 
 
     KEYWORDS 
         N/A 
@@ -418,50 +420,29 @@ def klippgeometriVeglenkepos( mygeom, orginalpos, nyepos, geomPunktVpos, debug=F
         Samme som mygeom (Shapely geometriobjekt eller Well Known Tekst - string)
     """
 
+    assert int( version( 'shapely' ).split('.')[0] ) >= 2, f"Krever shapely-versjon >=2.0.0, du har versjon { version( 'shapely' )}"
     assert isinstance( orginalpos, tuple) and isinstance( nyepos, tuple), "Input argument orginalpos og nyepos må være tuple"
     assert orginalpos[1] >= orginalpos[0] and nyepos[1] >= nyepos[0], "Input argument orginalpos og nyepos må ha veglenkeposisjoner i stigende rekkefølge"
-    # assert nyepos[0] >= orginalpos[0] and nyepos[1] <= orginalpos[1], "Start/slutt veglenkeposisjon-verdiene i nyepos må overlappe med dem i orginalpos"
 
+    # assert nyepos[0] >= orginalpos[0] and nyepos[1] <= orginalpos[1], "Start/slutt veglenkeposisjon-verdiene i nyepos må overlappe med dem i orginalpos"
 
     nygeom = deepcopy( mygeom )
     returnWKT = False 
     if isinstance( mygeom, str):
         mygeom = wkt.loads( mygeom )
+        nygeom = deepcopy( mygeom )
         returnWKT = True 
 
-
-    # TODO: BYGGE NY LOGIKK BASERT PÅ geomPunktVpos og shapely.line.locate_point med 
-
-    # # Har vi overlapp mellom gamle og nye veglenkeposisjoner? 
-    # if orginalpos[0] < nyepos[1] and orginalpos[1] > nyepos[0]: 
-    #     pass # Vi har overlapp
-    # else: # Tom geometri 
-    #     return LineString( )
-
-    # # Har vi fullstendig overlapp, dvs nyepos starter før og slutter etter orginaldataene?
-    # if nyepos[0] < orginalpos[0] and nyepos[1] > orginalpos[0]: 
-    #     nygeom = mygeom 
-    # elif 
-
-    # Lengden orginalgeometri med skaleringsfaktor
-    # lengde i meter (y) som funksjon av veglenkeposisjon (x): 
-    #       f(x) = ax 
-    # der a = lengde orginalgeometri / (orginal sluttposisjon-orginal startposisjon)
-    orginal_lengde = nygeom.length
-    LFAC = orginal_lengde / (orginalpos[1]-orginalpos[0])
-    orginal_startmeter = LFAC * orginalpos[0]
-
     # Starter vi helt i begynnelsen på orginalgeometrien? Eller et stykke inn?
-    # hvis JA så klipper vi det til etterpå 
+    # hvis JA så klipper vi det til etterpå line_interpolate_point
     ny_reellmeterStart = 0          #  Målt i reell lengde på geometri 
     ny_reellmeterSlutt = None 
     if nyepos[0] > orginalpos[0]: 
         # ny_reellmeterStart  = LFAC * nyepos[0] - orginal_startmeter 
-        ny_reellmeterStart = nygeom.locate_point( geomPunktVpos[ nyepos[0] ])
+        ny_reellmeterStart = nygeom.line_locate_point( geomPunktVpos[ nyepos[0] ])
     if nyepos[1] < orginalpos[0]: 
         # ny_reellmeterSlutt = LFAC * nyepos[1] - orginal_startmeter
-        ny_reellmeterSlutt = nygeom.locate_point( geomPunktVpos[ nyepos[1] ] )
-
+        ny_reellmeterSlutt = nygeom.line_locate_point(  geomPunktVpos[ nyepos[1] ] )
 
     if ny_reellmeterSlutt: 
         nygeom = shapelycut( nygeom, ny_reellmeterSlutt )[0]
@@ -469,7 +450,7 @@ def klippgeometriVeglenkepos( mygeom, orginalpos, nyepos, geomPunktVpos, debug=F
         nygeom = shapelycut( nygeom, ny_reellmeterStart)[1]
 
     if debug: 
-        print( f"Geometrilengde={orginal_lengde}, startMeter={orginal_startmeter}, orginalpos={orginalpos}, nyepos={nyepos}  " )
+        print( f"Geometrilengde={mygeom.length}, startMeter={ny_reellmeterStart}, orginalpos={orginalpos}, nyepos={nyepos}  " )
         print( f"  => klipper ut biten m{ny_reellmeterStart}-{ny_reellmeterSlutt} ")
 
     if returnWKT: 
@@ -746,13 +727,11 @@ def shapelycut( line, distance):
     for i, p in enumerate(coords):
         pd = line.project(Point(p))
         if pd == distance: # --------- Angitt punkt matcher eksakt med et punkt langs linja, trenger ikke interpolere 
-            pdb.set_trace()
             return [
                 LineString(coords[:i+1]),
                 LineString(coords[i:])]
         if pd > distance:  # ---------------- Må interpolere, fordi vi ligger et sted mellom foregående og neste punkt
             cp = line.interpolate(distance)
-            pdb.set_trace()
             if line.has_z: # -------------------------------- 3D koordinater
                 return[ LineString( coords[:i] + [(cp.x, cp.y, cp.z)]), 
                         LineString( [(cp.x, cp.y, cp.z)] + coords[i:] )] 
