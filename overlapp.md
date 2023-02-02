@@ -9,26 +9,30 @@ NVDB har tre - 3 - parametre som beskriver posisjon og utbredelse langs vegnette
 Alle tre systemene kan brukes til å finne overlapp og manglende overlapp mellom to NVDB datasett. Utfordringen er 
 å lage metoder der resultatet blir riktig for _alle tre parametrene samtidig_. 
 
-Gullstandarden er selvsagt å finne overlapp basert på veglenkeposisjoner, og det er den metoden vi forfølger her. Posisjon
-på veglenke oppgis alltid med 8 desimaler etter komma, noe som tilsvarer 0.1mm hvis veglenkesekvensen er 10km lang. 
+Gullstandarden er selvsagt å finne overlapp basert på veglenkeposisjoner, og det er den metoden vi bruker her. Posisjon
+på veglenke oppgis alltid med 8 desimaler etter komma, noe som tilsvarer 0.1mm hvis veglenkesekvensen er 10km lang. Og 
+omsider har vi fått på plass metoder 
 
 Geografiske koordinater kan selvsagt brukes, det er massevis av standard funksjonalitet i GIS verktøy som kan brukes til å 
-finne romlige relasjoner. 
+manipulere geometri ut fra romlige relasjoner, inklusive `geopandas` og `shapely` - bibliotekene. Men hvis du også ønsker riktige veglenkeposisjoner og vegsystemreferanser må du som regel hente dem i etterkant fra NVDB api LES. 
 
 Vegsystemreferansen den mest upresise av de tre (nærmeste hele meter), og den er i tillegg ferskvare: Vegreferanser kan og vil 
 endre verdi i takt med at vegnettet utvikler seg. Når det er sagt - analyser basert på hele meter fra vegsystemreferansen 
-funker helt greit til sitt bruk, innafor sin "hele meter" presisjon såfremt datasettene har samme tidsstempel 
+funker greit innafor sin "hele meter" presisjon såfremt datasettene har samme tidsstempel 
 (evt at man har stålkontroll på at vegsystemreferansen ikke har endret seg mellom datauttakene). **Antagelsen om at 
-vegreferansesystemet ikke endres har skapt utrolig mye kluss opp igjennom for utallige analyser og sammenstillinger.**
+vegreferansesystemet ikke endres har skapt utrolig mye kluss opp igjennom for utallige analyser og sammenstillinger.** 
 
-# Utfordringer med lineære referanser fra NVDB i python
+# Metodeutvikling og utfordringer
 
-En ekstra utfordring med NVDB veglenkesekvenser er at vi ikke har _*hele* veglenkesekvensen tilgjengelig som en sammenhengende bit (LinesString) 
-som starter med posisjon 0 og slutter i posisjon 1. For noen av veglenkesekvensene er deler satt historisk. 
-Joda, det kunne la seg gjøre å rekonstruere den orginale veglenkesekvensen ut fra historiske data, men det er tidkrevende og plundrete. 
+En ekstra utfordring med NVDB veglenkesekvenser er at vi ikke har _*hele* veglenkesekvensen tilgjengelig som 
+en sammenhengende bit (LinesString) 
+som starter med posisjon 0 og slutter i posisjon 1. Litt av grunnen er at noen av veglenkene langs en 
+veglenkesekvens kan være tatt ut av bruk (satt historisk). 
+Joda, det kunne la seg gjøre å rekonstruere den orginale veglenkesekvensen ut fra historiske data, men det er tidkrevende og plundrete og har sine utforringer. Med hele veglenkesekvensen (0-1) representert som en sammenhengde LineString-geometri ville vi vært mer robuste 
+mot numerisk unøyaktighet når vi skal "klippe" geometrien i en vilkårlig veglenkeposisjon. 
 
-En annen utfordring er at LES ikke gir ut koordinatstreng med _measure_ verdier - LineString(x0 y0 z0 M0, x1 y1 z1 M1, ...), der den fjerde verdien (M) angir hvilken veglenkeposisjon som gjelder for de geografiske koordinatene (x,y,z). I så fall 
-er det jo grei sak å interpolere mellom de to koordinatpunktene som ligger nærmest den ønskede veglenkeposisjonen.  
+En annen utfordring er at LES ikke gir ut koordinatstreng med _measure_ verdier - `LineString(x0 y0 z0 M0, x1 y1 z1 M1, ...)`, der den fjerde verdien `M` angir hvilken veglenkeposisjon som gjelder for de geografiske koordinatene `(x,y,z)`. I så fall 
+er det jo grei sak å interpolere mellom de to koordinatpunktene med M-verdi nærmest inntil den ønskede veglenkeposisjonen.  
 
 Men med disse begrensingene så var det begrenset med metoder for manipulering av lineære referanser og geometri i de pythonbibliotekene jeg har undersøkt. Jeg 
 prøvde metoden der vi laget en lineær mapping mellom fysiske meter og de veglenkeposisjonene vi har i start og slutt av segmentet vårt: 
