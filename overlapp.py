@@ -101,8 +101,6 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
 
     TODO: Gå over variabelnavn i returnerte verdier. 
 
-    TODO: Med Left join på plass - bør vi refaktorere "innerjoin" geometrihåndtering? 
-
     TODO: Datasett med punkt (midlertidig deaktivert mens vi jobber med left join)
 
     """
@@ -125,7 +123,7 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
     col_relposA = 'relativPosisjon'
     col_geomA   = 'geometry'
     col_stedfestingA = 'stedfesting'
-    col_ferdig_vegsystemreferanse = 'vegsystemreferanse'    # Den ferdig klippede vegsystemreferansen 
+    col_ferdig_vegsystemreferanse = 'vegsystemreferanse'           # Den ferdig klippede vegsystemreferansen 
     col_backup_fraposisjon        = 'SLETT_orginal_startposisjon'  # Tar vare på orginaldata for LEFT JOIN
     col_backup_tilposisjon        = 'SLETT_orginal_sluttposisjon'  # Tar vare på orginaldata for LEFT JOIN
     col_backup_geometri           = 'SLETT_orginal_geometri'
@@ -141,6 +139,9 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
         col_relposA = prefixA + col_relposA 
         col_geomA   = prefixA + col_geomA 
         col_stedfestingA = prefixA + col_stedfestingA
+
+    else: 
+        prefixA = ''
 
     # Gjetter på prefix B om den ikke finnes. 
     if not prefixB: 
@@ -161,6 +162,11 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
     col_geomB   = prefixB + 'geometry'
     col_stedfestingB = prefixB + 'stedfesting'
 
+    # Arbeidsindeks for overlapp (inner join), delvis overlapp og ikke overlapp
+    temp_indexdfA_SLETT = 'SLETTMEG_arbeidsindeks_outer_join'
+    dfA[temp_indexdfA_SLETT] = dfA.index
+
+
     # For noen datasett, f.eks fra QGIS, så må vi brette ut stedfestingsinformasjon
     if not col_vlinkA in dfA.columns and col_stedfestingA in dfA.columns and '-' in dfA.iloc[0][col_stedfestingA]: 
         tmp = dfA[col_stedfestingA].apply( splittstedfesting ) 
@@ -172,6 +178,31 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
         dfB[col_startB] = tmp[0]
         dfB[col_sluttB] = tmp[1]
         dfB[col_vlinkB] = tmp[2]
+
+
+    # Må finne vegsystemreferanse-kolonner
+    kanKlippeVegreferanse = True  
+
+    if prefixA + 'vref' in dfA.columns: 
+        col_vrefA = prefixA + 'vref'
+    elif prefixA + 'vegsystemreferanse' in dfA.columns: 
+        col_vrefA = prefixA + 'vegsystemreferanse'
+    else: 
+        kanKlippeVegreferanse = False 
+        print( 'Fant ikke kolonner for vegreferanser i datasett A')
+
+    if prefixB + 'vref' in dfB.columns: 
+        col_vrefB = prefixB + 'vref'
+    elif prefixA + 'vegsystemreferanse' in dfB.columns: 
+        col_vrefB = prefixB + 'vegsystemreferanse'
+    else: 
+        kanKlippeVegreferanse = False 
+        print( 'Fant ikke kolonner for vegreferanser i datasett A')
+
+    # forbereder oss på å rydde vekk midlertidige (overflødige kolonner)
+    slettekolonner = [ col_stedfestingA, col_stedfestingB, col_backup_fraposisjon, col_backup_tilposisjon, col_backup_geometri, 
+                        col_geomB, col_ferdig_vegsystemreferanse,  temp_indexdfA_SLETT, 
+                        col_vlinkB, col_startB, col_sluttB, col_vrefB, col_geomB ]
 
     if crs != 5973: 
         print( f"Advarsel - CRS={crs} avviker fra 5973, som er det vi vanligvis bruker. Sikker på at det er riktig?")
@@ -248,11 +279,11 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
     # i orginaldatasettet dfA, finne **samlet utstrekning** i "innerjoin"-datasettet og så finne det som er "til overs". 
     # Dette er jobben til funksjonen `antioverlapp`.` At vi tar høyde for mulig intern overlapp i dfB er grunnen til at denne 
     # funksjonen er såpass komplisert. 
-    # 
-    # Lager først indeks-kolonne i dfA, denne brukes til å finne trinn 1). Slettes etterpå
-    temp_indexdfA_SLETT = 'SLETTMEG_arbeidsindeks_outer_join'
-    dfA[temp_indexdfA_SLETT] = dfA.index
+    
 
+    # Lager først indeks-kolonne i dfA, denne brukes til å finne trinn 1). Slettes etterpå
+    # temp_indexdfA_SLETT = 'SLETTMEG_arbeidsindeks_outer_join' <= FLYTTET TIL STARTEN AV FUNKSJONEN!
+    # dfA[temp_indexdfA_SLETT] = dfA.index                      <= FLYTTET TIL STARTEN AV FUNKSJONEN!
     # og tar vare på de orginale veglenkeposisjonene i dfA
     dfA[col_backup_fraposisjon] = dfA[col_startA]
     dfA[col_backup_tilposisjon] = dfA[col_sluttA]
@@ -282,33 +313,17 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
             inner_joined['startposisjon'] = tmp.apply( lambda x : x[1] )
             inner_joined['sluttposisjon'] = tmp.apply( lambda x : x[2] )
 
-    if klippvegsystemreferanse: 
-        # Må finne vegsystemreferanse-kolonner
-        kanKlippe = True  
-        if not prefixA: 
-            prefixA = ''
-
-        if prefixA + 'vref' in dfA.columns: 
-            col_vrefA = prefixA + 'vref'
-        elif prefixA + 'vegsystemreferanse' in dfA.columns: 
-            col_vrefA = prefixA + 'vegsystemreferanse'
-        else: 
-            kanKlippe = False 
-            print( 'Fant ikke kolonner for vegreferanser i datasett A')
-
-        if prefixB + 'vref' in dfB.columns: 
-            col_vrefB = prefixB + 'vref'
-        elif prefixA + 'vegsystemreferanse' in dfB.columns: 
-            col_vrefB = prefixB + 'vegsystemreferanse'
-        else: 
-            kanKlippe = False 
-            print( 'Fant ikke kolonner for vegreferanser i datasett B')
-
-        if kanKlippe: 
-            inner_joined[col_ferdig_vegsystemreferanse] = inner_joined.apply( lambda x : vegsystemreferanseoverlapp( x[col_vrefA], x[col_vrefB]  ), axis=1 )
+    if klippvegsystemreferanse and kanKlippeVegreferanse:
+        inner_joined[col_ferdig_vegsystemreferanse] = inner_joined.apply( lambda x : vegsystemreferanseoverlapp( x[col_vrefA], x[col_vrefB]  ), axis=1 )
 
     if join == 'INNER':
-        # inner_joined.drop( columns=[temp_indexdfA_SLETT, col_backup_fraposisjon, col_backup_tilposisjon, col_backup_geometri], inplace=True )
+        if not debug: 
+            # Legger vegreferansedata der de hører hjemme
+            inner_joined[col_vrefA] = inner_joined[col_ferdig_vegsystemreferanse]
+
+            for slettcolumn in slettekolonner:
+                if slettcolumn in inner_joined.columns:  
+                    inner_joined.drop( columns=slettcolumn, inplace=True )
 
         if returner_GeoDataFrame: 
             if isinstance( inner_joined.iloc[0]['geometry'], str): 
@@ -323,7 +338,7 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
         if len( outer_ytterst ) > 0: 
 
             # Vegsystemreferanse
-            if klippvegsystemreferanse and kanKlippe: 
+            if klippvegsystemreferanse and kanKlippeVegreferanse: 
                 outer_ytterst[col_ferdig_vegsystemreferanse] = outer_ytterst[col_vrefA]
 
             returdata.append( outer_ytterst ) # Dette er de radene i dFa med veglenkesekvenser  som overhodet ikke finnes i dfB
@@ -377,6 +392,14 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
             returdata.append(  pd.DataFrame( antioverlapp_liste ) )
 
         retval = pd.concat( returdata, axis=0, ignore_index=True )
+
+        if not debug: 
+            # Legger vegreferansedata der de hører hjemme
+            retval[col_vrefA] = retval[col_ferdig_vegsystemreferanse]
+
+            for slettcolumn in slettekolonner:
+                if slettcolumn in retval.columns:  
+                    retval.drop( columns=slettcolumn, inplace=True )
 
         if returner_GeoDataFrame: 
             if isinstance( retval.iloc[0]['geometry'], str): 
@@ -962,10 +985,6 @@ def finnoverlappgeometri( geom1:LineString, geom2:LineString, frapos1:float, til
     geomPunktVpos[frapos2] = Point( geom2.coords[ 0]  )
     geomPunktVpos[tilpos2] = Point( geom2.coords[-1]  )
 
-    # dpos_hele = np.float64( kort_tilpos ) - np.float64( kort_frapos )
-    # dpos_kutt = np.float64( kuttpos ) - np.float64( kort_frapos )
-    # fraction_kutt = dpos_kutt / dpos_hele 
-    # ny_lengde = fraction_kutt * np.float64( kortgeom.length )
     ny_lengde = kortgeom.line_locate_point(  geomPunktVpos[ kuttpos ] )
     assert ny_lengde <= np.float64( kortgeom.length ), "Ny lengde må være kortere enn opprinnelig lengde"
     geomliste = shapelycut( kortgeom, ny_lengde )
