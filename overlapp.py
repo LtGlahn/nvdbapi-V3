@@ -445,10 +445,7 @@ def klippgeometriVeglenkepos( mygeom, orginalpos, nyepos, geomPunktVpos, debug=F
     if ny_reellmeterSlutt: 
         nygeom = shapelycut( nygeom, ny_reellmeterSlutt )[0]
     if ny_reellmeterStart > 0: 
-        try: 
-            nygeom = shapelycut( nygeom, ny_reellmeterStart)[1]
-        except TypeError: 
-            nygeom = shapelycut( nygeom, ny_reellmeterStart, debug=True )
+        nygeom = shapelycut( nygeom, ny_reellmeterStart)[1]
 
     if debug: 
         print( f"Geometrilengde={mygeom.length}, startMeter={ny_reellmeterStart}, orginalpos={orginalpos}, nyepos={nyepos}  " )
@@ -749,8 +746,10 @@ def shapelycut( line, distance, debug=False ):
                 return [ LineString(coords[:i] + [(cp.x, cp.y)]),
                          LineString([(cp.x, cp.y)] + coords[i:])]
 
-        if pd == 0 and i == len( coords)-1: # Rundkjøring, hvilket betyr at siste koordinat = første koordinat. Dvs pd mappes til START av linja (0), ikke slutten! 
-                                            # Hvis vi er havnet her betyr det at vårt punkt ligger mellom siste og nest siste punkt på linja
+        # Hvis vi er havnet her betyr det at vårt punkt ligger mellom siste og nest siste punkt på linja! => Rundkjøring
+        # En rundkjøring betyr at siste koordinat = første koordinat. Dvs pd mappes til START av linja (0), ikke slutten!
+        if pd == 0 and i == len( coords)-1:  
+                                            
             cp = line.interpolate(distance)
             if line.has_z: 
                 return[ LineString( coords[:i] + [(cp.x, cp.y, cp.z)]), 
@@ -956,10 +955,18 @@ def finnoverlappgeometri( geom1:LineString, geom2:LineString, frapos1:float, til
     # Sanity check 
     assert kuttpos >= kort_frapos and kuttpos <= kort_tilpos,  "Feil logikk i vår håndtering av lineære posisjoner" 
 
-    dpos_hele = np.float64( kort_tilpos ) - np.float64( kort_frapos )
-    dpos_kutt = np.float64( kuttpos ) - np.float64( kort_frapos )
-    fraction_kutt = dpos_kutt / dpos_hele 
-    ny_lengde = fraction_kutt * np.float64( kortgeom.length )
+    # Lager oppslagsnøkkel for veglenkeposisjon -> shapely punktgeometri for endepunktene til geom1, geom2 
+    geomPunktVpos = {}
+    geomPunktVpos[frapos1] = Point( geom1.coords[ 0]  )
+    geomPunktVpos[tilpos1] = Point( geom1.coords[-1]  )
+    geomPunktVpos[frapos2] = Point( geom2.coords[ 0]  )
+    geomPunktVpos[tilpos2] = Point( geom2.coords[-1]  )
+
+    # dpos_hele = np.float64( kort_tilpos ) - np.float64( kort_frapos )
+    # dpos_kutt = np.float64( kuttpos ) - np.float64( kort_frapos )
+    # fraction_kutt = dpos_kutt / dpos_hele 
+    # ny_lengde = fraction_kutt * np.float64( kortgeom.length )
+    ny_lengde = kortgeom.line_locate_point(  geomPunktVpos[ kuttpos ] )
     assert ny_lengde <= np.float64( kortgeom.length ), "Ny lengde må være kortere enn opprinnelig lengde"
     geomliste = shapelycut( kortgeom, ny_lengde )
     # from IPython import embed; embed() # DEBUG
