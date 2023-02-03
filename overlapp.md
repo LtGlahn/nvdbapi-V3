@@ -106,11 +106,9 @@ Vår implementasjon `shapelycut` er tilpasset til å håndtere både 2D `(x,y)` 
 
 En `left join` mellom f.eks vegnettet eller en heldekkende objekttype (f.eks fartsgrense eller  bruksklasse normal- eller tømmertransport) og en annen NVDB objekttype (eller hva som helst annet som har utstrekning langs vegnettet beskrevet med posisjoner langs veglenkesekvens ID) kan sees på som en _segmentering_ av to datasett. Sluttresultatet kan så inngå i en ny _left join_ med et tredje datasett, så et fjerde og så videre. Dermed oppnår man mye av det samme som en fullblods segmenteringsprosess. 
 
-Ett viktig forbehold: Hvis det kan finnes mer enn én objektforekomst samme sted langs vegnettet så vil du få mer enn én rad i sluttresultatet. For eksempel hvis du tar en left join av fartsgrense pluss rekkverk langs [denne delen av Rv41](https://vegkart.atlas.vegvesen.no/#kartlag:geodata/@129236,6547560,15/hva:!(id~5)~) så får du to rader med fartsgrense+rekkverksdata det finnes rekkverk på begge sider, én per rekkverk-objekt. Der det ikke finnes rekkverk overhodet så vil `left join` gi deg fartsgrense. Motsatt så vil en `inner join`  kun gi deg data der du har overlapp, altså ikke gi deg data om fartsgrenser for strekningene mellom der det finnes rekkverk.  
+Ett viktig forbehold: Hvis det kan finnes mer enn én objektforekomst samme sted langs vegnettet så vil du få mer enn én rad i sluttresultatet. For eksempel hvis du tar en left join av fartsgrense pluss rekkverk langs [denne delen av Rv41](https://vegkart.atlas.vegvesen.no/#kartlag:geodata/@129236,6547560,15/hva:!(id~5)~) så får du to rader med fartsgrense+rekkverksdata det finnes rekkverk på begge sider, én per rekkverk-objekt. Der det ikke finnes rekkverk overhodet så vil `left join` gi deg data om fartsgrense, men mangle dataverdier for rekkverk. 
 
 ![Skjermdump vegkart rekkverk på begge sider av Rv41](./pic/rekkverkRv41.png) 
 
-
-
-
-En skikkelig segmenteringsprosess 
+En skikkelig segmenteringsprosess vil ta hensyn til at det finnes mer enn étt rekkverk og gi deg et sluttresultatene der de to rekkverkene er blandet sammen til én rad i datasettet. Da må selvsagt segmenteringsprosessen 
+ha regler for hvordan to (evt flere) rekkverk skal blandes sammen til én ferdig rad (f.eks gjennomsnitt, viktigste, evt ramse opp begge rekkverkenes dataverdier, lage lister eller noe helt annet).  
