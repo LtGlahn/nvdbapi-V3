@@ -414,9 +414,9 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
     else: 
         raise ValueError(f"Ukjent join type {join}, og tro meg - THIS REALLY SHOLD NOT HAPPEN, vi sjekket for {join} in {jointypes} ved oppstart!" )
 
-def klippgeometriVeglenkepos( mygeom, orginalpos, nyepos, geomPunktVpos, debug=False ): 
+def klippgeometriVeglenkepos( mygeom:LineString, orginalpos:tuple, nyepos:type, geomPunktVpos:dict, debug=False ): 
     """
-    Klipper en geometri basert på dimmensjonsløse veglenkeposisjoner samt dictionary med presis posisjon for de aktuelle posisjonene
+    Klipper en geometri basert på dimmensjonsløse veglenkeposisjoner samt dictionary med presis punkt-geometri for de aktuelle posisjonene
 
     Returnerer tom geometri hvis veglenkeposisjonene ikke overlapper. 
     Returnerer orginalgeometri hvis de nye posisjonene har større utstrekning enn orginalposisjoner.
@@ -461,7 +461,7 @@ def klippgeometriVeglenkepos( mygeom, orginalpos, nyepos, geomPunktVpos, debug=F
     if nyepos[0] > orginalpos[0]: 
         # ny_reellmeterStart  = LFAC * nyepos[0] - orginal_startmeter 
         ny_reellmeterStart = nygeom.line_locate_point( geomPunktVpos[ nyepos[0] ])
-    if nyepos[1] < orginalpos[0]: 
+    if nyepos[1] < orginalpos[1]: 
         # ny_reellmeterSlutt = LFAC * nyepos[1] - orginal_startmeter
         ny_reellmeterSlutt = nygeom.line_locate_point(  geomPunktVpos[ nyepos[1] ] )
 
