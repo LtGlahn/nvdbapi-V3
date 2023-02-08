@@ -59,3 +59,5 @@ rekk = gpd.GeoDataFrame( [ { 'vref' : lagvref( GLF[r1a], GLF[r1b] ),  'nvdbId' :
             vid : 1000, fra : GLF[r2a], til : GLF[r2b], 'geometry'  : LineString( myGeomCoords[r2a:r2b+1] ) }    ], 
                           geometry='geometry', crs=5973 )
 
+
+# Test av lengdefilter - lager datasett med nesten perfekt overlapp
