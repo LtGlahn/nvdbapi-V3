@@ -36,11 +36,13 @@ vid = 'veglenkesekvensid'
 fra = 'startposisjon'
 til = 'sluttposisjon'
 
+# To vegnettsbiter, hver på 500 m
 v1 = 100 
 veg = gpd.GeoDataFrame( [ { 'vref' : lagvref(0, GLF[v1]),   vid : 1000, fra : GLF[0],  til : GLF[100], 'geometry' : LineString( myGeomCoords[0:v1+1] )},      
                           { 'vref' : lagvref( GLF[v1], 1),  vid : 1000, fra : GLF[v1], til : GLF[-1], 'geometry'  : LineString( myGeomCoords[v1:] ) }    ], 
                           geometry='geometry', crs=5973 )
 
+# To fartsgrense-biter, ny verdi ved meter 200
 f1 = 40
 fart = gpd.GeoDataFrame( [{ 'Fartsgrense' : 80, 'vref' : lagvref(0, GLF[f1]),  vid : 1000, fra : GLF[0],  til : GLF[f1], 'geometry' : LineString( myGeomCoords[0:f1+1] )},      
                           { 'Fartsgrense' : 60,'vref' : lagvref( GLF[f1], 1),  vid : 1000, fra : GLF[f1], til : GLF[-1], 'geometry'  : LineString( myGeomCoords[f1:] ) }    ], 
@@ -51,9 +53,9 @@ r1a = 20
 r1b = 120
 r2a = 50
 r2b = 110 
-rekk = gpd.GeoDataFrame( [ { 'vref' : lagvref( GLF[r1a], GLF[r1b] ),  'nvdbId' : 1, 'objektType' : 5, 'Bruksområde' : 'Vann', 
+rekk = gpd.GeoDataFrame( [ { 'vref' : lagvref( GLF[r1a], GLF[r1b] ),  'nvdbId' : 1, 'objekttype' : 5, 'Bruksområde' : 'Vann', 
             vid : 1000, fra : GLF[r1a],  til : GLF[r1b], 'geometry' : LineString( myGeomCoords[r1a:r1b+1] )},      
-                         { 'vref' : lagvref( GLF[r2a], GLF[r2b]),  'nvdbId' : 1, 'objektType' : 5, 'Bruksområde' : 'Midtdeler',
+                         { 'vref' : lagvref( GLF[r2a], GLF[r2b]),  'nvdbId' : 1, 'objekttype' : 5, 'Bruksområde' : 'Midtdeler',
             vid : 1000, fra : GLF[r2a], til : GLF[r2b], 'geometry'  : LineString( myGeomCoords[r2a:r2b+1] ) }    ], 
                           geometry='geometry', crs=5973 )
 
