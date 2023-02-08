@@ -1,0 +1,3 @@
+# Segmentering 
+
+To be written... 
