@@ -74,7 +74,7 @@ Vår håndtering av dette problemet består i at vi analyserer vår datastruktur
 
 # Aggregering når det finnes flere objekt på samme sted 
 
-Noen datasett (f.eks rekkverk) kan ha _intern overlapp_, det vil si at det kan finnes mer enn ett objekt på samme strekning. For eksempel et rekkverk på hver side av vegen. Vi trenger et regelverk for hvordan dette skal håndteres: Skal vi telle antall rekkverk? Skal vi legge sammen ulike dataverdier, eller ta en form for gjennomsnitt? Dette kan du detaljregulere via parameteren `agg={ }`, beskrevet mer i detalj i dokumentasjonen for `segmenter` i fila `segmentering.py`. 
+Noen datasett (f.eks rekkverk) kan ha _intern overlapp_, det vil si at det kan finnes mer enn ett objekt på samme strekning. For eksempel et rekkverk på hver side av vegen. Vi trenger et regelverk for hvordan dette skal håndteres: Skal vi telle antall rekkverk? Skal vi legge sammen ulike dataverdier, eller ta en form for gjennomsnitt? Dette kan du detaljregulere via parameteren `agg={ 'dictonary' : 'med aggregeringsregler' }`, beskrevet mer i detalj i dokumentasjonen for `segmenter` i fila `segmentering.py`. Standard oppførsel hvis ikke annet er angit er å bruke data fra det første objektet vi tilfeldigvis møter på (aggregeringsregel `first`). 
 
 # Få renere datasett: Homogenisering og generalisering 
 
