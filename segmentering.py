@@ -94,7 +94,7 @@ def segmenter( dfVeg, dfListe, agg={}, minsteLengde=0.1, glemNvdbDetaljer=True  
         indexSluttArbSegment1 = 1 
         luftLengde = LineString( [ vpos[myPos[0]], vpos[myPos[indexSluttArbSegment1]] ] ).length
         linLengde  = LFAC * 0.8 * ( myPos[indexSluttArbSegment1] - myPos[0] )
-        import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
 
         # Jogger bortover langs vår veglenkebit til vi har lengde > minsteLengde 
         count = 0
@@ -235,7 +235,7 @@ def segmenter( dfVeg, dfListe, agg={}, minsteLengde=0.1, glemNvdbDetaljer=True  
             cp = deepcopy( nyttSeg)
             cp.pop( 'geometry', None )
 
-            print( json.dumps( cp, indent=4) )
+            # print( json.dumps( cp, indent=4) )
 
     return gpd.GeoDataFrame( data, geometry='geometry', crs=5973 )
 
