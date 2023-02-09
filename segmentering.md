@@ -34,9 +34,9 @@ Vår rutine bruker lineære posisjoner på veglenkesekvens til å regne ut brudd
 
 ### Vegnett og fagdata
 
-Første argument til `segmenter` - funksjonen er en [geodataframe](https://geopandas.org/) representerer vegnettet. Som regel vil vi bruke enten [segmentert vegnett fra NVDB api LES](https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/#/Vegnett/get_vegnett_veglenkesekvenser_segmentert), alternativt [ikke-segmenterte veglenker](https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/#/Vegnett/get_vegnett_veglenkesekvenser). Men du kan også bruke et annet datasett, for eksempel fartsgrenser fra NVDB. _(Vi har også ambisjoner om at du kan bruke et ruteforslag fra ruteplantjenesten som vegnettsdefinisjon, men dette må vi jobbe mere med.)_ Merk at vi kun håndterer vegsystemreferanser hvis egenskapen (kolonnen) `vref` finnes og er populert med gyldige verdier i vegnettsdataene. 
+Første argument til `segmenter` - funksjonen er en [geodataframe](https://geopandas.org/) som representerer (et subsett av) vegnettet. Som regel vil vi bruke enten [segmentert vegnett fra NVDB api LES](https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/#/Vegnett/get_vegnett_veglenkesekvenser_segmentert), alternativt [ikke-segmenterte veglenker](https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/#/Vegnett/get_vegnett_veglenkesekvenser). Men du kan også bruke et annet datasett, for eksempel fartsgrenser fra NVDB. _(Vi har også ambisjoner om at du kan bruke et ruteforslag fra ruteplantjenesten som vegnettsdefinisjon, men dette må vi jobbe mere med.)_ Merk at vi kun håndterer vegsystemreferanser hvis egenskapen (kolonnen) `vref` finnes og er populert med gyldige verdier i vegnettsdataene. 
 
-Andre argument er en liste med de datasettet som skal segmenteres med hensyn på vegnettet. Hvert element i listen er [geodataframe](https://geopandas.org/). 
+Andre argument er en liste med de datasettet som skal segmenteres med hensyn på vegnettet. Hvert element i listen er [geodataframe](https://geopandas.org/), typisk vegobjekter hentet fra NVDB api LES med `nvdbapiv3.nvdbFagdata(<objektTypeId>).to_records()` som så er videre bearbeidet til en GeoDataFrame.   
 
 # Metodikk 
 
