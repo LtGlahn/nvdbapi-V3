@@ -16,9 +16,11 @@ import geopandas as gpd
 
 import overlapp 
 
-def segmenter( dfVeg, dfListe, agg={}, minsteLengde=0.1  ): 
+def segmenter( dfVeg, dfListe, agg={}, minsteLengde=0.1, glemNvdbDetaljer=True  ): 
     """
     Segmenterer liste med (geo)dataframes med hensyn på vegnett definert i dfVeg 
+
+    Se også introduksjon på https://github.com/LtGlahn/nvdbapi-V3/blob/master/segmentering.md
 
     ARGUMENTS
         dfVeg : GeoDataFrame som definerer det vegnettet som er utgangspunkt for segmentering
@@ -41,6 +43,8 @@ def segmenter( dfVeg, dfListe, agg={}, minsteLengde=0.1  ):
                     og summeres med metoden "first". 
 
         minsteLengde : float, default 0.1 meter (10 cm). Kortere segmenter enn dette blir slått sammen med nabosegmentet.
+
+        glemNvdbDetaljer : bool, default True. Ignorerer mindre viktige NVDB-egenskaper som Prosjektreferanse, Eier etc. 
 
     RETURNS 
 
@@ -77,6 +81,8 @@ def segmenter( dfVeg, dfListe, agg={}, minsteLengde=0.1  ):
               3) Starter nytt arbeidssegment 2
            Hvis vi når enden av vår vegnettsbit før arbeidssegment 2 har fått lengde > minstelengde så slås de to 
            arbeidssegmentene sammen (helt enkelt ved å LA VÆRE å lagre bruddpunktet mellom 1 og 2) 
+
+        ADVARSEL: Langvarig stirring og grubling på ndekser (pekere) kan gi hodepine
         """
         nyPos = [ myPos[0]]
         # Lager arbeidssegment 1: 
