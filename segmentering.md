@@ -30,7 +30,13 @@ Vår rutine bruker lineære posisjoner på veglenkesekvens til å regne ut brudd
 | geometry | [shapely](https://shapely.readthedocs.io/) LineString geometrisk objekt |
 | vref | _**Kan sløyfes**_, tekststreng med vegsystemreferanse på formatet `RV2 S2D1 m300-1200` | 
 
-Øvrige egenskapsnavn vil bli videreført til analysen (parameter `glemNvdbDetaljer=True` vil ignorere en del typiske NVDB-egenskaper som sjelden tilfører verdi, slik som _Prosjektreferanse, Eier_ etc). Men som hovedregel er det lurt at du kun sender inn de dataverdiene som har relevans, dvs dem som er angitt over pluss de egenskapene du ønsker å ha i sluttresultatet. Tilsvarende er det ditt ansvar å sørge for  
+Øvrige egenskapsnavn vil bli videreført til analysen (parameter `glemNvdbDetaljer=True` vil ignorere en del typiske NVDB-egenskaper som sjelden tilfører verdi, slik som _Prosjektreferanse, Eier_ etc). Men som hovedregel er det lurt at du kun sender inn de dataverdiene som har relevans, dvs dem som er angitt over pluss de egenskapene du ønsker å ha i sluttresultatet. Tilsvarende er det ditt ansvar å sørge for at det ikke er navnekollisjon på egenskapsnavn blant datasettene som skal segmenteres. 
+
+### Vegnett og fagdata
+
+Første argument til `segmenter` - funksjonen er en [geodataframe](https://geopandas.org/) representerer vegnettet. Som regel vil vi bruke enten [segmentert vegnett fra NVDB api LES](https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/#/Vegnett/get_vegnett_veglenkesekvenser_segmentert), alternativt [ikke-segmenterte veglenker](https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/#/Vegnett/get_vegnett_veglenkesekvenser). Men du kan også bruke et annet datasett, for eksempel fartsgrenser fra NVDB. _(Vi har også ambisjoner om at du kan bruke et ruteforslag fra ruteplantjenesten som vegnettsdefinisjon, men dette må vi jobbe mere med.)_ Merk at vi kun håndterer vegsystemreferanser hvis egenskapen (kolonnen) `vref` finnes og er populert med gyldige verdier i vegnettsdataene. 
+
+Andre argument er en liste med de datasettet som skal segmenteres med hensyn på vegnettet. Hvert element i listen er [geodataframe](https://geopandas.org/). 
 
 # Metodikk 
 
@@ -66,3 +72,11 @@ Vår håndtering av dette problemet består i at vi analyserer vår datastruktur
 >
 > Disse indeksene representerer to segmenter: `arbeidssegment1` (som vi vet er lengre enn minstelengde fordi vi konstruerte den slik!) og `arbeissegment2` (som vi gjør gradvis større inntil den oppnår minstelengde). Når vi kommer dit at `arbeissegment2 > minsteLengde` så lagrer vi kuttpunktene som definerer `arbeidssegment1`, setter `arbeidssegment1 = arbeidssegment2` og starter på et nytt `arbeidssegment2`. Gjenta inntil vi når enden av den vegnettsbiten vi itererer over.  Pluss litt logikk som sikrer at vegnettsbiten ikke blir kortere hvis det er et mulig bruddpunkt helt i start eller slutt av vegnettsbiten. 
 
+# Aggregering når det finnes flere objekt på samme sted 
+
+Noen datasett (f.eks rekkverk) kan ha _intern overlapp_, det vil si at det kan finnes mer enn ett objekt på samme strekning. For eksempel et rekkverk på hver side av vegen. Vi trenger et regelverk for hvordan dette skal håndteres: Skal vi telle antall rekkverk? Skal vi legge sammen ulike dataverdier, eller ta en form for gjennomsnitt? Dette kan du detaljregulere via parameteren `agg={ }`, beskrevet mer i detalj i dokumentasjonen for `segmenter` i fila `segmentering.py`. 
+
+# Få renere datasett: Homogenisering og generalisering 
+
+Ofte er det ønskelig å etterbehandle resultatene, for eksempel ved å slå sammen korte biter som ligner på hverandre til litt færre og 
+lengre biter. Regelverket for hva som `ligner på hverandre` kan fort bli komplekst. Vi har ikke laget noen slik rutine (ennå). 
