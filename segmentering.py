@@ -205,7 +205,6 @@ def segmenter( dfVeg, dfListe, agg={}, minsteLengde=0.1, glemNvdbDetaljer=True  
                         if myCol not in ignorerCol:
                             if 'objekttype' in myDf.columns:  
                                 vt = myDf.iloc[0]['objekttype'] 
-                                print( f"Objekttype {vt}" )
                             else: 
                                 vt = -9
                             nyttNavn = myCol 

@@ -11,6 +11,7 @@ from shapely import wkt
 from shapely.geometry import Point, LineString
 import pandas as pd
 import geopandas as gpd 
+import segmentering
 
 def lagvref( frapos, tilpos, vrefRot='Ef6s1d1', geomlengde = 1000): 
     """
@@ -65,8 +66,18 @@ l1start = myGeomLFAC * dx
 l1slutt = l1start + myGeomLFAC * dx 
 l2slutt = 1 - myGeomLFAC * dx 
 l2start = l2slutt - myGeomLFAC * dx
-rareLinjer = gpd.GeoDataFrame( [  { 'navn' : 'Snål bit 1', 'vref' : lagvref( l1start, l1slutt), vid : 1000, fra : l1start, til : l1slutt, 'geometry' : LineString( [ (myGeomStartX +  l1start/myGeomLFAC, myGeomY, myGeomZ), 
-                                                                                                                                               (myGeomStartX +  l1slutt/myGeomLFAC, myGeomY, myGeomZ) ]) },
-                                  { 'navn' : 'Snål bit 2', 'vref' : lagvref( l2start, l2slutt), vid : 1000, fra : l2start, til : l2slutt, 'geometry' : LineString( [ (myGeomStartX +  l2start/myGeomLFAC, myGeomY, myGeomZ), 
-                                                                                                                                               (myGeomStartX +  l2slutt/myGeomLFAC, myGeomY, myGeomZ) ]) }  ]  )
 
+rareLinjer = gpd.GeoDataFrame( 
+    [  { 'objekttype' : -1, 'navn' : 'Snål bit 1', 'vref' : lagvref( l1start, l1slutt), vid : 1000, fra : l1start, til : l1slutt, 'geometry' : LineString( [ (myGeomStartX +  l1start/myGeomLFAC, myGeomY, myGeomZ), 
+                                                                                                                                          (myGeomStartX +  l1slutt/myGeomLFAC, myGeomY, myGeomZ) ]) },
+       { 'objekttype' : -1, 'navn' : 'Snål bit 2', 'vref' : lagvref( l2start, l2slutt), vid : 1000, fra : l2start, til : l2slutt, 'geometry' : LineString( [ (myGeomStartX +  l2start/myGeomLFAC, myGeomY, myGeomZ), 
+                                                                                                                                          (myGeomStartX +  l2slutt/myGeomLFAC, myGeomY, myGeomZ) ]) }])
+rareLinjer2 = gpd.GeoDataFrame( [                                                                                                                                          
+       { 'objekttype' : -3, 'Merknad' : 'Snål bit 3', 'vref' : lagvref( 0, l1start), vid : 1000, fra : 0, til : l1start, 'geometry' : LineString( [ (myGeomStartX, myGeomY, myGeomZ), 
+                                                                                                                                 (myGeomStartX +  dx, myGeomY, myGeomZ) ]) },
+       { 'objekttype' : -3,'Merknad' : 'Snål bit 4', 'vref' : lagvref( l2slutt, 1), vid : 1000, fra : l2slutt, til : 1, 'geometry' : LineString( [ (myGeomStartX +  l2slutt/myGeomLFAC, myGeomY, myGeomZ), 
+                                                                                                                                  myGeomCoords[-1] ]) }  ]  )
+
+data1 = segmentering.segmenter( veg, [rareLinjer, fart, rekk, rareLinjer2 ] )
+
+data2 = segmentering.segmenter( veg, [fart, rekk], agg={5 : {'Bruksområde' : { 'navn' :  'Bruksområde rekkverk', 'agg' : 'unique' }}}, minsteLengde=60 )
