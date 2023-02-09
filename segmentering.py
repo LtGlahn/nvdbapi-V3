@@ -54,6 +54,11 @@ def segmenter( dfVeg, dfListe, agg={}, minsteLengde=0.1, glemNvdbDetaljer=True  
 
     TODO : Ignorer meterverdi for vegsystemreferanse (parameterstyrt?)
 
+    TODO : Lage fallback-rutine dersom (deler av) inngangsdata mangler vref-data. 
+    Overlappfunksjonene har en funksjon vi kan bruke. 
+
+    TODO : Sjekk for navnekollisjon egenskapsnavn i inngangsdata! 
+
     """
     def __lengdefilter( vpos:dict, myPos:list, LFAC:float, minsteLengde:float ):
         """
