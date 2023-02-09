@@ -59,5 +59,14 @@ rekk = gpd.GeoDataFrame( [ { 'vref' : lagvref( GLF[r1a], GLF[r1b] ),  'nvdbId' :
             vid : 1000, fra : GLF[r2a], til : GLF[r2b], 'geometry'  : LineString( myGeomCoords[r2a:r2b+1] ) }    ], 
                           geometry='geometry', crs=5973 )
 
+# Test av lengdefilter - snåle korte biter helt i enden av datasettet
+dx = 0.01 # 1 cm 
+l1start = myGeomLFAC * dx 
+l1slutt = l1start + myGeomLFAC * dx 
+l2slutt = 1 - myGeomLFAC * dx 
+l2start = l2slutt - myGeomLFAC * dx
+rareLinjer = gpd.GeoDataFrame( [  { 'navn' : 'Snål bit 1', 'vref' : lagvref( l1start, l1slutt), vid : 1000, fra : l1start, til : l1slutt, 'geometry' : LineString( [ (myGeomStartX +  l1start/myGeomLFAC, myGeomY, myGeomZ), 
+                                                                                                                                               (myGeomStartX +  l1slutt/myGeomLFAC, myGeomY, myGeomZ) ]) },
+                                  { 'navn' : 'Snål bit 2', 'vref' : lagvref( l2start, l2slutt), vid : 1000, fra : l2start, til : l2slutt, 'geometry' : LineString( [ (myGeomStartX +  l2start/myGeomLFAC, myGeomY, myGeomZ), 
+                                                                                                                                               (myGeomStartX +  l2slutt/myGeomLFAC, myGeomY, myGeomZ) ]) }  ]  )
 
-# Test av lengdefilter - lager datasett med nesten perfekt overlapp
