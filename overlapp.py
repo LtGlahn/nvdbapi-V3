@@ -378,15 +378,20 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
             for nyeVposisjoner in aa: 
                 nyttSeg = deepcopy( orginal )
                 orginalVposisjoner = (orginal[col_startA], orginal[col_sluttA])
-
-                nyttSeg[col_geomA]                      = klippgeometriVeglenkepos( orginal[col_geomA], orginalVposisjoner, nyeVposisjoner, geomPunktVpos, debug=debug  )
-                # nyttSeg[col_ferdig_vegsystemreferanse]  = estimerVegreferanse(      orginal[col_vrefA], orginalVposisjoner, nyeVposisjoner )
-                nyttSeg[col_ferdig_vegsystemreferanse]  = vegsystemreferanser['vrefRot'] + \
-                                                          'm' + str( vegsystemreferanser[nyeVposisjoner[0]] ) + \
-                                                          '-' + str( vegsystemreferanser[nyeVposisjoner[1]] )
-                nyttSeg[col_startA] = nyeVposisjoner[0]
-                nyttSeg[col_sluttA] = nyeVposisjoner[1]
-                antioverlapp_liste.append( nyttSeg )
+                try: 
+                    nyttSeg[col_geomA]                      = klippgeometriVeglenkepos( orginal[col_geomA], orginalVposisjoner, nyeVposisjoner, geomPunktVpos, debug=debug  )
+                except IndexError: 
+                    print( f"\nDegenerert tilfelle: vid={orginal[col_vlinkA]} \n\tOrginal=({orginal[col_startA]},{orginal[col_sluttA]}), overlapp={nyeVposListe} => Antioverlapp: {nyeVposisjoner}")
+                    print( f"\t{vegsystemreferanser['vrefRot']}m{str( vegsystemreferanser[nyeVposisjoner[0]] )}-{str( vegsystemreferanser[nyeVposisjoner[1]] )} ")
+                    print( f"{geomPunktVpos[nyeVposisjoner[0]].wkt} - {geomPunktVpos[nyeVposisjoner[1]].wkt}")
+                else: 
+                    # nyttSeg[col_ferdig_vegsystemreferanse]  = estimerVegreferanse(      orginal[col_vrefA], orginalVposisjoner, nyeVposisjoner )
+                    nyttSeg[col_ferdig_vegsystemreferanse]  = vegsystemreferanser['vrefRot'] + \
+                                                            'm' + str( vegsystemreferanser[nyeVposisjoner[0]] ) + \
+                                                            '-' + str( vegsystemreferanser[nyeVposisjoner[1]] )
+                    nyttSeg[col_startA] = nyeVposisjoner[0]
+                    nyttSeg[col_sluttA] = nyeVposisjoner[1]
+                    antioverlapp_liste.append( nyttSeg )
 
         if len( antioverlapp_liste ) > 0: 
             returdata.append(  pd.DataFrame( antioverlapp_liste ) )
