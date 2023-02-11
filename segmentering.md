@@ -80,3 +80,18 @@ Noen datasett (f.eks rekkverk) kan ha _intern overlapp_, det vil si at det kan f
 
 Ofte er det ønskelig å etterbehandle resultatene, for eksempel ved å slå sammen korte biter som ligner på hverandre til litt færre og 
 lengre biter. Regelverket for hva som `ligner på hverandre` kan fort bli komplekst. Vi har ikke laget noen slik rutine (ennå). 
+
+# Snudd stedfesting i NVDB
+
+Noe veldig få objekter i NVDB er stedfestet på vegnettet med retning = MOT. Disse må spesialhåndteres, fordi geometrien starter i det som er `sluttposisjon` på veglenkesekvens og har endepunkt i `startposisjon`. Det vil si stikk motsatt retning av alt annet. 
+
+> Mye av slik stedfesting er nok gamle datafeil. Et par objekttyper, for eksempel _916 Strekning_, skal stedfestes på denne måten ved gitte betingelser (i tilfellet 916 så signaliserer retning=MOT at meterverdiene skal telles motsatt veg av lenkeretninga). Men for f.eks bruksklassedata på kommunalveg så gir det overhodet ingen mening med stedfesting MOT.  
+
+Funksjonen `nvdbapiv3.nvdbfagdata().to_records()`  er nå modifisert slik at den legger på egenskapen `segmentretning=MOT` når den møter slike tilfeller. Hvis denne følger med i inngangsdataene så vil segmenteringsrutina ta hensyn til det, og bytte retning der det trengs. 
+
+# Tidsbruk 
+
+Segmentering av ERFK-vegnettet på bruksklasse-objektene _904 BK Normaltransport,  900 BK Tømmertransport_ og _889 BK Modulvogntog_ tar litt under 3 timer med python installert på WSL 1 på en såkalt "DAK-PC" med ganske greie spesifikasjoner (8 kjerner, 32GB RAM f.eks). Metoden
+burde egne seg godt for parallellisering. 
+
+Det er muligens også en del å hente på å utnytte at mye av dataene allerede er _ferdig segmentert_. Spesielt for data med (nesten) heldekkende utstrekning vil mye av datagrunnlaget ha _perfekt overlapp_. Grunnen er at vårt datagrunnlag er (i all hovedsak) såkalt _segmentert vegnett_ og fagdata i all hovedsak jo nettopp er segmentert på dette vegnettet (dette er standardinnstillingene til `nvdbapiv3` - biblioteket for søk etter vegnett `nvdbappiv3.nvdbVegnett()` og metoden `nvdbapiv3.nvdbFagdata().to_records()`. Man kunne derfor tenke seg en rutine som fant _perfekt overlapp_ via SQL eller dataframe - spørring (slik vi gjør i [overlapp](https://github.com/LtGlahn/nvdbapi-V3/blob/master/overlapp.md)). Den relativt trege prosessen med segmentering kan så gjøres på de radene uten perfekt overlapp. 

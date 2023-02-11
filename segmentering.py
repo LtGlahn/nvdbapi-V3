@@ -7,6 +7,7 @@ Segmenterer liste med (geo)dataframes med hensyn på en annen (geo)dataframe
 import pdb
 import json
 from copy import deepcopy
+from datetime import datetime
 
 import numpy as np 
 from shapely import wkt
@@ -160,15 +161,27 @@ def segmenter( dfVeg, dfListe, agg={}, minsteLengde=0.1, glemNvdbDetaljer=True  
         dfListe = [ dfListe ]
 
     data = []
-
+    antall_snudd_stedfesting = 0
+    snudde_veglenkesekvenser = set()
+    t0 = datetime.now()
     # Tar ett segment av gangen fra (geo)dataframe med vegnett
-    for junk, vegbit in dfVeg.iterrows():
+    for vegbitNr, vegbit in dfVeg.iterrows():
+
+        if vegbitNr % 10000 == 0 or vegbitNr in [10, 100, 500, 1000 ]: 
+            if vegbitNr > 10000: 
+                dt = datetime.now()-t0
+                estimertFerdig = len( dfVeg) * dt / vegbitNr - dt 
+                print( f"Segmentering: Veglenke {vegbitNr} av {len(dfVeg)} ferdig med {round( 100*vegbitNr/len(dfVeg))}% Estimert ferdig: {str(estimertFerdig).split('.')[0]} ")
+
+            else:
+                print( f"Segmentering: Veglenke {vegbitNr} av {len(dfVeg)} ferdig med {round( 100*vegbitNr/len(dfVeg))}% tidsbruk {datetime.now()-t0} ")
 
         vpos = { } # Dictionary med geometri for veglenkeposisjoner
         vref = { } # Dictionary med vegsystemreferanse - meterverdier. Vi antar at vi jobber innafor samme delstrekning  
 
-        vpos[ vegbit[fra] ] = Point( vegbit['geometry'].coords[0] )
-        vpos[ vegbit[til] ] = Point( vegbit['geometry'].coords[-1] )
+                                # GRRR - må gjøre dette i 2D, fordi vi helt unntaksvis møter 2D koordinater i fagdata på kommunalveg
+        vpos[ vegbit[fra] ] = Point( (vegbit['geometry'].coords[ 0][0], vegbit['geometry'].coords[ 0][1] ) )
+        vpos[ vegbit[til] ] = Point( (vegbit['geometry'].coords[-1][0], vegbit['geometry'].coords[-1][1] ) )
         if 'vref' in dfVeg.columns: 
             vref[ vegbit[fra] ] = overlapp.splittvegsystemreferanse( vegbit['vref']  )[1]
             vref[ vegbit[til] ] = overlapp.splittvegsystemreferanse( vegbit['vref']  )[2]
@@ -177,8 +190,20 @@ def segmenter( dfVeg, dfListe, agg={}, minsteLengde=0.1, glemNvdbDetaljer=True  
             myDf = myDf[ (myDf[vl] == vegbit[vl]) & (myDf[fra] < vegbit[til]) & (myDf[til] > vegbit[fra])]
 
             for ix, row in myDf.iterrows():
-                vpos[ row[fra] ] = Point( row['geometry'].coords[0] )
-                vpos[ row[til] ] = Point( row['geometry'].coords[-1] )
+
+                # Har vi snudd geometri? 
+                if 'segmentretning' in row and row['segmentretning'].upper() == 'MOT': 
+                    rowgeom = LineString( reversed( list( row['geometry'].coords[:]) ) )
+                    # print(f"Fant snudd geometri for fagdata: VeglenkesekvensID= {row[fra]}-{row[til]} @ {row[vl]} kommune={vegbit['kommune']} " ) 
+                    # if 'vref' in row: 
+                    #     print( f"\t {row['vref']} ")
+                    antall_snudd_stedfesting += 1 
+                    snudde_veglenkesekvenser.add( row[vl] )
+                else: 
+                    rowgeom = row['geometry']
+                                    # GRRR... må bli 2D 
+                vpos[ row[fra] ] = Point( ( rowgeom.coords[ 0][0], rowgeom.coords[ 0][1] ))
+                vpos[ row[til] ] = Point( ( rowgeom.coords[-1][0], rowgeom.coords[-1][1] ))
                 if 'vref' in dfVeg.columns: 
                     vref[ row[fra] ] = overlapp.splittvegsystemreferanse( row['vref']  )[1]
                     vref[ row[til] ] = overlapp.splittvegsystemreferanse( row['vref']  )[2]
@@ -227,15 +252,22 @@ def segmenter( dfVeg, dfListe, agg={}, minsteLengde=0.1, glemNvdbDetaljer=True  
             nyttSeg[til] = myPos[ix+1] 
             if 'vref' in dfVeg.columns: 
                 nyttSeg['vref'] = vegbit['vref'].lower().split('m')[0] + 'm' + str( vref[myPos[ix]]) + '-' + str( vref[myPos[ix+1]] )
-            nyttSeg['geometry'] = overlapp.klippgeometriVeglenkepos( vegbit['geometry'], (vegbit[fra], vegbit[til] ), 
+            try: 
+                nyttSeg['geometry'] = overlapp.klippgeometriVeglenkepos( vegbit['geometry'], (vegbit[fra], vegbit[til] ), 
                                                     (myPos[ix], myPos[ix+1]), vpos, debug=False )
+            except IndexError: 
+                print( f"\nDegenert tilfelle (f.eks stedfesting MOT?) veglenkesekvens={vegbit[vl]} kommune={vegbit['kommune']}")
+                print( f"\tVegnett=({vegbit[fra]},{vegbit[til]}), fagdata={(myPos[ix], myPos[ix+1])} ")
+                if 'vref' in nyttSeg:
+                    print( f"\t{nyttSeg['vref']} ")
+                print( f"\t{vpos[myPos[ix]].wkt} - {vpos[myPos[ix+1]].wkt}\n")
 
-            data.append( nyttSeg )
-            cp = deepcopy( nyttSeg)
-            cp.pop( 'geometry', None )
+            else: 
+                data.append( nyttSeg )
 
-            # print( json.dumps( cp, indent=4) )
-
+    if antall_snudd_stedfesting > 0: 
+        antallData = sum( [ len(x) for x in dfListe  ])
+        print( f"Stedfesting MOT for {antall_snudd_stedfesting} av {antallData} datarader på {len(snudde_veglenkesekvenser)} veglenkesekvenser ")
     return gpd.GeoDataFrame( data, geometry='geometry', crs=5973 )
 
 

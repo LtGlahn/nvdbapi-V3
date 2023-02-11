@@ -381,9 +381,9 @@ def finnoverlapp( dfA, dfB, prefixA=None, prefixB=None, join='inner', klippgeome
                 try: 
                     nyttSeg[col_geomA]                      = klippgeometriVeglenkepos( orginal[col_geomA], orginalVposisjoner, nyeVposisjoner, geomPunktVpos, debug=debug  )
                 except IndexError: 
-                    print( f"\nDegenerert tilfelle: vid={orginal[col_vlinkA]} \n\tOrginal=({orginal[col_startA]},{orginal[col_sluttA]}), overlapp={nyeVposListe} => Antioverlapp: {nyeVposisjoner}")
+                    print( f"\nDegenerert tilfelle: veglenkesekvensID={orginal[col_vlinkA]} \n\tOrginal=({orginal[col_startA]},{orginal[col_sluttA]}), overlapp={nyeVposListe} => Antioverlapp: {nyeVposisjoner}")
                     print( f"\t{vegsystemreferanser['vrefRot']}m{str( vegsystemreferanser[nyeVposisjoner[0]] )}-{str( vegsystemreferanser[nyeVposisjoner[1]] )} ")
-                    print( f"{geomPunktVpos[nyeVposisjoner[0]].wkt} - {geomPunktVpos[nyeVposisjoner[1]].wkt}")
+                    print( f"\t{geomPunktVpos[nyeVposisjoner[0]].wkt} - {geomPunktVpos[nyeVposisjoner[1]].wkt}")
                 else: 
                     # nyttSeg[col_ferdig_vegsystemreferanse]  = estimerVegreferanse(      orginal[col_vrefA], orginalVposisjoner, nyeVposisjoner )
                     nyttSeg[col_ferdig_vegsystemreferanse]  = vegsystemreferanser['vrefRot'] + \
