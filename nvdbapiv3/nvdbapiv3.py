@@ -1194,6 +1194,9 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=True
                         
                 
                     s2['geometri'] = seg['geometri']['wkt']
+                    if 'retning' in seg and seg['retning'].upper() == 'MOT': 
+                        s2['segmentretning'] = 'MOT'
+
                     egenskaper_kopi = deepcopy( egenskaper )
                     egenskaper_kopi = merge_dicts( egenskaper_kopi, s2)
                     mydata.append( egenskaper_kopi )
