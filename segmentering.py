@@ -165,16 +165,19 @@ def segmenter( dfVeg, dfListe, agg={}, minsteLengde=0.1, glemNvdbDetaljer=True  
     snudde_veglenkesekvenser = set()
     t0 = datetime.now()
     # Tar ett segment av gangen fra (geo)dataframe med vegnett
+    print(f"Segmentering av {len(dfVeg)} datarader med veg og {len(dfListe)} typer fagdata med ialt {sum( [ len(x) for x in dfListe  ])} datarader" )
+
+
     for vegbitNr, vegbit in dfVeg.iterrows():
 
-        if vegbitNr % 10000 == 0 or vegbitNr in [10, 100, 500, 1000 ]: 
-            if vegbitNr > 10000: 
+        if vegbitNr % 10000 == 0 or vegbitNr in [1, 10, 100, 500, 1000 ]: 
+            if vegbitNr >= 1000: 
                 dt = datetime.now()-t0
                 estimertFerdig = len( dfVeg) * dt / vegbitNr - dt 
-                print( f"Segmentering: Veglenke {vegbitNr} av {len(dfVeg)} ferdig med {round( 100*vegbitNr/len(dfVeg))}% Estimert ferdig: {str(estimertFerdig).split('.')[0]} ")
+                print( f"Segmentering: Behandler vegsegment {vegbitNr} av {len(dfVeg)} ( {round( 100*vegbitNr/len(dfVeg))}% ) Estimert ferdig om: {str(estimertFerdig).split('.')[0]} ")
 
-            else:
-                print( f"Segmentering: Veglenke {vegbitNr} av {len(dfVeg)} ferdig med {round( 100*vegbitNr/len(dfVeg))}% tidsbruk {datetime.now()-t0} ")
+            elif vegbitNr != 0:
+                print( f"Segmentering: Behandler vegsegment {vegbitNr} av {len(dfVeg)} ( {round( 100*vegbitNr/len(dfVeg))}% ) tidsbruk {str(datetime.now()-t0).split('.')[0]}")
 
         vpos = { } # Dictionary med geometri for veglenkeposisjoner
         vref = { } # Dictionary med vegsystemreferanse - meterverdier. Vi antar at vi jobber innafor samme delstrekning  
@@ -267,7 +270,8 @@ def segmenter( dfVeg, dfListe, agg={}, minsteLengde=0.1, glemNvdbDetaljer=True  
 
     if antall_snudd_stedfesting > 0: 
         antallData = sum( [ len(x) for x in dfListe  ])
-        print( f"Stedfesting MOT for {antall_snudd_stedfesting} av {antallData} datarader på {len(snudde_veglenkesekvenser)} veglenkesekvenser ")
+        print( f"Fagdata: Fant vegobjekter med stedfesting MOT for {antall_snudd_stedfesting} av {antallData} datarader fordelt på {len(snudde_veglenkesekvenser)} veglenkesekvenser")
+    print(f"Segmentering ferdig, tidsbruk: {str(datetime.now()-t0).split('.')[0]}" )
     return gpd.GeoDataFrame( data, geometry='geometry', crs=5973 )
 
 

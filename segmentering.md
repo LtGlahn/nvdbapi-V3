@@ -70,11 +70,11 @@ Vår håndtering av dette problemet består i at vi analyserer vår datastruktur
 
 > Håndtering av minstelengde er den mest komplekse delen av vår kode, ca 80 kodelinjer som tygger seg gjennom alle mulige kuttpunkt med flere pekere (indekser) å holde styr på. 
 >
-> Disse indeksene representerer to segmenter: `arbeidssegment1` (som vi vet er lengre enn minstelengde fordi vi konstruerte den slik!) og `arbeissegment2` (som vi gjør gradvis større inntil den oppnår minstelengde). Når vi kommer dit at `arbeissegment2 > minsteLengde` så lagrer vi kuttpunktene som definerer `arbeidssegment1`, setter `arbeidssegment1 = arbeidssegment2` og starter på et nytt `arbeidssegment2`. Gjenta inntil vi når enden av den vegnettsbiten vi itererer over.  Pluss litt logikk som sikrer at vegnettsbiten ikke blir kortere hvis det er et mulig bruddpunkt helt i start eller slutt av vegnettsbiten. 
+> Disse indeksene representerer to segmenter: `arbeidssegment1` (som vi vet er lengre enn minstelengde fordi vi konstruerte den slik!) og `arbeissegment2` (som vi gjør gradvis større inntil den oppnår minstelengde). Når vi kommer dit at `arbeissegment2 > minsteLengde` så lagrer vi kuttpunktene som definerer `arbeidssegment1`, setter `arbeidssegment1 = arbeidssegment2` og starter på et nytt `arbeidssegment2`. Gjenta inntil vi når enden av den vegnettsbiten vi itererer over.  Pluss litt logikk som sikrer at vegnettsbiten aldri blir kortere hvis det kronglete korte segmentet er helt i start eller slutt av vegnettsbiten. 
 
 # Aggregering når det finnes flere objekt på samme sted 
 
-Noen datasett (f.eks rekkverk) kan ha _intern overlapp_, det vil si at det kan finnes mer enn ett objekt på samme strekning. For eksempel et rekkverk på hver side av vegen. Vi trenger et regelverk for hvordan dette skal håndteres: Skal vi telle antall rekkverk? Skal vi legge sammen ulike dataverdier, eller ta en form for gjennomsnitt? Dette kan du detaljregulere via parameteren `agg={ 'dictonary' : 'med aggregeringsregler' }`, beskrevet mer i detalj i dokumentasjonen for `segmenter` i fila `segmentering.py`. Standard oppførsel hvis ikke annet er angit er å bruke data fra det første objektet vi tilfeldigvis møter på (aggregeringsregel `first`). 
+Noen datasett (f.eks rekkverk) kan ha _intern overlapp_, det vil si at det kan finnes mer enn ett objekt på samme strekning. For eksempel et rekkverk på hver side av vegen. Vi trenger et regelverk for hvordan dette skal håndteres: _Skal vi telle antall rekkverk? Skal vi legge sammen ulike dataverdier, eller ta en form for gjennomsnitt?_ Dette kan du detaljregulere via parameteren `agg={ 'dictonary' : 'med aggregeringsregler' }`, beskrevet mer i detalj i dokumentasjonen for `segmenter` i fila `segmentering.py`. Standard oppførsel hvis ikke annet er angit er å bruke data fra det første objektet vi tilfeldigvis møter på (aggregeringsregel `first`). 
 
 # Få renere datasett: Homogenisering og generalisering 
 
@@ -83,15 +83,18 @@ lengre biter. Regelverket for hva som `ligner på hverandre` kan fort bli komple
 
 # Snudd stedfesting i NVDB
 
-Noe veldig få objekter i NVDB er stedfestet på vegnettet med retning = MOT. Disse må spesialhåndteres, fordi geometrien starter i det som er `sluttposisjon` på veglenkesekvens og har endepunkt i `startposisjon`. Det vil si stikk motsatt retning av alt annet. 
+Noe veldig få objekter i NVDB er stedfestet på vegnettet med retning = MOT. Disse må spesialhåndteres, fordi geometrien til disse objektene har en retning som starter i det som er `sluttposisjon` på veglenkesekvensen og har endepunkt i `startposisjon`. Dette skaper krøll for analysen vår. 
 
 > Mye av slik stedfesting er nok gamle datafeil. Et par objekttyper, for eksempel _916 Strekning_, skal stedfestes på denne måten ved gitte betingelser (i tilfellet 916 så signaliserer retning=MOT at meterverdiene skal telles motsatt veg av lenkeretninga). Men for f.eks bruksklassedata på kommunalveg så gir det overhodet ingen mening med stedfesting MOT.  
 
 Funksjonen `nvdbapiv3.nvdbfagdata().to_records()`  er nå modifisert slik at den legger på egenskapen `segmentretning=MOT` når den møter slike tilfeller. Hvis denne følger med i inngangsdataene så vil segmenteringsrutina ta hensyn til det, og bytte retning der det trengs. 
 
+> Uten denne informasjonen vil de (få) objektene med snudd stedfesting som regel feile (med feilmelding!), og dermed mangle i resultatet. Noen av dem vil IKKE feile, men disse kan få en forskjøvet stedfesting i segmenteringen vår. 
+
 # Tidsbruk 
 
-Segmentering av ERFK-vegnettet på bruksklasse-objektene _904 BK Normaltransport,  900 BK Tømmertransport_ og _889 BK Modulvogntog_ tar litt under 3 timer med python installert på WSL 1 på en såkalt "DAK-PC" med ganske greie spesifikasjoner (8 kjerner, 32GB RAM f.eks). Metoden
-burde egne seg godt for parallellisering. 
+Segmentering av ERFK-vegnettet på bruksklasse-objektene _904 BK Normaltransport,  900 BK Tømmertransport_ og _889 BK Modulvogntog_ tar litt under 3 timer med python installert på WSL 1 på en såkalt "DAK-PC" med ganske greie spesifikasjoner (8 kjerner, 32GB RAM f.eks). Dette er alt kjørbart offentlig vegnett (ca 98000km) for hele Norge, og der to av datasettene (900 Bruksklasse Tømmertransport og 904 Bruksklasse, Normaltransport) er såkalt heldekkende, dvs med unntak av noen datafeil så finnes disse dataene på hele vegnettet. 
 
-Det er muligens også en del å hente på å utnytte at mye av dataene allerede er _ferdig segmentert_. Spesielt for data med (nesten) heldekkende utstrekning vil mye av datagrunnlaget ha _perfekt overlapp_. Grunnen er at vårt datagrunnlag er (i all hovedsak) såkalt _segmentert vegnett_ og fagdata i all hovedsak jo nettopp er segmentert på dette vegnettet (dette er standardinnstillingene til `nvdbapiv3` - biblioteket for søk etter vegnett `nvdbappiv3.nvdbVegnett()` og metoden `nvdbapiv3.nvdbFagdata().to_records()`. Man kunne derfor tenke seg en rutine som fant _perfekt overlapp_ via SQL eller dataframe - spørring (slik vi gjør i [overlapp](https://github.com/LtGlahn/nvdbapi-V3/blob/master/overlapp.md)). Den relativt trege prosessen med segmentering kan så gjøres på de radene uten perfekt overlapp. 
+Denne implementasjonen av segmentering burde egne seg godt for parallellisering. Dette vil vi utforske nærmere. Parallellisering kan gjøres ved å dele opp datasettene (f.eks på kommuner?), eller ved den ytre for-løkken som itererer over radene i vegnettet. 
+
+Det er muligens også en del å hente på å utnytte at mye av dataene allerede er _ferdig segmentert_. Spesielt for data med (nesten) heldekkende utstrekning vil mye av datagrunnlaget ha _perfekt overlapp_. Grunnen er at vårt datagrunnlag er (i all hovedsak) såkalt _segmentert vegnett_ og fagdata i all hovedsak jo nettopp er segmentert på dette vegnettet (dette er standardinnstillingene til `nvdbapiv3` - biblioteket for søk etter vegnett `nvdbappiv3.nvdbVegnett()` og metoden `nvdbapiv3.nvdbFagdata().to_records()`. Man kunne derfor tenke seg en rutine som fant _perfekt overlapp_ via SQL eller dataframe - spørring (slik vi gjør i [overlapp](https://github.com/LtGlahn/nvdbapi-V3/blob/master/overlapp.md)). Den relativt trege prosessen med segmentering kan så gjøres på de radene der vi ikke har perfekt overlapp. 
