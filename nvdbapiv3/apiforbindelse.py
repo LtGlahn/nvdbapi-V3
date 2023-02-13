@@ -107,7 +107,7 @@ class apiforbindelse( ):
             print( 'Miljø finnes ikke! utvles, utvskriv, testles, testskriv, prodles, prodskriv')
 
                               
-    def login(self, miljo=None, username='jajens', pw=None, klient=None, realm='EMPLOYEE'): 
+    def login(self, miljo=None, username='jajens', pw=None, klient=None, realm='EMPLOYEE', user_type='employee'): 
         """
         Logger inn i api.
         
@@ -130,6 +130,15 @@ class apiforbindelse( ):
                     'EMPLOYEE' er default (personlig bruker hos SVV), 
                     alternativt 'serviceaccount' (fjesløs systembruker)
                     TODO: Burde byttet begrep til user_type, ref https://nvdbapiles-v3.test.atlas.vegvesen.no/dokumentasjon/#autentisering 
+
+            user_type : string, angir brukertype for innlogging leseapi 
+                    'employee' er default (personlig bruker hos SVV), 
+                    'external' = Personlig bruker utafor SVV-organisasjon, f.eks P-bruker hos fylket 
+                    Alternativt kan det være 'serviceaccount' (fjesløs systembruker)
+
+                    TODO: I LES angir du "realm" ved å sette "user_type" (?) Dette er forvirrende. Rydd opp så snart
+                        LES - dokumentasjonen og/eller påloggingsrutiner endres.  
+             
         """
         
         if miljo: 
@@ -138,7 +147,7 @@ class apiforbindelse( ):
         if 'skriv' in self.miljo: 
             self.__loginskriv( username='jajens', pw=pw, realm=realm )
         elif 'les' in self.miljo: 
-           self.__loginles( username='jajens', pw=pw) 
+           self.__loginles( username='jajens', pw=pw, user_type=user_type ) 
         else: 
             print( 'Miljø ikke korrekt angitt', self.miljo )
     
