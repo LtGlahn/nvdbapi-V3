@@ -72,6 +72,12 @@ Vår håndtering av dette problemet består i at vi analyserer vår datastruktur
 >
 > Disse indeksene representerer to segmenter: `arbeidssegment1` (som vi vet er lengre enn minstelengde fordi vi konstruerte den slik!) og `arbeissegment2` (som vi gjør gradvis større inntil den oppnår minstelengde). Når vi kommer dit at `arbeissegment2 > minsteLengde` så lagrer vi kuttpunktene som definerer `arbeidssegment1`, setter `arbeidssegment1 = arbeidssegment2` og starter på et nytt `arbeidssegment2`. Gjenta inntil vi når enden av den vegnettsbiten vi itererer over.  Pluss litt logikk som sikrer at vegnettsbiten aldri blir kortere hvis det kronglete korte segmentet er helt i start eller slutt av vegnettsbiten. 
 
+Men denne håndteringen medfører også at en bitteliten "tiloversbit" kan "smitte over" på naboelementet. I figuren under viser vi hvordan et rekkverk har en utstrekning akkurat like 
+bortenfor der ÅDT-verdien skifter fra 5000 (mørkegrønn linje) til 4000 (lysegrønn) kjøretøy per døgn. Dermed blir informasjon om rekkverket påført hele den biten med ÅDT-verdi = 4000 (nederste høyre del av figuren). 
+
+![Figuren viser hvordan vår filtrering av ultrakorte segmenter kan medføre at fagdata som så vidt er akkurat innafor et segment vil medføre at hele segmentet blir påført denne fagdata-verdien. I eksemplet bruker vi rekkverk som starter på et segment med ÅDT-verdi=5000 og akkurat så vidt går like forbi starten på nabosegmentet med ÅDT-verdi 4000](./pic/segmentering5.png)
+
+
 # Aggregering når det finnes flere objekt på samme sted 
 
 Noen datasett (f.eks rekkverk) kan ha _intern overlapp_, det vil si at det kan finnes mer enn ett objekt på samme strekning. For eksempel et rekkverk på hver side av vegen. Vi trenger et regelverk for hvordan dette skal håndteres: _Skal vi telle antall rekkverk? Skal vi legge sammen ulike dataverdier, eller ta en form for gjennomsnitt?_ Dette kan du detaljregulere via parameteren `agg={ 'dictonary' : 'med aggregeringsregler' }`, beskrevet mer i detalj i dokumentasjonen for `segmenter` i fila `segmentering.py`. Standard oppførsel hvis ikke annet er angit er å bruke data fra det første objektet vi tilfeldigvis møter på (aggregeringsregel `first`). 

@@ -49,6 +49,10 @@ fart = gpd.GeoDataFrame( [{ 'Fartsgrense' : 80, 'vref' : lagvref(0, GLF[f1]),  v
                           { 'Fartsgrense' : 60,'vref' : lagvref( GLF[f1], 1),  vid : 1000, fra : GLF[f1], til : GLF[-1], 'geometry'  : LineString( myGeomCoords[f1:] ) }    ], 
                           geometry='geometry', crs=5973 )
 
+# Objekt som er littegrann forskjøvet (nedenfor toleranse på 10cm ) ift fartsgrensene 
+dx = 0.01
+bru = gpd.GeoDataFrame( [ { 'Bru' : 1, 'vref' : lagvref( GLF[f1], GLF[100]), fra:GLF[f1]-myGeomLFAC*dx, til:GLF[100]+myGeomLFAC*dx, 'geometry' : LineString( [(myGeomCoords[f1][0]-dx, myGeomY, myGeomZ ), (myGeomCoords[100][0]+dx, myGeomY, myGeomZ )]), vid : 1000  }  ]  )
+
 # rekkverk, to biter som delvis overlapper hverandre
 r1a = 20
 r1b = 120
