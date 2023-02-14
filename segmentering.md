@@ -40,11 +40,11 @@ Andre argument er en liste med de datasettet som skal segmenteres med hensyn på
 
 # Metodikk 
 
-Vi har dårlig erfaring med å klippe geometri basert på flyttalsoperasjoner basert på forholdet mellom veglenkeposisjoner og geometrisk lengde: Det blir for upresist. I stedet utnytter vi at selve klippeprosessen jo baserer seg på presist definerte start- og sluttpunkt for de datasettene som inngår: 
+Vi har dårlig erfaring med å klippe geometri basert på flyttalsoperasjoner basert på forholdet mellom veglenkeposisjoner og geometrisk lengde: Det blir for upresist. I stedet utnytter vi at inngangsdatene har  en geometri som starter presist på angitt `startposisjon` og slutter presist på angitt `sluttposisjon`: 
 
 ![Bildet viser klippeprosess for data med ulik utstrekning langs vegnettet](./pic/segmentering2.png)
 
-Hvert "kuttpunkt" i dette steget av segmenteringsprosessen har en presist definert geometri lik eksakt første (eller siste) punkt på den linja som starter (evt slutter) i dette punktet på vegnettet. Via operasjonen på shapely-objektet `geometry.coords[0]` eller `geometry.coords[-1]` får vi tilgang til dette koordinatpunktet. Alt vi trenger å gjøre er å lagre informasjonen som en dictionary (oppslagstabell) for hver eneste veglenkeposisjon i datagrunnlaget: 
+Hvert "kuttpunkt" i dette steget av segmenteringsprosessen har en presist definert geometri lik eksakt første (eller siste) punkt på den linja som starter (evt slutter) i dette punktet på vegnettet. Via operasjonen på shapely-objektet `geometry.coords[0]` (første punkt) eller `geometry.coords[-1]` (siste punkt) får vi tilgang til koordinatene for start- og sluttposisjon. Alt vi trenger å gjøre er å lagre informasjonen som en dictionary (oppslagstabell) for hver eneste veglenkeposisjon i datagrunnlaget: 
 
 ```python
 from shapely import Point 
@@ -57,6 +57,10 @@ for enBitAv in inngangsdata:
 Dette geometriske punktet inngår så i "klippe"-operasjonene som vi gjør på vegnettsgeometrien (shapely LineString, med metoden `shapelycut` fra [github/LtGlahn/overlapp.py](https://github.com/LtGlahn/nvdbapi-V3/blob/master/overlapp.md#user-content-hvorfor-har-vi-en-egen-funksjon-shapelycut-) )
 
 Samme logikk brukes for å holde styr på riktige meterverdier til vegsystemreferansen (gitt at kolonnen `vref` med vegsystemreferanser finnes i data for vegnettet): Vi lager en dictionary der vi kan gjøre oppslag på veglenkeposisjon (flyttall) og få riktig meterverdi. 
+
+# Aggregering når det finnes flere objekt på samme sted 
+
+Noen datasett (f.eks rekkverk) kan ha _intern overlapp_, det vil si at det kan finnes mer enn ett objekt på samme strekning. For eksempel et rekkverk på hver side av vegen. Vi trenger et regelverk for hvordan dette skal håndteres: _Skal vi telle antall rekkverk? Skal vi legge sammen ulike dataverdier, eller ta en form for gjennomsnitt?_ Dette kan du detaljregulere via parameteren `agg={ 'dictonary' : 'med aggregeringsregler' }`, beskrevet mer i detalj i dokumentasjonen for `segmenter` i fila `segmentering.py`. Standard oppførsel hvis ikke annet er angit er å bruke data fra det første objektet vi tilfeldigvis møter på (aggregeringsregel `first`). 
 
 # Bitene blir for korte
 
@@ -72,20 +76,29 @@ Vår håndtering av dette problemet består i at vi analyserer vår datastruktur
 >
 > Disse indeksene representerer to segmenter: `arbeidssegment1` (som vi vet er lengre enn minstelengde fordi vi konstruerte den slik!) og `arbeissegment2` (som vi gjør gradvis større inntil den oppnår minstelengde). Når vi kommer dit at `arbeissegment2 > minsteLengde` så lagrer vi kuttpunktene som definerer `arbeidssegment1`, setter `arbeidssegment1 = arbeidssegment2` og starter på et nytt `arbeidssegment2`. Gjenta inntil vi når enden av den vegnettsbiten vi itererer over.  Pluss litt logikk som sikrer at vegnettsbiten aldri blir kortere hvis det kronglete korte segmentet er helt i start eller slutt av vegnettsbiten. 
 
-Men denne håndteringen medfører også at en bitteliten "tiloversbit" kan "smitte over" på naboelementet. I figuren under viser vi hvordan et rekkverk har en utstrekning akkurat like 
-bortenfor der ÅDT-verdien skifter fra 5000 (mørkegrønn linje) til 4000 (lysegrønn) kjøretøy per døgn. Dermed blir informasjon om rekkverket påført hele den biten med ÅDT-verdi = 4000 (nederste høyre del av figuren). 
+Denne håndteringen gir også risiko for at en bitteliten "tiloversbit" kan "smitte over" på naboelementet. I figuren under viser vi hvordan et rekkverk har en utstrekning akkurat like 
+bortenfor der ÅDT-verdien skifter fra 5000 (mørkegrønn linje) til 4000 (lysegrønn) kjøretøy per døgn. I første implementasjon ble informasjon om rekkverket påført hele den biten med ÅDT-verdi = 4000 (nederste høyre del av figuren). 
+Dette er IKKE hva vi ønsker oss. Vi har justert logikken for overlapp, slik at dette fenomenet ikke skal inntreffe. 
 
-![Figuren viser hvordan vår filtrering av ultrakorte segmenter kan medføre at fagdata som så vidt er akkurat innafor et segment vil medføre at hele segmentet blir påført denne fagdata-verdien. I eksemplet bruker vi rekkverk som starter på et segment med ÅDT-verdi=5000 og akkurat så vidt går like forbi starten på nabosegmentet med ÅDT-verdi 4000](./pic/segmentering5.png)
+![Figuren viser hvordan vår filtrering av ultrakorte segmenter kan medføre at fagdata som så vidt er akkurat innafor et segment vil medføre at hele segmentet blir påført denne fagdata-verdien. I eksemplet bruker vi rekkverk som starter på et segment med ÅDT-verdi=5000 og akkurat så vidt går like forbi starten på nabosegmentet med ÅDT-verdi 4000, et ugunstig resultat.](./pic/segmentering5.png)
+
+# Degenererte data og vårt støyfilter
+
+I NVDB skal vi ikke ha linje-objekter med kortere utstrekning enn 1 m, men vi kan se for oss datafeil - evt at annen databearbeiding har gitt degenererte linjer med kortere utstrekning 
+enn vår `minstelenge` (evt at vi setter en litt lang minstelengde, f.eks 2m eller 10m). Hvis vi nå møter et kort objekt inne på en fin, lang strekning så vil 
+minstelengde-filteret vårt filtrere det bort - men vi får fremdeles ett (og kun ett) bruddpunkt på strekningen (blå stiplet linje; den røde stiplede linja er for nærme den blå, og blir ignorert). 
+
+> Heldigvis er ikke dette en situasjon som forekommer ofte i NVDB data.
 
 
-# Aggregering når det finnes flere objekt på samme sted 
+![Bildet viser et fiktivt kort objekt med utstrekning kortere enn vår minstelengde. Vi får et nytt bruddpunkt i segmenteringen, men data om det korte objektet blir ellers ikke med i sluttresultatet.](./pic/segmentering6.png)
 
-Noen datasett (f.eks rekkverk) kan ha _intern overlapp_, det vil si at det kan finnes mer enn ett objekt på samme strekning. For eksempel et rekkverk på hver side av vegen. Vi trenger et regelverk for hvordan dette skal håndteres: _Skal vi telle antall rekkverk? Skal vi legge sammen ulike dataverdier, eller ta en form for gjennomsnitt?_ Dette kan du detaljregulere via parameteren `agg={ 'dictonary' : 'med aggregeringsregler' }`, beskrevet mer i detalj i dokumentasjonen for `segmenter` i fila `segmentering.py`. Standard oppførsel hvis ikke annet er angit er å bruke data fra det første objektet vi tilfeldigvis møter på (aggregeringsregel `first`). 
+Ideelt sett skulle vi ignorert det nye bruddpunktet også, men det klarer vi ikke i nåværende implementasjon. Sammenslåing av like segmenter kan evt håndteres utafor segmenteringsrutina, i dertil egnede verktøy - eller ved en egen homogenisering / generaliseringsrutine. 
 
 # Få renere datasett: Homogenisering og generalisering 
 
 Ofte er det ønskelig å etterbehandle resultatene, for eksempel ved å slå sammen korte biter som ligner på hverandre til litt færre og 
-lengre biter. Regelverket for hva som `ligner på hverandre` kan fort bli komplekst. Vi har ikke laget noen slik rutine (ennå). 
+lengre biter. Regelverket for hva som `ligner på hverandre` kan fort bli komplekst. Vi har ikke laget noen slik rutine (ennå). Verktøyet FME med [LineCombiner](http://docs.safe.com/fme/html/FME_Desktop_Documentation/FME_Transformers/Transformers/linecombiner.htm) er et godt alternativ. 
 
 # Snudd stedfesting i NVDB
 
@@ -103,4 +116,6 @@ Segmentering av ERFK-vegnettet på bruksklasse-objektene _904 BK Normaltransport
 
 Denne implementasjonen av segmentering burde egne seg godt for parallellisering. Dette vil vi utforske nærmere. Parallellisering kan gjøres ved å dele opp datasettene (f.eks på kommuner?), eller ved den ytre for-løkken som itererer over radene i vegnettet. 
 
-Det er muligens også en del å hente på å utnytte at mye av dataene allerede er _ferdig segmentert_. Spesielt for data med (nesten) heldekkende utstrekning vil mye av datagrunnlaget ha _perfekt overlapp_. Grunnen er at vårt datagrunnlag er (i all hovedsak) såkalt _segmentert vegnett_ og fagdata i all hovedsak jo nettopp er segmentert på dette vegnettet (dette er standardinnstillingene til `nvdbapiv3` - biblioteket for søk etter vegnett `nvdbappiv3.nvdbVegnett()` og metoden `nvdbapiv3.nvdbFagdata().to_records()`. Man kunne derfor tenke seg en rutine som fant _perfekt overlapp_ via SQL eller dataframe - spørring (slik vi gjør i [overlapp](https://github.com/LtGlahn/nvdbapi-V3/blob/master/overlapp.md)). Den relativt trege prosessen med segmentering kan så gjøres på de radene der vi ikke har perfekt overlapp. 
+> Det er muligens også en del å hente på å utnytte at mye av dataene allerede er _ferdig segmentert - med eksakt samme segmentering_. Spesielt for data med (nesten) heldekkende utstrekning vil mye av datagrunnlaget ha _perfekt overlapp_. Grunnen er at det i mange sammenhenger er naturlig å kombinere såkalt _segmentert vegnett_ med ferdig segmenterte fagdata. Det vil si at alle NVDB-objekter kommer ferdig segmentert på såkalt _segmentert vegnett_. Da er det jo overflødig at vi segmenterer én gang til - hvis vi bare klarer skille bitene med _perfekt overlapp_ fra resten. 
+>
+> Uthenting av segmentert vegnett og segmenterte  fagdata er standardinnstillingene til `nvdbapiv3` - biblioteket for søk etter vegnett `nvdbappiv3.nvdbVegnett()` og metoden `nvdbapiv3.nvdbFagdata().to_records()`. Man kunne derfor tenke seg en rutine som fant _perfekt overlapp_ via SQL eller dataframe - spørring (slik vi gjør med [overlapp-funksjonen](https://github.com/LtGlahn/nvdbapi-V3/blob/master/overlapp.md)). Den relativt trege prosessen med segmentering kan så gjøres på de radene der vi ikke har perfekt overlapp. 

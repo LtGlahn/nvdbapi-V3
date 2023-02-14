@@ -51,7 +51,14 @@ fart = gpd.GeoDataFrame( [{ 'Fartsgrense' : 80, 'vref' : lagvref(0, GLF[f1]),  v
 
 # Objekt som er littegrann forskjøvet (nedenfor toleranse på 10cm ) ift fartsgrensene 
 dx = 0.01
-bru = gpd.GeoDataFrame( [ { 'Bru' : 1, 'vref' : lagvref( GLF[f1], GLF[100]), fra:GLF[f1]-myGeomLFAC*dx, til:GLF[100]+myGeomLFAC*dx, 'geometry' : LineString( [(myGeomCoords[f1][0]-dx, myGeomY, myGeomZ ), (myGeomCoords[100][0]+dx, myGeomY, myGeomZ )]), vid : 1000  }  ]  )
+bru = gpd.GeoDataFrame( [ { 'Bru' : 1, 'vref' : lagvref( GLF[f1], GLF[100]), fra:GLF[f1]-myGeomLFAC*dx, til:GLF[100]+myGeomLFAC*dx, 
+                        'geometry' : LineString( [(myGeomCoords[f1][0]-dx, myGeomY, myGeomZ ), (myGeomCoords[100][0]+dx, myGeomY, myGeomZ )]), vid : 1000  }  ]  )
+
+
+# Latterlig kort objekt < toleranse på 10cm, midt inne på fartsgrense-strekning
+stikk = gpd.GeoDataFrame( [ { 'Stikk' : 'Ja', 'vref' : lagvref( GLF[175], GLF[175]), fra:GLF[175]-myGeomLFAC*dx, til:GLF[175]+myGeomLFAC*dx, 
+        'geometry' : LineString( [(myGeomCoords[175][0]-dx, myGeomY, myGeomZ ), (myGeomCoords[175][0]+dx, myGeomY, myGeomZ )]), vid : 1000  }  ]  )
+
 
 # rekkverk, to biter som delvis overlapper hverandre
 r1a = 20

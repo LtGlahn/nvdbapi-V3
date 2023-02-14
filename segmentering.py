@@ -225,9 +225,20 @@ def segmenter( dfVeg, dfListe, agg={}, minsteLengde=0.1, glemNvdbDetaljer=True  
 
         for ix in range( len( myPos)-1): 
             nyttSeg = {  } 
+
             # Behandler fagdata som matcher disse veglenkeposisjonene
+            # Inklusive støyfilter: Utstrekning til fagdata, målt i veglenkeposisjoner, må være > mikroPos 
+            mikroPos = minsteLengde * 1.1 / LFAC
             for myDf in dfListe: 
-                myDf2 = myDf[ (myDf[vl] == vegbit[vl]) & (myDf[fra] < myPos[ix+1]) & (myDf[til] > myPos[ix])]
+                # myDf2 = myDf[ (myDf[vl] == vegbit[vl]) & (myDf[fra] < myPos[ix+1]) & (myDf[til] > myPos[ix]) & ## Overlapp - OPPRINNELIG FORMULERING, sletta
+
+                # Ny formulering, overlapp + lengdefilter
+                myDf2 = myDf[ (myDf[vl] == vegbit[vl])                                           &   # Samme veglenkesekvens ID                                       OG
+                              (myDf[til]-myDf[fra] > mikroPos)                                   &   # Støyfilter: Fagdata må ha utstrekning > minstelengde           OG 
+                              ( ((myDf[fra] < myPos[ix+1]) & (myDf[til]-myPos[ix]   > mikroPos)) |   # Overlapp > minstelengde regnet fra helt i start av segment (ELLER
+                                ((myDf[til] > myPos[1])    & (myPos[ix+1]-myDf[fra] > mikroPos))     #                         regnet fra helt mot slutt av segment        )
+                                ) ]
+
                 if len( myDf2 ) > 0: 
                     for myCol in myDf2.columns: 
                         if myCol not in ignorerCol:
