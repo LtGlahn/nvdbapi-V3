@@ -112,7 +112,7 @@ Funksjonen `nvdbapiv3.nvdbfagdata().to_records()`  er nå modifisert slik at den
 
 # Tidsbruk 
 
-Segmentering av ERFK-vegnettet på bruksklasse-objektene _904 BK Normaltransport,  900 BK Tømmertransport_ og _889 BK Modulvogntog_ tar litt under 3 timer med python installert på WSL 1 på en såkalt "DAK-PC" med ganske greie spesifikasjoner (8 kjerner, 32GB RAM f.eks). Dette er alt kjørbart offentlig vegnett (ca 98000km) for hele Norge, og der to av datasettene (900 Bruksklasse Tømmertransport og 904 Bruksklasse, Normaltransport) er såkalt heldekkende, dvs med unntak av noen datafeil så finnes disse dataene på hele vegnettet. 
+Segmentering av ERFK-vegnettet på bruksklasse-objektene _904 BK Normaltransport,  900 BK Tømmertransport_ og _889 BK Modulvogntog_ tar litt under 5 timer med python installert på WSL 1 på en såkalt "DAK-PC" med ganske greie spesifikasjoner (8 kjerner, 32GB RAM f.eks). Dette er alt kjørbart offentlig vegnett (ca 98000km) for hele Norge, og der to av datasettene (900 Bruksklasse Tømmertransport og 904 Bruksklasse, Normaltransport) er såkalt heldekkende, dvs med unntak av noen datafeil så finnes disse dataene på hele vegnettet. 
 
 Denne implementasjonen av segmentering burde egne seg godt for parallellisering. Dette vil vi utforske nærmere. Parallellisering kan gjøres ved å dele opp datasettene (f.eks på kommuner?), eller ved den ytre for-løkken som itererer over radene i vegnettet. 
 

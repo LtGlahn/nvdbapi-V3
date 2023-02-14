@@ -167,6 +167,19 @@ def segmenter( dfVeg, dfListe, agg={}, minsteLengde=0.1, glemNvdbDetaljer=True  
     # Tar ett segment av gangen fra (geo)dataframe med vegnett
     print(f"Segmentering av {len(dfVeg)} datarader med veg og {len(dfListe)} typer fagdata med ialt {sum( [ len(x) for x in dfListe  ])} datarader" )
 
+    # Har vi evt annen informasjon som IKKE inngår i de standardverdiene vi ellers ignorerer? 
+    # Beholder vegkategori, fylke, kommune, medium og feltoversikt (hvis de finnes)
+    col_ignorer_veg = set( ['href', 'veglenkesekvensid', 'startposisjon', 'sluttposisjon',
+                        'kortform', 'veglenkenummer', 'segmentnummer', 'startnode', 'sluttnode',
+                        'referanse', 'type', 'detaljnivå', 'typeVeg', 'typeVeg_sosi',
+                        'målemetode', 'geometri', 'lengde', 
+                        'vegsystemreferanse', 'gate', 'startdato', 'medium', 'vref',
+                            'fase', 'nummer', 'strekning', 'delstrekning',
+                        'fra_meter', 'til_meter', 'trafikantgruppe', 'adskilte_lop', 'måledato',
+                        'ankerpunktmeter', 'sideanleggsdel', 'sluttdato', 'kryssdel',
+                            'geometry' ] )
+
+    col_egenskaper_veg =  list( set( list( dfVeg.columns )) - col_ignorer_veg )
 
     for vegbitNr, vegbit in dfVeg.iterrows():
 
@@ -182,7 +195,7 @@ def segmenter( dfVeg, dfListe, agg={}, minsteLengde=0.1, glemNvdbDetaljer=True  
         vpos = { } # Dictionary med geometri for veglenkeposisjoner
         vref = { } # Dictionary med vegsystemreferanse - meterverdier. Vi antar at vi jobber innafor samme delstrekning  
 
-                                # GRRR - må gjøre dette i 2D, fordi vi helt unntaksvis møter 2D koordinater i fagdata på kommunalveg
+        # GRRR - må gjøre dette i 2D, fordi vi helt unntaksvis møter 2D koordinater i fagdata på kommunalveg
         vpos[ vegbit[fra] ] = Point( (vegbit['geometry'].coords[ 0][0], vegbit['geometry'].coords[ 0][1] ) )
         vpos[ vegbit[til] ] = Point( (vegbit['geometry'].coords[-1][0], vegbit['geometry'].coords[-1][1] ) )
         if 'vref' in dfVeg.columns: 
@@ -260,12 +273,18 @@ def segmenter( dfVeg, dfListe, agg={}, minsteLengde=0.1, glemNvdbDetaljer=True  
                             else: 
                                 nyttSeg[nyttNavn] = oppsummerKolonne( myDf2[myCol].to_list( ) )
 
-            # Legger på vegsystemreferanse, lineære posisjoner og  geometri 
+            # Legger på vegsystemreferanse, veglenkesekvens ID, lineære posisjoner og  geometri 
             nyttSeg[vl]  = vegbit[vl]
             nyttSeg[fra] = myPos[ix]
             nyttSeg[til] = myPos[ix+1] 
             if 'vref' in dfVeg.columns: 
                 nyttSeg['vref'] = vegbit['vref'].lower().split('m')[0] + 'm' + str( vref[myPos[ix]]) + '-' + str( vref[myPos[ix+1]] )
+
+            # Har vi andre  egenskaper som skal legges på?
+            for ny_egenskap in col_egenskaper_veg: 
+                nyttSeg[ny_egenskap] = vegbit[ny_egenskap]
+
+            # Geometri 
             try: 
                 nyttSeg['geometry'] = overlapp.klippgeometriVeglenkepos( vegbit['geometry'], (vegbit[fra], vegbit[til] ), 
                                                     (myPos[ix], myPos[ix+1]), vpos, debug=False )
