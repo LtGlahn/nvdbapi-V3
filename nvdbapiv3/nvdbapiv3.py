@@ -66,7 +66,7 @@ class nvdbVegnett:
         
         self.filterdata = {}
         self.geofilter = {} # DEPRECEATED
-        self.headers =   { 'accept' : 'application/vnd.vegvesen.nvdb-v3-rev1+json', 
+        self.headers =   { 'accept' : 'application/vnd.vegvesen.nvdb-v3-rev3+json', 
                             'X-Client' : 'nvdbapi.py',
                             'X-Kontaktperson' : 'jan.kristian.jensen@vegvesen.no'}
                             
