@@ -84,7 +84,8 @@ class nvdbVegnett:
                                 'initielt'      : True,  # Initiell ladning av datasett
                                 'dummy'         : False # Jukse-bruk av paginering 
                     } 
-        
+    
+
         # Standardverdier for responsen, og holder evt tilleggsparametre
         # Initielt tom for vegnett, men langt fagdata
         self.respons  = { }
@@ -128,7 +129,6 @@ class nvdbVegnett:
             print( 'Debug: Paginering')
         
         if self.paginering['initielt']:
-
         
             if isinstance( self, nvdbFagdata): 
                 parametre = merge_dicts(  self.filterdata, self.respons )
@@ -138,6 +138,10 @@ class nvdbVegnett:
             elif isinstance( self, nvdbVegnett): 
                 parametre = self.filterdata
                 self.data = self.anrope( 'vegnett/veglenkesekvenser/segmentert', parametre=parametre )
+
+            elif isinstance( self, nvdbNoder ): 
+                parametre = self.filterdata
+                self.data = self.anrope( 'vegnett/noder', parametre=parametre )
 
             self.paginering['initielt'] = False
 
@@ -212,7 +216,7 @@ class nvdbVegnett:
         antObjLokalt = len(self.data['objekter'])
         if self.debug or debug: 
             print( "debug nesteForekomst: Pagineringsdata", self.paginering) 
-            
+
         if self.paginering['dummy']:
             # Noen har faket et søkeobjekt og dytta inn data der...
             if self.paginering['hvilken'] < len( self.data['objekter']): 
@@ -227,10 +231,16 @@ class nvdbVegnett:
                 parametre = merge_dicts(  self.filterdata, self.respons )
                 self.data = self.anrope( '/'.join(('vegobjekter', str(self.objektTypeId) )), 
                     parametre=parametre ) 
-                    
+
+            elif isinstance( self, nvdbNoder ): 
+                parametre = self.filterdata
+                self.data = self.anrope( 'vegnett/noder', parametre=parametre )
+
             elif isinstance( self, nvdbVegnett): 
                 parametre = self.filterdata
                 self.data = self.anrope( 'vegnett/veglenkesekvenser/segmentert', parametre=parametre )
+
+
 
             self.paginering['initielt'] = False
 
@@ -535,6 +545,10 @@ class nvdbVegnett:
             droppKontrakter : True (default) Tar vekk informasjon om kontraktsområder. Sett til False for å 
                                                 få med dictionary med kontraktsområder-informasjon 
 
+            kvalitetsparametre : False (default), sett lik True for å ta med geometriens kvalitetsparametre 
+
+            Alle nøkkelord sendes videre til funksjonen flatutvegnetsegment 
+
         Returns
             Liste med segmentert vegnett fra NVDB api V3, forflatet for enklere bruk 
         """
@@ -585,6 +599,51 @@ class nvdbVegnett:
             self.paginering['dummy'] = True 
         else: 
             print( 'Fant ikke gyldig rute', vref1, vref2 )
+
+
+class nvdbNoder(nvdbVegnett): 
+    """
+    Henter ut noder fra NVDB api LES, nesten slik som nvdbVegnett. Har mye av de samme søkemulighetene
+
+    Ref https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/#/Vegnett/get_vegnett_noder
+    """
+
+    def __init__( self, miljo=None, debug=False, filter=None):
+        self.filterdata = {}
+        self.headers =   { 'accept' : 'application/vnd.vegvesen.nvdb-v3-rev3+json', 
+                            'X-Client' : 'nvdbapi.py',
+                            'X-Kontaktperson' : 'jan.kristian.jensen@vegvesen.no'}
+
+        self.paginering = { 'antall'         : 1000,     # Hvor mange obj vi henter samtidig.
+                            
+                            'hvilken'       : 0,    # iterasjon 
+                                                    # i det lokale datasettet 
+                                                    # Dvs i+1 til 
+                                                    # array self.data['objekter'] 
+                                                    # 
+                            'meredata'      : True, # Gjetning på om vi kan hente mere data
+                            'initielt'      : True, # Initiell ladning av datasett
+                            'dummy'         : False # For jukse-bruk av søkeobjektet
+                } 
+
+        self.data = { 'objekter' : []}
+        self.filterdata = {}
+        if isinstance( filter, dict ): 
+            self.filterdata = filter 
+
+        self.forbindelse = apiforbindelse.apiforbindelse()
+        if not miljo:
+            miljo = 'prod'
+        self.miljo( miljo )
+        self.forbindelse.velgmiljo( miljo.lower()+'les')
+        self.debug = debug
+
+        # Leser verdier for http header fra JSON-fil
+        self.update_http_header()
+        
+        # Refresh er lurt, (arver tilstand fra andre instanser). 
+        self.refresh()
+
 
 
 class nvdbFagdata(nvdbVegnett): 
@@ -644,8 +703,7 @@ class nvdbFagdata(nvdbVegnett):
                 } 
     
         self.data = { 'objekter' : []}
-        self.apiurl = 'https://www.vegvesen.no/nvdb/api/v3/'
-
+        self.apiurl = 'https://nvdbapiles-v3.atlas.vegvesen.no/'
         self.objektTypeId = None
         self.objektTypeDef = None
         self.antall = None
@@ -1046,6 +1104,7 @@ class nvdbFagObjekt():
             raise ValueError('Function relasjon: Keyword argument relasjon must be int or string' )
             
 
+
 def nvdbfagobjekt2records( feature_eller_liste, **kwargs): 
     """
     DEPRECEATED, bruk nvdbfagdata2records
@@ -1440,7 +1499,7 @@ def hentrute( pos1, pos2, forb=None, droppRiksvegruter=True, droppKontrakter=Tru
 
     return returdata 
 
-def flatutvegnettsegment( vegnettsegment, droppRiksvegruter=True, droppKontrakter=True  ): 
+def flatutvegnettsegment( vegnettsegment, droppRiksvegruter=True, droppKontrakter=True, kvalitetsparametre=False  ): 
     """
     Flater ut et veglenkesegment til en forenklet dictionary-struktur 
 
@@ -1460,6 +1519,8 @@ def flatutvegnettsegment( vegnettsegment, droppRiksvegruter=True, droppKontrakte
         droppKontrakter : True (default) Tar vekk informasjon om kontraktsområder. Sett til False for å 
                                             få med dictionary med kontraktsområder-informasjon 
 
+        kvalitetsparametre : False (default), sett til True hvis du ønsker å bevare kvalitetsparametre
+
     RETURNS 
         dictionary, input-data med vegnettsinformasjon omarbeidet til flat struktur 
     """
@@ -1473,6 +1534,11 @@ def flatutvegnettsegment( vegnettsegment, droppRiksvegruter=True, droppKontrakte
     strek = 'strekning'
     kryss = 'kryssystem'
     sidea = 'sideanlegg'
+
+    if kvalitetsparametre: 
+        v1['geometri_kvalitet']       = v1['geometri'].pop( 'kvalitet', None  )
+        v1['geometri_datafangstdato'] = v1['geometri'].pop( 'datafangstdato', None )
+        v1['geometri_temakode']       = v1['geometri'].pop( 'temakode', None ) 
 
     struktur = [ 
         { 'navn' : 'medium',    'verdi' : { 'l1' : 'geometri',    'l2' : 'medium'  }}, 
