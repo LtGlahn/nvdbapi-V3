@@ -603,7 +603,7 @@ class nvdbVegnett:
 
 class nvdbNoder(nvdbVegnett): 
     """
-    Henter ut noder fra NVDB api LES, nesten slik som nvdbVegnett. Har mye av de samme søkemulighetene
+    Henter ut noder fra NVDB api LES, nesten slik som nvdbVegnett. Har flesteparten av de samme metodene som nvdbVegnett 
 
     Ref https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/#/Vegnett/get_vegnett_noder
     """
