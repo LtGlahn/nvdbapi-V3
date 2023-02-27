@@ -483,6 +483,8 @@ def skrivexcel( filnavn, dataFrameListe, sheet_nameListe=[], indexListe=[], slet
             for slettkol in sletteliste: 
                 if slettkol in mydf: 
                     mydf.drop( columns=slettkol, inplace=True )
+        else: 
+            sletteliste = []
 
         # Navn på blad (ark, sheet_name) i excel-fila
         if sheet_nameListe and isinstance( sheet_nameListe, list) and idx+1 <= len( sheet_nameListe): 
