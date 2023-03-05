@@ -46,7 +46,7 @@ import sys
 
 # nvdblibrary = 'C:/Data/leveranser/nvdbapi-V3'
 nvdblibrary = 'C:\\Users\\jajens\Downloads\\nvdbapi-V3-master\\nvdbapi-V3-master'
-# nvdblibrary = 'C:\Users\<DITT BRUKERNAVN>\Downloads\\nvdbapi-V3-master\nvdbapi-V3-master'
+# nvdblibrary = 'C:\Users\<DITT BRUKERNAVN>\Downloads\\nvdbapi-V3-master\\nvdbapi-V3-master'
 # nvdblibrary = '/home/jan/Documents/jobb/nvdbapi-V3'
 
 
