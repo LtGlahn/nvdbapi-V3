@@ -24,7 +24,7 @@ def hentvegnett( vegnettfilter={}, filnavn=None, forb=None ):
 
     # Henter ikke-segmenterte veglenker og noder 
     lenker = []
-    noder = []
+    # noder = []
     porter = []
 
     if not forb: 
@@ -61,11 +61,13 @@ def hentvegnett( vegnettfilter={}, filnavn=None, forb=None ):
     lenker['geometry'] = lenker['geometri'].apply( wkt.loads )
     lenker.drop( columns=['geometri'], inplace=True ) 
     lenker = gpd.GeoDataFrame( lenker, geometry='geometry', crs=5973 )
-    porter = gpd.GeoDataFrame( porter, geometry='geometry', crs=5973 )
+    # porter = gpd.GeoDataFrame( porter, geometry='geometry', crs=5973 )
     noder  = gpd.GeoDataFrame( noder, geometry='geometry', crs=5973)
 
 
     return { 'segmenterte lenker' : vegseg, 'lenker' : lenker, 'porter' : porter, 'noder' : noder }
 
 
-
+if __name__ == '__main__': 
+    mittfilter = { 'kartutsnitt'  : '269357.54407773,7037792.06798510,270643.08551502,7038768.97485556'}
+    data = hentvegnett( vegnettfilter=mittfilter )
