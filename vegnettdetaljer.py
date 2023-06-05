@@ -18,7 +18,12 @@ def hentvegnett( vegnettfilter={}, filnavn=None, forb=None ):
     vegseg = gpd.GeoDataFrame( vegseg, geometry='geometry', crs=5973 )
 
     # Henter noder 
-    noder = pd.DataFrame( nvdbapiv3.nvdbNoder( filter=vegnettfilter ).to_records( kvalitetsparametre=True ) )
+    tmp_noder = nvdbapiv3.nvdbNoder( filter=vegnettfilter ).to_records( kvalitetsparametre=True ) 
+    noder = []
+    for node in tmp_noder: 
+        node['porter'] = { x['id'] : x for x in node['porter']  }
+        noder.append ( node )
+    noder = pd.DataFrame( noder )
     noder['geometry'] = noder['geometri'].apply( wkt.loads )
     noder = gpd.GeoDataFrame( noder, geometry='geometry', crs=5973 )
 
@@ -41,7 +46,8 @@ def hentvegnett( vegnettfilter={}, filnavn=None, forb=None ):
                 enLenke = nvdbapiv3.flatutvegnettsegment( lenke, kvalitetsparametre=True ) 
                 enLenke['låst_lengde'] = data['låst_lengde']
                 enLenke['lengde_lenkesekvens'] = data['lengde']
-                enLenke['porter'] = data['porter']
+                enLenke['porter'] =  { x['id'] : x for x in data['porter']}
+                
                 lenker.append( enLenke )
 
             for port in data['porter']: 
@@ -65,7 +71,13 @@ def hentvegnett( vegnettfilter={}, filnavn=None, forb=None ):
     noder  = gpd.GeoDataFrame( noder, geometry='geometry', crs=5973)
 
 
-    return { 'segmenterte lenker' : vegseg, 'lenker' : lenker, 'porter' : porter, 'noder' : noder }
+    if filnavn: 
+        lenker.to_file( filnavn, layer='lenker', driver='GPKG')
+        noder.to_file(  filnavn, layer='noder', driver='GPKG')
+        vegseg.to_file( filnavn, layer='segmenterte lenker', driver='GPKG')
+
+
+    return { 'segmenterte lenker' : vegseg, 'lenker' : lenker,  'noder' : noder }
 
 
 if __name__ == '__main__': 
