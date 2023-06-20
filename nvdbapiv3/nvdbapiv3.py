@@ -1250,8 +1250,8 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=True
                     for hvaslag in delkeys: 
                         if  hvaslag in seg['vegsystemreferanse'].keys(): 
                             s2['trafikantgruppe'] = seg['vegsystemreferanse'][hvaslag]['trafikantgruppe']
+                            s2['segmentretning']  = seg['vegsystemreferanse'][hvaslag]['retning']
                         
-                
                     s2['geometri'] = seg['geometri']['wkt']
                     if 'retning' in seg and seg['retning'].upper() == 'MOT': 
                         s2['segmentretning'] = 'MOT'
