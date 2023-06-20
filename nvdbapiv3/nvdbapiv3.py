@@ -1253,8 +1253,26 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=True
                             s2['segmentretning']  = seg['vegsystemreferanse'][hvaslag]['retning']
                         
                     s2['geometri'] = seg['geometri']['wkt']
-                    if 'retning' in seg and seg['retning'].upper() == 'MOT': 
-                        s2['segmentretning'] = 'MOT'
+
+                    # Itererer over lokasjons-elementene for å finne evt sideposisjon og kjørefelt-stedfesting
+                    for lok in feat['lokasjon']['stedfestinger']: 
+                        if 'relativPosisjon' in seg:
+                            if lok['veglenkesekvensid'] == seg['veglenkesekvensid'] and lok['relativPosisjon'] == seg['relativPosisjon']: 
+                                if 'sideposisjon' in lok and isinstance( lok['sideposisjon'], str): 
+                                    s2['sideposisjon'] = lok['sideposisjon']
+                                if 'kjørefelt' in lok and isinstance( lok['kjørefelt'], list) and len( lok['kjørefelt'] ) > 0:
+                                    s2['stedfesting_felt'] = ','.join( lok['kjørefelt'])                                 
+                                if 'retning' in lok: 
+                                    s2['stedfesting_retning'] = lok['retning']
+                            
+                        else: 
+                            if lok['veglenkesekvensid'] == seg['veglenkesekvensid'] and lok['startposisjon'] == seg['startposisjon'] and lok['sluttposisjon'] == seg['sluttposisjon']:
+                                if 'sideposisjon' in lok: 
+                                    s2['sideposisjon'] = lok['sideposisjon']
+                                if 'kjørefelt' in lok and isinstance( lok['kjørefelt'], list) and len( lok['kjørefelt'] ) > 0:
+                                    s2['stedfesting_felt'] = ','.join( lok['kjørefelt']) 
+                                if 'retning' in lok: 
+                                    s2['stedfesting_retning'] = lok['retning']
 
                     egenskaper_kopi = deepcopy( egenskaper )
                     egenskaper_kopi = merge_dicts( egenskaper_kopi, s2)
@@ -1262,6 +1280,22 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=True
             else: 
                 egenskaper['vegsystemreferanser'] = ','.join([ d['kortform'] for d in feat['lokasjon']['vegsystemreferanser'] ] )
                 egenskaper['stedfestinger']       = ','.join([ d['kortform'] for d in feat['lokasjon']['stedfestinger'] ] )
+
+                # Itererer over stedfesting-elementer for å få med evt sideposisjon og felt-stedfesting 
+                stedfestinger = [] # Liste med tekst
+                for lok in feat['lokasjon']['stedfestinger']: 
+                    side = ''
+                    felt = ''
+                    retning = ''
+                    if 'retning' in lok: 
+                        retning = ' ' + lok['retning']
+                    if 'sideposisjon' in lok: 
+                        side = ' ' + lok['sideposisjon']
+                    if 'kjørefelt' in lok and isinstance( lok['kjørefelt'], list) and len( lok['kjørefelt'] ) > 0: 
+                        felt = ' (' +  ','.join( lok['kjørefelt']) + ')'
+                    stedfestinger.append( lok['kortform'] + retning + side + felt )
+                egenskaper['stedfesting_detaljer'] = ','.join( stedfestinger )
+
                 egenskaper['vegsegmenter']        = feat['vegsegmenter']
                 if 'geometri' in feat.keys():
                     egenskaper['geometri']  = feat['geometri']['wkt']
