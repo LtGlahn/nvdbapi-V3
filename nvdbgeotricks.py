@@ -509,7 +509,7 @@ def skrivexcel( filnavn, dataFrameListe, sheet_nameListe=[], indexListe=[], slet
                 col_idx = mydf.columns.get_loc(column)
                 writer.sheets[arknavn].set_column(col_idx, col_idx, column_width)
 
-    writer.save( )
+    writer.close( )
     print( f"skrev {len( dataFrameListe )} faner til {filnavn} ")
 
 def swapXY( mygeom):
