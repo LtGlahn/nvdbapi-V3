@@ -176,7 +176,7 @@ class endringssett():
         if not self.validertresultat: 
             self.valider()
         else: 
-            for ff in self.validertresultat['resultat']['vegObjekter']: 
+            for ff in self.validertresultat['resultat']['vegobjekter']: 
                 if ff['feil']: 
                     print( ff['feil'], ff['nvdbId'])
     
@@ -192,16 +192,16 @@ class endringssett():
         bb = harnvdbid.intersection( set( self.data.keys()))
         if bb: 
             bb_str = bb.pop() # Henter tekst fra set - mengden. Skal kun være 1 - en 
-            endringer = dict(( p['nvdbId'], p) for p in self.data[bb_str]['vegObjekter'])
+            endringer = dict(( p['nvdbId'], p) for p in self.data[bb_str]['vegobjekter'])
         elif  'registrer' in self.data.keys(): 
-            endringer = dict(( p['tempId'], p) for p in self.data['registrer']['vegObjekter'])
+            endringer = dict(( p['tempId'], p) for p in self.data['registrer']['vegobjekter'])
         else: 
             print( 'Funky... dette skulle IKKE skje, her er mine dict-oppslagsnøkler', 
                   self.data.keys())            
 
 
         print( "fremdrift:", b['fremdrift'])
-        for ff in b['resultat']['vegObjekter']: 
+        for ff in b['resultat']['vegobjekter']: 
             if ff['feil']: 
                 nvdbid_feiler.append( ff['nvdbid'])
                 print(' --- FEIL -- ' )
