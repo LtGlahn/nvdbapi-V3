@@ -445,7 +445,53 @@ def filtrerfeltoversikt( feltoversikt, mittfilter=['vanlig', 'K', 'R' ]):
             data.append( feltnummer )
 
     return data 
-        
+
+def kostraVeglengde( minDataFrame  ): 
+    """
+    Teller utstrekning langs vegnett etter KOSTRA-metoden
+
+    Inputdata er en pandas dataframe eller geopandas geodataframe med segmentert vegnett,
+    hentet direkte fra NVDB api LES - endepunktet /vegnett/veglenkesekvenser/segmentert
+
+    Returnerer heltall med lengde, i meter
+    """
+    assert 'columns' in dir( minDataFrame ), "Tror ikke inputdata er gyldig (geo)dataframe"
+    assert 'adskilte_lop' in minDataFrame.columns, "Ser ikke ut til at inputdata beskriver segmentert vegnett?" 
+    assert 'typeVeg' in minDataFrame.columns, "Ser ikke ut til at inputdata beskriver segmentert vegnett?" 
+    assert 'trafikantgruppe' in minDataFrame.columns, "Ser ikke ut til at inputdata beskriver segmentert vegnett?" 
+
+
+    # Ignorerer konnekteringslenker (og evt andre topolognivå enn det øverste)
+    # Vegnett skal også filtrere vekk sideanlegg, type veg osv, mens fagdata stort sett 
+    # ikke skal ha slike filter
+    # IGNORERER FAGDATA i første omgang, de skal stort sett telles rubb og rake uansett (?)
+    # FAGDATA: Har egenskapsverdi 'veglenkeType' 
+    # if 'veglenkeType' in minDataFrame.colums: 
+    #     mydf = minDataFrame[ minDataFrame['veglenkeType'] == 'HOVED'].copy()
+    # Mens for vegnettsdata heter vegtype rett og slett "type"
+    # elif 'type' in minDataFrame.columns: 
+    if 'type' in minDataFrame.columns: 
+        mydf = minDataFrame[ minDataFrame['type'] == 'HOVED'].copy()
+    else: 
+        raise ValueError( 'Mangler informasjon om veglenketype i datasett' )
+
+    # Kun trafikantgruppe = K 
+    mydf = mydf[ mydf['trafikantgruppe'] == 'K' ]
+
+    # Type veglenke ihtt KOSTRA-spresifikasjon 
+    kostraVegtyper = [ 'Kanalisert veg','Enkel bilveg','Rampe','Rundkjøring','Gatetun' ] 
+    mydf = mydf[ mydf['typeVeg'].isin( kostraVegtyper )]
+
+    # Filtrerer vekk sideanlegg, som vi finner ved å se etter strengen SD ( SideanleggsDel ) i vegsystemreferansen
+    mydf = mydf[ ~mydf['vref'].str.contains( 'SD')]
+
+    # Filtrerer vekk Adskilte løp = Mot 
+    mydf = mydf[ mydf['adskilte_lop'].isin( ['Med', 'Nei'] )]
+
+    return mydf['lengde'].sum()
+
+
+
 def skrivexcel( filnavn, dataFrameListe, sheet_nameListe=[], indexListe=[], slettgeometri=True ):
     """
     Skriver liste med dataFrame til excel, med kolonnebredde=lengste element i header eller datainnhold
