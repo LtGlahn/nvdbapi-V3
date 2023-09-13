@@ -73,16 +73,16 @@ class nvdbVegnett:
         self.update_http_header()
                             
         
-        self.paginering = { 'antall'         : 1000,     # Hvor mange obj vi henter samtidig.
-                                
-                                'hvilken'       : 0,    # iterasjon 
-                                                        # i det lokale datasettet 
-                                                        # Dvs i+1 til 
-                                                        # array self.data['objekter'] 
-                                                        # 
-                                'meredata'      : True, # Gjetning på om vi kan hente mere data
-                                'initielt'      : True,  # Initiell ladning av datasett
-                                'dummy'         : False # Jukse-bruk av paginering 
+        self.paginering = { 'antall'                : 1000,     # Hvor mange obj vi henter samtidig.
+                            'hvilken'               : 0,        # iterasjon i det lokale datasettet 
+                                                                # Dvs i+1 til array self.data['objekter'] 
+                                                                # 
+                            'antallObjektReturnert' : 0,        # Løpenummer, antall objekter vi har 
+                                                                # returnert totalt fra nesteForekomst / next  
+                                                                # 
+                            'meredata'              : True,     # Gjetning på om vi kan hente mere data
+                            'initielt'              : True,     # Initiell ladning av datasett
+                            'dummy'                 : False     # Jukse-bruk av paginering 
                     } 
     
 
@@ -231,6 +231,7 @@ class nvdbVegnett:
                 parametre = merge_dicts(  self.filterdata, self.respons )
                 self.data = self.anrope( '/'.join(('vegobjekter', str(self.objektTypeId) )), 
                     parametre=parametre ) 
+                self.antall = self.data['metadata']['antall']
 
             elif isinstance( self, nvdbNoder ): 
                 parametre = self.filterdata
@@ -239,13 +240,13 @@ class nvdbVegnett:
             elif isinstance( self, nvdbVegnett): 
                 parametre = self.filterdata
                 self.data = self.anrope( 'vegnett/veglenkesekvenser/segmentert', parametre=parametre )
-
-
+                self.antall = self.data['metadata']['antall']
 
             self.paginering['initielt'] = False
 
             if self.data['metadata']['returnert'] > 0: 
                 self.paginering['hvilken'] = 1
+                self.paginering['antallObjektReturnert'] += 1 
                 return self.data['objekter'][0]
             else: 
                 self.paginering['meredata'] = False
@@ -256,6 +257,7 @@ class nvdbVegnett:
             self.paginering['hvilken'] = 1
             
             if self.data['metadata']['returnert'] > 0: 
+                self.paginering['antallObjektReturnert'] += 1 
                 return self.data['objekter'][0]
             else: 
                 self.paginering['meredata'] = False
@@ -264,8 +266,8 @@ class nvdbVegnett:
         elif self.paginering['meredata']: 
         
             self.paginering['hvilken'] += 1
+            self.paginering['antallObjektReturnert'] += 1 
             return self.data['objekter'][self.paginering['hvilken']-1]
-
         
     def addfilter_geo(self, *args):
         """
@@ -555,11 +557,19 @@ class nvdbVegnett:
 
         data = []
         v1 = self.nesteForekomst()
+
+        if self.antall and self.antall > 10000: 
+            print( 'Eksport av', self.antall, 'vegsegmenter kommer til å ta tid...')
+
+        count = 1
         while v1: 
 
             v1 = flatutvegnettsegment( v1, **kwargs )
             data.append( v1 )
             v1 = self.nesteForekomst()
+            count += 1
+            if count == 1000 or count == 5000 or count % 10000 == 0: 
+                print( 'Vegsegment', count, 'av', self.antall)            
 
         return data
 
@@ -614,17 +624,17 @@ class nvdbNoder(nvdbVegnett):
                             'X-Client' : 'nvdbapi.py',
                             'X-Kontaktperson' : 'jan.kristian.jensen@vegvesen.no'}
 
-        self.paginering = { 'antall'         : 1000,     # Hvor mange obj vi henter samtidig.
-                            
-                            'hvilken'       : 0,    # iterasjon 
-                                                    # i det lokale datasettet 
-                                                    # Dvs i+1 til 
-                                                    # array self.data['objekter'] 
-                                                    # 
-                            'meredata'      : True, # Gjetning på om vi kan hente mere data
-                            'initielt'      : True, # Initiell ladning av datasett
-                            'dummy'         : False # For jukse-bruk av søkeobjektet
-                } 
+        self.paginering = { 'antall'                : 1000,     # Hvor mange obj vi henter samtidig.
+                            'hvilken'               : 0,        # iterasjon i det lokale datasettet 
+                                                                # Dvs i+1 til array self.data['objekter'] 
+                                                                # 
+                            'antallObjektReturnert' : 0,        # Løpenummer, antall objekter vi har 
+                                                                # returnert totalt fra nesteForekomst / next  
+                                                                # 
+                            'meredata'              : True,     # Gjetning på om vi kan hente mere data
+                            'initielt'              : True,     # Initiell ladning av datasett
+                            'dummy'                 : False     # Jukse-bruk av paginering 
+                    } 
 
         self.data = { 'objekter' : []}
         self.filterdata = {}
@@ -690,17 +700,17 @@ class nvdbFagdata(nvdbVegnett):
                         'X-Client' : 'nvdbapi.py',
                         'X-Kontaktperson' : 'Anonymous'}
     
-        self.paginering = { 'antall'         : 1000,     # Hvor mange obj vi henter samtidig.
-                            
-                            'hvilken'       : 0,    # iterasjon 
-                                                    # i det lokale datasettet 
-                                                    # Dvs i+1 til 
-                                                    # array self.data['objekter'] 
-                                                    # 
-                            'meredata'      : True, # Gjetning på om vi kan hente mere data
-                            'initielt'      : True, # Initiell ladning av datasett
-                            'dummy'         : False # For jukse-bruk av søkeobjektet
-                } 
+        self.paginering = { 'antall'                : 1000,     # Hvor mange obj vi henter samtidig.
+                            'hvilken'               : 0,        # iterasjon i det lokale datasettet 
+                                                                # Dvs i+1 til array self.data['objekter'] 
+                                                                # 
+                            'antallObjektReturnert' : 0,        # Løpenummer, antall objekter vi har 
+                                                                # returnert totalt fra nesteForekomst / next  
+                                                                # 
+                            'meredata'              : True,     # Gjetning på om vi kan hente mere data
+                            'initielt'              : True,     # Initiell ladning av datasett
+                            'dummy'                 : False     # Jukse-bruk av paginering 
+                    }  
     
         self.data = { 'objekter' : []}
         self.apiurl = 'https://nvdbapiles-v3.atlas.vegvesen.no/'
