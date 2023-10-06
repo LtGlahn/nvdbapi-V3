@@ -637,11 +637,26 @@ def vegsystemreferanseoverlapp( vref1:string, vref2:string ):
         'EV6 K S78D1 m99-300' = vegsystemreferanseoverlapp( 'EV6 K S78D1 m0-300', 'EV6 K S78D1 m99-674' ) 
     """
 
+    if vref1 is None or vref2 is None: 
+        return vref1
+
     (vrefrot1, fra1, til1) = splittvegsystemreferanse( vref1 ) 
     (vrefrot2, fra2, til2) = splittvegsystemreferanse( vref2 ) 
 
-    if fra1 <= til2 and fra2 <= til1 and vrefrot1.lower().strip() == vrefrot2.lower().strip(): 
-        return vrefrot1 + 'm' + str(  max( fra1, fra2) ) + '-' + str( min( til1, til2 ))
+    if vrefrot1.lower().strip() == vrefrot2.lower().strip(): 
+
+        # Sjekk for at vi har fått numeriske verdier for fra- og til meter 
+        # Det hender vi ikke får komplett vegsystemreferanse med meter, kun vegkategori+fase+vegnummer
+        if fra1 and fra2 and til1 and til2: 
+
+            # Sjekk dataintegritet - det SKAL være overlapp på meterverdier, fordi det er jo overlapp på vegnettet
+            if fra1 <= til2 and fra2 <= til1: 
+                return vrefrot1 + 'm' + str(  max( fra1, fra2) ) + '-' + str( min( til1, til2 ))
+            else: 
+                print( f'nvdbgeotricks.vegsystemreferanseoverlapp: Ikke overlapp mellom vegsystemreferansene {vref1} og {vref2} ')  
+        else: 
+            # For det tilfellet at vi ikke har komplett vegsystemreferanse, kun vegkategori+fase+vegnummer
+            return vrefrot1
 
     else: 
         print( f'nvdbgeotricks.vegsystemreferanseoverlapp: Ikke overlapp mellom vegsystemreferansene {vref1} og {vref2} ')  
