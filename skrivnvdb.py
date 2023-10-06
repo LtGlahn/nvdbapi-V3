@@ -331,7 +331,7 @@ def endringssett_mal( datakatalogversjon=None, operasjon='delvisOppdater'):
         dictionary med skjelett for endringssett (tom liste med vegobjekter)
     """
     if not datakatalogversjon: 
-        r = requests.get( 'https://www.vegvesen.no/nvdb/api/v3/status.json')
+        r = requests.get( 'https://nvdbapiles-v3.atlas.vegvesen.no/status.json')
         status = r.json()
         datakatalogversjon = status['datagrunnlag']['datakatalog']['versjon'] 
 
@@ -354,7 +354,7 @@ def endringssett_mal( datakatalogversjon=None, operasjon='delvisOppdater'):
 
 def fagdata2skrivemal( liste_eller_forekomst, operasjon='delvisOppdater', 
             ignorerAlleEgenskaper=False, kunDisseEgenskapene=None, ignorerStedfesting=False, effektDato=None,
-            datakatalogversjon=None, slettegenskaper=False, kaskadelukking="JA" ): 
+            datakatalogversjon=None, slettegenskaper=False, kaskadelukking="JA", ignorerRelasjoner=True  ): 
     """
     Konstruerer mal for skriving til NVDB skriveAPI ut fra (liste med) NVDB fagdata fra NVDB api LES V3
 
@@ -385,6 +385,8 @@ def fagdata2skrivemal( liste_eller_forekomst, operasjon='delvisOppdater',
                                                 Gjerne i kombinasjon med nøkkelordet kunDisseEgenskapene=[ liste med egenskap ID]
 
         kaskadelukking: "JA" (default) eller "NEI". Ved lukking av objekter kan man velge å også lukke datterobjekter (assosierte objekt)
+
+        ignorerRelasjoner: True, sett tli False for å ta med relasjoner NB - EKSPERIMENTELT, må utvide med flere assosiasjonstyper
 
     RETURNS
         dictionary: Endringssett du kan sende til NVDB skriveapi (evt etter å ha justert på det)
@@ -443,6 +445,18 @@ def fagdata2skrivemal( liste_eller_forekomst, operasjon='delvisOppdater',
             # fjerner egenskaper fra objekter som skal lukkes
             skrivobj.pop( 'egenskaper', None )
             skrivobj.pop( 'stedfesting', None )
+
+        if len( relasjoner ) > 0 and not ignorerRelasjoner: 
+            assosiasjoner = []
+            for rel in relasjoner: 
+                # Ulik håndtering, alt etter hva slags relasjonstype vi snakker om, og er det 1:1 eller 1:mange
+                if 'innhold' in rel:
+                    for relobj in rel['innhold']:                     
+                        assosiasjoner.append( { 'typeId' : rel['id'], 'nvdbId' : { 'verdi' : relobj['verdi'] }    }  )
+                else: 
+                    print(f"MANGLER FUNKSJONALITET for relasjonstype, vennligst implementer!" )
+                    print( '\t', json.dumps( rel, indent=4))
+            skrivobj['assosiasjoner'] = assosiasjoner
 
         endringssett[operasjon]['vegobjekter'].append( skrivobj )
 
