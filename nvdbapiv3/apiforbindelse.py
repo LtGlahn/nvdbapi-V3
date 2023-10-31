@@ -171,7 +171,7 @@ class apiforbindelse( ):
         if user_type: 
             body['user_type'] = user_type 
 
-        headers = { 'Content-Type' : 'application/json'}
+        headers = { 'Content-Type' : 'application/json', 'X-Client' : 'LtGlahn python'}
 
 
         self.requestsession = requests.session()
