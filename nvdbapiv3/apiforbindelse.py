@@ -57,7 +57,7 @@ class apiforbindelse( ):
         """
         Velger miljø. Default = utvles, eller bruk nøkkelord miljo=<navn på miljø>. 
 
-        Lovlige verdier: NVDB api les v3: utvles, testles, prodles
+        Lovlige verdier: NVDB api les v3: stm-utvles, utvles, testles, prodles
                          NVDB api SKRIV v3: utvskriv, testskriv, prodskriv
         """ 
         self.miljo = miljo
@@ -104,7 +104,7 @@ class apiforbindelse( ):
             self.headers['Content-Type'] = 'application/json'
             
         else:
-            print( 'Miljø finnes ikke! utvles, utvskriv, testles, testskriv, prodles, prodskriv')
+            print( 'Miljø finnes ikke! stm-utvles, utvles, utvskriv, testles, testskriv, prodles, prodskriv')
 
                               
     def login(self, miljo=None, username='jajens', pw=None, klient=None, realm='EMPLOYEE', user_type='employee'): 
@@ -116,7 +116,7 @@ class apiforbindelse( ):
             
         Keywords: 
             miljo : None eller string, en av 
-                    utvles,   testles,   prodles
+                    stm-utvles, utvles,   testles,   prodles
                     utvskriv, testskriv, prodskriv
 
             username : None eller string, ditt brukernavn. Du blir spurt om du ikke oppgir dette
