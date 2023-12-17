@@ -564,7 +564,7 @@ def joinvegsystemreferanser( vegsystemreferanser:list ):
         
     return nyevref
 
-def splittvegsystemreferanse( vegsystemreferanse:string ): 
+def splittvegsystemreferanse( vegsystemreferanse:string, debug=False ): 
     """
     Deler en vegsystemreferanse opp i fra-meter, tilmeter og resten. 
 
@@ -613,7 +613,8 @@ def splittvegsystemreferanse( vegsystemreferanse:string ):
         vrefrot = ''.join( splitt2[0:-1])
 
     except (IndexError, ValueError) as err: 
-        print( f'nvdbgeotricks.splittvegsystemreferanse: Klarer ikke finne fra-til meterverdier ut fra teksten "{vegsystemreferanse}" ' )
+        if debug: 
+            print( f'overlapp.splittvegsystemreferanse: Klarer ikke finne fra-til meterverdier ut fra teksten "{vegsystemreferanse}" ' )
 
     if skrivstorM: 
         vrefrot = vrefrot.translate( 'm', 'M')
