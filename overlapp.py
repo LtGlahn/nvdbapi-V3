@@ -638,7 +638,7 @@ def vegsystemreferanseoverlapp( vref1:string, vref2:string ):
         'EV6 K S78D1 m99-300' = vegsystemreferanseoverlapp( 'EV6 K S78D1 m0-300', 'EV6 K S78D1 m99-674' ) 
     """
 
-    if vref1 is None or vref2 is None: 
+    if vref1 is None or vref2 is None or vref1 == '' or vref2 == '': 
         return vref1
 
     (vrefrot1, fra1, til1) = splittvegsystemreferanse( vref1 ) 
