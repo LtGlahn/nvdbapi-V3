@@ -771,7 +771,7 @@ class nvdbFagdata(nvdbVegnett):
         else: 
             return None
         
-    def to_records(self, vegsegmenter=True, relasjoner=True, geometri=False, debug=False, tidspunkt=None ): 
+    def to_records(self, vegsegmenter=True, relasjoner=True, geometri=False, debug=False, tidspunkt=None, ignorerGeometriFeil=False ): 
         """
         Eksporterer til en liste med dictionaries med struktur 
         "objekttype" : INT,
@@ -811,10 +811,15 @@ class nvdbFagdata(nvdbVegnett):
             tidspunkt=None | datostreng (tekst) på formen '2010-01-01'. DEAKTIVERT, NVDB api gir oss uansett kun de vegsegmentene
                         som er gyldige for det tidspunktet som står i API-kallet. 
 
+            ignorerGeometriFeil=False (default) Hvis True så tar vi med også de objektene som mangler noen form for geometridata
+
         RETURNS
             liste med dictionaries (NVDB-objekt fra NVDB api LES v3 i utflatet struktur)
 
         """
+
+        if ignorerGeometriFeil: 
+            print( f"To_records: Tar med vegobjekt som mangler geometridata")
 
         mydata = []
         if not self.antall: 
@@ -839,16 +844,11 @@ class nvdbFagdata(nvdbVegnett):
 
             # Ignorerer dem med tomt geometrielement, ref 
             # https://github.com/LtGlahn/diskusjon_diverse/tree/master/debug_nvdbapilesv3/vegobjekter 
-            if 'geometri' in feat.keys():
+            if 'geometri' in feat.keys() or ignorerGeometriFeil:
 
-                featureliste = nvdbfagdata2records( feat, vegsegmenter=vegsegmenter, relasjoner=relasjoner, geometri=geometri, debug=debug, tidspunkt=tidspunkt )
-
-
-                    # tmp = deepcopy( featureliste )
-                    # featureliste = []
-                    # for enfeature in tmp: 
-                    #     enfeature['relasjoner'] = feat['relasjoner']
-
+                featureliste = nvdbfagdata2records( feat, vegsegmenter=vegsegmenter, relasjoner=relasjoner, 
+                                                    geometri=geometri, debug=debug, tidspunkt=tidspunkt, 
+                                                    ignorerGeometriFeil=ignorerGeometriFeil )
             
                 mydata.extend( featureliste )
             else: 
@@ -1057,7 +1057,7 @@ def nvdbfagobjekt2records( feature_eller_liste, **kwargs):
     data = nvdbfagdata2records( feature_eller_liste, **kwargs) 
     return data 
 
-def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=True, geometri=False, debug=False, tidspunkt=None ): 
+def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=True, geometri=False, debug=False, tidspunkt=None, ignorerGeometriFeil=False  ): 
     """
     Gjør om (liste med) nvdb fagdata fra NVDB api LES til records, dvs de-normalisert til dictionaries med enkel struktur. 
 
@@ -1104,6 +1104,8 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=True
         tidspunkt=None | dato som tekst på formen '2010-01-01'. Angi tidspunkt som brukes til å filtrere hvilke vegsegmenter som tas med
                 DEAKTIVERT, NVDB api gir kun ut de vegsegmentene som er gyldige på angitt tidspunkt for spørringen
 
+        ignorerGeometriFeil=False, tar med objekter som mangler gyldige geometridata (tomt dataelement)
+
     RETURNS
         liste med dictionaries (vegobjekt fra NVDB api LES i flatere dictionary-struktur)
 
@@ -1121,7 +1123,7 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=True
 
     for count, feat in enumerate(feature_eller_liste): 
         
-        if 'geometri' in feat.keys():
+        if ignorerGeometriFeil or 'geometri' in feat.keys():
 
             meta = { }
             
@@ -1239,6 +1241,9 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=True
                 egenskaper['vegsegmenter']        = feat['vegsegmenter']
                 if 'geometri' in feat.keys():
                     egenskaper['geometri']  = feat['geometri']['wkt']
+                else:
+                    nvdbid_manglergeom.append( feat['id']) 
+
                 if 'lengde' in feat['lokasjon']: 
                     egenskaper['strekningslengde'] = feat['lokasjon']['lengde']
                 mydata.append( egenskaper )
@@ -1247,7 +1252,10 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=True
             nvdbid_manglergeom.append( feat['id'])
 
     if len( nvdbid_manglergeom ) > 0: 
-        print( 'nvdbfagdata2records: Manglet geometri for', len(nvdbid_manglergeom ), 'av', len(feature_eller_liste ), 'objekter')
+        if ignorerGeometriFeil: 
+            print( f"{len(nvdbid_manglergeom)} av {len(mydata)} rader mangler geometriinformasjon")
+        else: 
+            print( 'nvdbfagdata2records: Ignorerer ', len(nvdbid_manglergeom ), ' NVDB objektversjoner som mangler geometri. Returnerer ', len(feature_eller_liste ), ' rader')
 
     return mydata 
 
