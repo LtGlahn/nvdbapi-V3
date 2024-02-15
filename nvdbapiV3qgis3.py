@@ -83,8 +83,8 @@ def lagQgisDakat(  sokeobjekt):
         
     # Føyer på placeholder for vegsystemreferanse, stedfesting og trafikantgruppe
     qgisEg.append( 'trafikantgruppe:string')
-    qgisEg.append( 'vegsystemreferanse:string')
-    qgisEg.append( 'stedfesting:string')
+    qgisEg.append( 'vegsystemreferanse:string(2000)')
+    qgisEg.append( 'stedfesting:string(2000)')
 
 
     qgisDakat = '&field='.join( qgisEg )
@@ -428,9 +428,13 @@ def nvdbsok2qgis( sokeobjekt, lagnavn=None,
                     print( mittobj.id, "punkt", "\n\t", punktgeom, 
                             "\n\t", mygeoms[-1].asWkt()[0:100])
 
-            if gt == 'vegkart' and mittobj and mittobj['geometri'] and 'wkt' in mittobj.geometri['wkt']: 
-                mygeoms.append( QgsGeometry.fromWkt( mittobj.geometri['wkt'] ) )  
-                beste_gt_suksess = True
+            # if gt == 'vegkart' and isinstance( mittobj, nvdbFagObjekt) and hasattr(mittobj, 'geometri') and 'wkt' in mittobj.geometri['wkt']: 
+            if gt == 'vegkart' and isinstance( mittobj, nvdbFagObjekt): 
+                if hasattr(mittobj, 'geometri') and isinstance(mittobj.geometri, dict ) and 'wkt' in mittobj.geometri: 
+                    mygeoms.append( QgsGeometry.fromWkt( mittobj.geometri['wkt'] ) )  
+                    beste_gt_suksess = True
+                else: 
+                    print( f"Ingen geometri WKT attributt for {mittobj.id}: {str( type( mittobj.geometri ))}" )
             
             # Skal vi vise vegnettsgeometri? Itererer i så fall 
             # over alle vegnett-geometrier 
