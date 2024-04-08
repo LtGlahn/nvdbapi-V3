@@ -488,7 +488,7 @@ class nvdbVegnett:
         data = []
         v1 = self.nesteForekomst()
 
-        if self.antall and self.antall > 10000: 
+        if hasattr( self, 'antall') and self.antall > 10000: 
             print( 'Eksport av', self.antall, 'vegsegmenter kommer til å ta tid...')
 
         count = 1
