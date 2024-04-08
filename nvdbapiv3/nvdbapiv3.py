@@ -771,7 +771,7 @@ class nvdbFagdata(nvdbVegnett):
         else: 
             return None
         
-    def to_records(self, vegsegmenter=True, relasjoner=True, geometri=False, debug=False, tidspunkt=None, ignorerGeometriFeil=False ): 
+    def to_records(self, vegsegmenter=True, relasjoner=True, geometri=False, debug=False, tidspunkt=None, ignorerGeometriFeil=False, geometrikvalitet=False ): 
         """
         Eksporterer til en liste med dictionaries med struktur 
         "objekttype" : INT,
@@ -813,6 +813,9 @@ class nvdbFagdata(nvdbVegnett):
 
             ignorerGeometriFeil=False (default) Hvis True så tar vi med også de objektene som mangler noen form for geometridata
 
+            geometrikvalitet=False (default), Hvis True så tar vi med kvalitetsparametre (metadata) for objektets egengeometri (hvis de finnes). 
+                                              Forutsetter at du også har valgt geometri=True
+
         RETURNS
             liste med dictionaries (NVDB-objekt fra NVDB api LES v3 i utflatet struktur)
 
@@ -848,7 +851,7 @@ class nvdbFagdata(nvdbVegnett):
 
                 featureliste = nvdbfagdata2records( feat, vegsegmenter=vegsegmenter, relasjoner=relasjoner, 
                                                     geometri=geometri, debug=debug, tidspunkt=tidspunkt, 
-                                                    ignorerGeometriFeil=ignorerGeometriFeil )
+                                                    ignorerGeometriFeil=ignorerGeometriFeil, geometrikvalitet=geometrikvalitet )
             
                 mydata.extend( featureliste )
             else: 
@@ -1057,7 +1060,7 @@ def nvdbfagobjekt2records( feature_eller_liste, **kwargs):
     data = nvdbfagdata2records( feature_eller_liste, **kwargs) 
     return data 
 
-def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=True, geometri=False, debug=False, tidspunkt=None, ignorerGeometriFeil=False  ): 
+def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=True, geometri=False, debug=False, tidspunkt=None, ignorerGeometriFeil=False, geometrikvalitet=False  ): 
     """
     Gjør om (liste med) nvdb fagdata fra NVDB api LES til records, dvs de-normalisert til dictionaries med enkel struktur. 
 
@@ -1106,6 +1109,8 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=True
 
         ignorerGeometriFeil=False, tar med objekter som mangler gyldige geometridata (tomt dataelement)
 
+        geometrikvalitet=False, tar med kvalitetsparametre (metadata) for geometri (hvis den finnes). Forutsetter at geometri=True
+
     RETURNS
         liste med dictionaries (vegobjekt fra NVDB api LES i flatere dictionary-struktur)
 
@@ -1136,7 +1141,7 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=True
 
             # meta['metadata'] = feat['metadata']
 
-            egenskaper = egenskaper2records( feat['egenskaper'], relasjoner=False, geometri=geometri )
+            egenskaper = egenskaper2records( feat['egenskaper'], relasjoner=False, geometri=geometri, geometrikvalitet=geometrikvalitet )
             if relasjoner and 'relasjoner' in feat.keys() and len( feat['relasjoner']) > 0: 
                 egenskaper['relasjoner'] = feat['relasjoner']
 
@@ -1578,7 +1583,7 @@ def flatutvegnettsegment( vegnettsegment, droppRiksvegruter=True, droppKontrakte
 
     return v1 
 
-def egenskaper2records( egenskaper, relasjoner=False, geometri=False ):
+def egenskaper2records( egenskaper, relasjoner=False, geometri=False, geometrikvalitet=False ):
     """
     Oversetter liste med egenskapverdier til dictionary med struktur 
         "egenskapnavn" : Verdi
@@ -1591,6 +1596,20 @@ def egenskaper2records( egenskaper, relasjoner=False, geometri=False ):
     geometri=True tar med egengeometri-egenskapene. 
 
     NB! Hopper over egenskaper av typen Liste og Struktur
+
+    ARGUMENTS
+        egenskaper: Liste med egenskapverdier, hentet fra NVDB api LES
+
+    KEYWORDS
+        relasjoner : False, sett til True hvis du ønsker å ha med relasjoner
+
+        geometri:    False, sett til True hvis du ønsker å ha med objektets egengeometri-egenskap
+
+        geometrikvalitet : False, sett til True hvis du ønsker å ha med kvalitetsparametre (metadata) for objektets egengeometri-egnskap  
+                                 Forutsetter at du også har valgt geometri=True 
+
+    RETURNS 
+        dictionary med egenskapsnavn og verdier 
     """
     data = {}
 
@@ -1615,6 +1634,8 @@ def egenskaper2records( egenskaper, relasjoner=False, geometri=False ):
                     print( 'Primitiv vedleggshåndtering, denne skjønte jeg ikke:')
                     print( json.dumps( eg, indent=4 ))
 
+            # Skal vi ignorere geometri-egenskaper? I så fall er nøkkelord geometri==False, og vi 
+            # hopper over de egenskapene som sier noe om egengeometri.  
             elif geometri or not 'geometri' in eg['navn'].lower(): 
                 if 'egenskapstype' in eg.keys() and eg['egenskapstype'] == 'Binær' and 'href' in eg.keys(): 
                     data[eg['navn']] = eg['href']
@@ -1624,6 +1645,11 @@ def egenskaper2records( egenskaper, relasjoner=False, geometri=False ):
                     except KeyError:
                         print( 'Fant ingen verdi i denne egenskapen, ignorerer:\n', json.dumps( eg, indent=4) )
                         # TODO må kanskje gå gjennom alle egenskaptype-varianter mer i detalj og eksplisitt? 
+
+                    else: 
+                        # Føyer på kvalitetsparametre geometri (hvis vi er bedt om det, og hvis den finnes)
+                        if geometrikvalitet and 'geometri' in eg['navn'].lower() and 'kvalitet' in eg.keys(): 
+                            data[eg['navn']+'_kvalitet'] = eg['kvalitet']
 
     if relasjoner: 
         warn( 'Uthenting av relasjoner fra egenskapverdier er ikke implementert (ennå). Bruk to_records() eller nvdbfagdata2records()')
