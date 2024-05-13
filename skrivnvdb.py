@@ -185,33 +185,15 @@ class endringssett():
         b = self.sjekkstatus(returjson=True)
         nvdbid_feiler = []
         endringer = {}
-        # datakeys = set( self.data.keys())
-        # if 'delvisOppdater' in self.data.keys():
-        harnvdbid =  { 'oppdater', 'delvisOppdater', 
-                                   'korriger', 'delvisKorriger', 'slett', 'lukk' }
-        bb = harnvdbid.intersection( set( self.data.keys()))
-        if bb: 
-            bb_str = bb.pop() # Henter tekst fra set - mengden. Skal kun være 1 - en 
-            endringer = dict(( p['nvdbId'], p) for p in self.data[bb_str]['vegobjekter'])
-        elif  'registrer' in self.data.keys(): 
-            endringer = dict(( p['tempId'], p) for p in self.data['registrer']['vegobjekter'])
-        else: 
-            print( 'Funky... dette skulle IKKE skje, her er mine dict-oppslagsnøkler', 
-                  self.data.keys())            
-
-
+      
         print( "fremdrift:", b['fremdrift'])
         for ff in b['resultat']['vegobjekter']: 
-            if ff['feil']: 
-                nvdbid_feiler.append( ff['nvdbid'])
+            if 'feil' in ff: 
+                # TODO: Håndtere tempId i stedet for nvdbId når vi registrerer nye objekter
+                nvdbid_feiler.append( ff['nvdbId'])
                 print(' --- FEIL -- ' )
                 print(ff['nvdbId'], ff['feil'] )
-                print( 'endringssett:' )
-                if endringer and str(ff['nvdbId']) in endringer.keys(): 
-                    print( json.dumps(endringer[str(ff['nvdbId'])], indent=4) )
-                else: 
-                    print( "Fant ingen endringssett med NVDB id", ff['nvdbId'], '????')
-                 
+                  
         if returnNvdbId: 
             return nvdbid_feiler
         
