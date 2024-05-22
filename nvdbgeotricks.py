@@ -374,6 +374,64 @@ def firefeltrapport( mittfilter={}):
     else: 
         return None 
 
+def posisjon( params, forb=None ): 
+    """
+    Henter data fra /posisjon endepunktet til LES https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/swagger-ui/index.html#/Vegnett/get_posisjon
+    
+    ARGUMENTS:
+        params : dictionary med søkeparametre. 
+                Må minimum inneholde koordinatpar { 'ost' : X, 'nord' : Y } eller { 'lon' : X, 'lat' : Y }
+                Se  dokumentasjon 
+                https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/openapi/swagger-ui/index.html#/Vegnett/get_posisjon        
+
+    KEYWORDS: 
+        forb : None eller en instans av nvdbapiv3.apiforbindelse()
+
+    RETURNS: 
+        None (hvis søket feiler) eller Geopandas GeoDataFrame med søketreffene, transformert til en flat tabell
+    """
+
+    if forb is None: 
+        forb = nvdbapiv3.apiforbindelse()
+
+    r = forb.les( '/posisjon', params=params )
+    print( r.url )
+    if r.ok: 
+        data = r.json()
+        srid = 5973 
+        if isinstance( data, list): 
+            returdata = []
+            for punkt in data: 
+                feat = { 'avstand' : punkt['avstand'], 'kommune' : punkt['kommune'] }
+                if 'vegsystemreferanse' in punkt and 'kortform' in punkt['vegsystemreferanse']: 
+                    feat['vref'] = punkt['vegsystemreferanse']['kortform']
+
+                if 'veglenkesekvens' in punkt: 
+                    feat['veglenkesekvensid']   = punkt['veglenkesekvens']['veglenkesekvensid']
+                    feat['relativPosisjon']     = punkt['veglenkesekvens']['relativPosisjon']
+                    feat['veglenkepos']         = punkt['veglenkesekvens']['kortform']
+
+
+                feat['geometry'] = wkt.loads( punkt['geometri']['wkt'])
+                if punkt['geometri']['srid'] != 5973: 
+                    srid = feat['geometri']['srid']
+                
+                returdata.append( feat )
+            
+            returdata = pd.DataFrame( returdata ) 
+            returdata = gpd.GeoDataFrame( returdata, geometry='geometry', crs=srid )
+
+            return returdata
+        
+        else: 
+            print( f"Null søketreff på /posisjon med parametre {params}")
+
+    else: 
+        print( f"Feilmelding /posisjon HTTP {r.status_code} {r.text[0:1000]}")
+    
+    return None 
+
+
 
 def sjekkfelt( vegsegment, felttype='firefelt' ): 
     """
