@@ -334,6 +334,59 @@ def endringssett_mal( datakatalogversjon=None, operasjon='delvisOppdater'):
     return mal 
 
 
+def hentEndringssett( endringssettId:str, filnavn=None, skriveapiForbindelse=None, 
+                     username='jajens', pw=None, miljo='prodskriv', **kwargs ): 
+    """
+    Henter endringssett ut fra kjent ID. Lagrer evt til fil 
+
+    ARGUMENTS
+        endringssettId: str, ID til endringssettet. Kan også være lenken til endringssettet
+        i NVDB api SKRIV på formen 
+        https://nvdbapiskriv.atlas.vegvesen.no/kontrollpanel#/jobs/view/8a647305-1192-4cfc-852f-8d191c11d83a
+        (hentet fra Datafangst-fanen "Registering til NVDB)
+
+    KEYWORDS
+        filnavn : None eller str, Kan evt lagre endringsset som json-fil med angitt filnavn
+
+        skriveapiForbindelse: None eller Innlogget instans av nvdbapilv3.apiforbindelse(). 
+                              Hvis None så opprettes et nytt objekt der man logger inn 
+                              interaktivt, se beskrivelsen for nøkkeordene
+                              username, pw og miljo. 
+
+        Alle andre nøkkelord går til skriveapiforbindelse 
+            username : Brukernavn for innlogging NVDB api SKRIV
+            pw       : Passord for innlogging NVDB api SKRIV
+            miljo    : Driftsmiljø, mulige valg: prodskriv, testskriv, utvskriv
+            Se dokumentasjon for nvdbapiv3.apiforbindelse for andre parametre
+
+    RETURNS
+        dictionary 
+    """
+    assert isinstance( endringssettId, str), "Input argument endringssettId må være tekstfelt"
+
+    # Er vi en lenke til endringssettet med ID?
+    # https://nvdbapiskriv.atlas.vegvesen.no/kontrollpanel#/jobs/view/8a647305-1192-4cfc-852f-8d191c11d83a
+    if 'kontrollpanel' in endringssettId: 
+        endringssettId = endringssettId.split( '/')[-1]
+
+    if skriveapiForbindelse is None: 
+        skriveapiForbindelse = apiforbindelse()
+
+    if skriveapiForbindelse.tokenId == '': 
+        skriveapiForbindelse.login( username=username, pw=pw, miljo=miljo, **kwargs)
+
+    r = skriveapiForbindelse.les( '/rest/v3/endringssett/' + endringssettId )
+    if r.ok: 
+        data = r.json()
+        if filnavn: 
+            with open( filnavn, 'w' ) as f:
+                json.dump( data, f, indent=4, ensure_ascii=False  )
+
+        return data 
+    else: 
+        print( f"Feilmelding http {r.status_code} {r.text[0:500]}")
+
+
 def fagdata2skrivemal( liste_eller_forekomst, operasjon='delvisOppdater', 
             ignorerAlleEgenskaper=False, kunDisseEgenskapene=None, ignorerStedfesting=False, effektDato=None,
             datakatalogversjon=None, slettegenskaper=False, kaskadelukking="JA", ignorerRelasjoner=True  ): 
