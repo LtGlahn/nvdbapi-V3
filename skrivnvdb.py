@@ -180,21 +180,16 @@ class endringssett():
                 if ff['feil']: 
                     print( ff['feil'], ff['nvdbId'])
     
-                    
-    def finnskrivefeil(self, returnNvdbId=False): 
+    def finnskrivefeil(self, returnerFeil=False): 
+        """
+        Lister opp ID på objekter med feil og tilhørende feilmeldinger fra NVDB api SKRIV
+
+        Bruk nøkkelord returnerFeil=True for å få returnert alle feildetaljene 
+        """
         b = self.sjekkstatus(returjson=True)
-        nvdbid_feiler = []
-        endringer = {}
-      
-        print( "fremdrift:", b['fremdrift'])
-        for ff in b['resultat']['vegobjekter']: 
-            if 'feil' in ff: 
-                # TODO: Håndtere tempId i stedet for nvdbId når vi registrerer nye objekter
-                nvdbid_feiler.append( ff['nvdbId'])
-                print(' --- FEIL -- ' )
-                print(ff['nvdbId'], ff['feil'] )
+        nvdbid_feiler = finnSkriveFeil( b, returnerFeil=returnerFeil )
                   
-        if returnNvdbId: 
+        if returnerFeil: 
             return nvdbid_feiler
         
     def registrer(self, dryrun=False): 
@@ -295,6 +290,37 @@ class endringssett():
         
         return returdata
     
+def finnSkriveFeil( endringssett:dict, returnerFeil=False ): 
+    """
+    Finner feilmeldinger på endringssett som har fått status AVVIST fra NVDB api SKRIV
+    
+    Lister opp ID på objekter med feil og tilhørende feilmeldinger fra NVDB api SKRIV
+
+    Bruk nøkkelord returnerFeil=True for å få returnert alle feildetaljene 
+
+    ARGUMENTS
+        endringssett:dict Et endringssett med statusinformasjon fra NVDB api SKRIV
+
+    KEYWORDS 
+        returnerFeil:Boolean, returnerer liste med dictionaries { 'id' : ["Liste med feilmeldinger"]}
+
+    RETURNS 
+        None eller liste med dictionaries { 'id' : ["Liste med feilmeldinger"]}
+    """
+    nvdbid_feiler = []
+    for ff in endringssett['resultat']['vegobjekter']: 
+        if 'feil' in ff and len( ff['feil'] ) > 0: 
+            print(' --- FEIL -- ' )
+            if 'tempId' in ff: 
+                nvdbid_feiler.append(  { ff['tempId'] : ff['feil'] } )
+                print(ff['tempId'], ff['feil'] )
+
+            elif 'nvdbId' in ff: 
+                nvdbid_feiler.append( { ff['nvdbId'] : ff['feil'] })
+                print(ff['nvdbId'], ff['feil'] )
+
+    if returnerFeil: 
+        return nvdbid_feiler
 
 
 def endringssett_mal( datakatalogversjon=None, operasjon='delvisOppdater'): 
