@@ -171,13 +171,14 @@ def segmenter( dfVeg, dfListe, agg={}, minsteLengde=0.1, glemNvdbDetaljer=True  
     # Beholder vegkategori, fylke, kommune, medium og feltoversikt (hvis de finnes)
     col_ignorer_veg = set( ['href', 'veglenkesekvensid', 'startposisjon', 'sluttposisjon',
                         'kortform', 'veglenkenummer', 'segmentnummer', 'startnode', 'sluttnode',
-                        'referanse', 'type', 'detaljnivå', 'typeVeg', 'typeVeg_sosi',
+                        'referanse',  'typeVeg_sosi',
                         'målemetode', 'geometri', 'lengde', 
-                        'vegsystemreferanse', 'gate', 'startdato', 'medium', 'vref',
+                        'vegsystemreferanse', 'gate', 'startdato',  'vref',
                             'fase', 'nummer', 'strekning', 'delstrekning',
-                        'fra_meter', 'til_meter', 'trafikantgruppe', 'adskilte_lop', 'måledato',
+                        'fra_meter', 'til_meter', 'måledato',
                         'ankerpunktmeter', 'sideanleggsdel', 'sluttdato', 'kryssdel',
                             'geometry' ] )
+                        # Fjernet fra ignorer-lista: 'typeVeg', 'medium', 'type', 'detaljnivå', 'trafikantgruppe', 'adskilte_lop', 
 
     col_egenskaper_veg =  list( set( list( dfVeg.columns )) - col_ignorer_veg )
 
