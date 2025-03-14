@@ -187,10 +187,10 @@ class endringssett():
         Bruk nøkkelord returnerFeil=True for å få returnert alle feildetaljene 
         """
         b = self.sjekkstatus(returjson=True)
-        nvdbid_feiler = finnSkriveFeil( b, returnerFeil=returnerFeil )
+        allefeil = finnSkriveFeil( b, returnerFeil=returnerFeil )
                   
         if returnerFeil: 
-            return nvdbid_feiler
+            return allefeil
         
     def registrer(self, dryrun=False): 
         """Registrerer et endringssett. Forutsetter innlogget tilkobling
@@ -307,20 +307,20 @@ def finnSkriveFeil( endringssett:dict, returnerFeil=False ):
     RETURNS 
         None eller liste med dictionaries { 'id' : ["Liste med feilmeldinger"]}
     """
-    nvdbid_feiler = []
-    for ff in endringssett['resultat']['vegobjekter']: 
+    allefeil = []
+    for ff in endringssett['status']['resultat']['vegobjekter']: 
         if 'feil' in ff and len( ff['feil'] ) > 0: 
             print(' --- FEIL -- ' )
             if 'tempId' in ff: 
-                nvdbid_feiler.append(  { ff['tempId'] : ff['feil'] } )
+                allefeil.append(  { ff['tempId'] : ff['feil'] } )
                 print(ff['tempId'], ff['feil'] )
 
             elif 'nvdbId' in ff: 
-                nvdbid_feiler.append( { ff['nvdbId'] : ff['feil'] })
+                allefeil.append( { ff['nvdbId'] : ff['feil'] })
                 print(ff['nvdbId'], ff['feil'] )
 
     if returnerFeil: 
-        return nvdbid_feiler
+        return allefeil
 
 
 def endringssett_mal( datakatalogversjon=None, operasjon='delvisOppdater'): 
