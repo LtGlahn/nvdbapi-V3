@@ -308,19 +308,33 @@ def finnSkriveFeil( endringssett:dict, returnerFeil=False ):
         None eller liste med dictionaries { 'id' : ["Liste med feilmeldinger"]}
     """
     allefeil = []
-    for ff in endringssett['status']['resultat']['vegobjekter']: 
-        if 'feil' in ff and len( ff['feil'] ) > 0: 
-            print(' --- FEIL -- ' )
-            if 'tempId' in ff: 
-                allefeil.append(  { ff['tempId'] : ff['feil'] } )
-                print(ff['tempId'], ff['feil'] )
+    # WTF, endrer de skjema en gang i uken eller??? Har nettopp endret fra status.resultat.vegobjekter => resultat.vegobjekter, og nå møter jeg 
+    # den motsatte varianten??? Eller er dette kontekstavhengig? Legger på en sjekk for begge variantene! 
+    if 'resultat' in endringssett and 'vegobjekter' in  endringssett['resultat']: 
+        for ff in endringssett['resultat']['vegobjekter']: 
+            if 'feil' in ff and len( ff['feil'] ) > 0: 
+                if 'tempId' in ff: 
+                    allefeil.append(  { ff['tempId'] : ff['feil'] } )
+                elif 'nvdbId' in ff: 
+                    allefeil.append( { ff['nvdbId'] : ff['feil'] })
 
-            elif 'nvdbId' in ff: 
-                allefeil.append( { ff['nvdbId'] : ff['feil'] })
-                print(ff['nvdbId'], ff['feil'] )
+    elif 'status' in endringssett and 'resultat' in endringssett['status'] and 'vegobjekter' in endringssett['status']['resultat']: 
+        for ff in endringssett['status']['resultat']['vegobjekter']: 
+            if 'feil' in ff and len( ff['feil'] ) > 0: 
+                if 'tempId' in ff: 
+                    allefeil.append(  { ff['tempId'] : ff['feil'] } )
+
+                elif 'nvdbId' in ff: 
+                    allefeil.append( { ff['nvdbId'] : ff['feil'] })
+
+    else: 
+        raise ValueError( f"Finner ikke hode og hale på dette endringssettet, sorry! Feiler både på ['status']['resultat']['vegobjekter'] og ['resultat']['vegobjekter'] ")
 
     if returnerFeil: 
         return allefeil
+    else: 
+        for feil in allefeil: 
+            print( "========\n", json.dumps( feil, indent=4, ensure_ascii=False ) )
 
 
 def endringssett_mal( datakatalogversjon=None, operasjon='delvisOppdater'): 
