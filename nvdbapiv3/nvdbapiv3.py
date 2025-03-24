@@ -1212,6 +1212,11 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=True
                                 if 'retning' in lok: 
                                     s2['stedfesting_retning'] = lok['retning']
                             
+                        elif 'type' in lok and lok['type'] == 'Sving': 
+                            # Forenklet behandling av svingerestriksjon
+                            s2['stedfesting'] = lok
+
+
                         else: 
                             if lok['veglenkesekvensid'] == seg['veglenkesekvensid'] and lok['startposisjon'] == seg['startposisjon'] and lok['sluttposisjon'] == seg['sluttposisjon']:
                                 if 'sideposisjon' in lok: 
@@ -1226,22 +1231,28 @@ def nvdbfagdata2records( feature_eller_liste, vegsegmenter=True, relasjoner=True
                     mydata.append( egenskaper_kopi )
             else: 
                 egenskaper['vegsystemreferanser'] = ','.join([ d['kortform'] for d in feat['lokasjon']['vegsystemreferanser'] ] )
-                egenskaper['stedfestinger']       = ','.join([ d['kortform'] for d in feat['lokasjon']['stedfestinger'] ] )
 
-                # Itererer over stedfesting-elementer for å få med evt sideposisjon og felt-stedfesting 
-                stedfestinger = [] # Liste med tekst
-                for lok in feat['lokasjon']['stedfestinger']: 
-                    side = ''
-                    felt = ''
-                    retning = ''
-                    if 'retning' in lok: 
-                        retning = ' ' + lok['retning']
-                    if 'sideposisjon' in lok: 
-                        side = ' ' + lok['sideposisjon']
-                    if 'kjørefelt' in lok and isinstance( lok['kjørefelt'], list) and len( lok['kjørefelt'] ) > 0: 
-                        felt = ' (' +  ','.join( lok['kjørefelt']) + ')'
-                    stedfestinger.append( lok['kortform'] + retning + side + felt )
-                egenskaper['stedfesting_detaljer'] = ','.join( stedfestinger )
+                # Spesialhåndtering av svingerestriksjon
+                if feat['metadata']['type']['navn'] == 'Svingerestriksjon': 
+                    egenskaper['stedfestinger'] = feat['lokasjon']['stedfestinger']
+                else: 
+
+                    egenskaper['stedfestinger']       = ','.join([ d['kortform'] for d in feat['lokasjon']['stedfestinger'] ] )
+
+                    # Itererer over stedfesting-elementer for å få med evt sideposisjon og felt-stedfesting 
+                    stedfestinger = [] # Liste med tekst
+                    for lok in feat['lokasjon']['stedfestinger']: 
+                        side = ''
+                        felt = ''
+                        retning = ''
+                        if 'retning' in lok: 
+                            retning = ' ' + lok['retning']
+                        if 'sideposisjon' in lok: 
+                            side = ' ' + lok['sideposisjon']
+                        if 'kjørefelt' in lok and isinstance( lok['kjørefelt'], list) and len( lok['kjørefelt'] ) > 0: 
+                            felt = ' (' +  ','.join( lok['kjørefelt']) + ')'
+                        stedfestinger.append( lok['kortform'] + retning + side + felt )
+                    egenskaper['stedfesting_detaljer'] = ','.join( stedfestinger )
 
                 egenskaper['vegsegmenter']        = feat['vegsegmenter']
                 if 'geometri' in feat.keys():
