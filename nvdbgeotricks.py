@@ -504,15 +504,34 @@ def filtrerfeltoversikt( feltoversikt, mittfilter=['vanlig', 'K', 'R' ]):
 
     return data 
 
-def kostraVeglengde( minDataFrame  ): 
+
+def kostraVeglengde( minDataFrame  )->float: 
     """
-    Teller utstrekning langs vegnett etter KOSTRA-metoden
+    Teller utstrekning langs vegnett etter KOSTRA-metoden, i meter flyttall
 
     Inputdata er en pandas dataframe eller geopandas geodataframe med segmentert vegnett,
     hentet direkte fra NVDB api LES - endepunktet /vegnett/veglenkesekvenser/segmentert
 
-    Returnerer heltall med lengde, i meter
+    Input data kan også være fagdata. Da antar vi at du ønsker KOSTRA beregning av vegnettet 
+    som fagdata er stedfestet på. KOSTRA opptelling av rekkverk, bru etc er noe HELT annet
+
+    Returnerer flyttall med lengde, i meter
     """
+
+    minDf = kostraFiltrerDF( minDataFrame )
+    if 'segmentlengde' in minDf.columns: 
+        minDf['lengde'] = minDf['segmentlengde']
+    return float( minDf['lengde'].sum() )
+
+def kostraFiltrerDF( minDataFrame ): 
+    """
+    Filtrerer en (geo)dataframe med segmentert vegnett etter KOSTRA-metoden
+
+    Input data kan også være NVDB fagdata med vegsegmenter, typisk laget med nvdbapiv3.nvdbFagData().to_records(vegsegmenter=True)
+
+    Returner (geo)DataFrame 
+    """
+
     assert 'columns' in dir( minDataFrame ), "Tror ikke inputdata er gyldig (geo)dataframe"
     assert 'adskilte_lop' in minDataFrame.columns, "Ser ikke ut til at inputdata beskriver segmentert vegnett?" 
     assert 'typeVeg' in minDataFrame.columns, "Ser ikke ut til at inputdata beskriver segmentert vegnett?" 
@@ -520,16 +539,14 @@ def kostraVeglengde( minDataFrame  ):
 
 
     # Ignorerer konnekteringslenker (og evt andre topolognivå enn det øverste)
-    # Vegnett skal også filtrere vekk sideanlegg, type veg osv, mens fagdata stort sett 
-    # ikke skal ha slike filter
-    # IGNORERER FAGDATA i første omgang, de skal stort sett telles rubb og rake uansett (?)
-    # FAGDATA: Har egenskapsverdi 'veglenkeType' 
-    # if 'veglenkeType' in minDataFrame.colums: 
-    #     mydf = minDataFrame[ minDataFrame['veglenkeType'] == 'HOVED'].copy()
-    # Mens for vegnettsdata heter vegtype rett og slett "type"
-    # elif 'type' in minDataFrame.columns: 
+    # Vegnett skal også filtrere vekk sideanlegg, type veg osv. 
+    # FAGDATA: Avvik på navn versus vegnettsdata 
+    #       'veglenkeType' == vegnettsdata sin egenskap  "type"
+    #       'segmentlengde' == vegnettsdata sin egenskap  "lengde"
     if 'type' in minDataFrame.columns: 
         mydf = minDataFrame[ minDataFrame['type'] == 'HOVED'].copy()
+    elif 'veglenkeType' in minDataFrame.columns: 
+        mydf = minDataFrame[ minDataFrame['veglenkeType'] == 'HOVED'].copy()
     else: 
         raise ValueError( 'Mangler informasjon om veglenketype i datasett' )
 
@@ -546,7 +563,10 @@ def kostraVeglengde( minDataFrame  ):
     # Filtrerer vekk Adskilte løp = Mot 
     mydf = mydf[ mydf['adskilte_lop'].isin( ['Med', 'Nei'] )]
 
-    return mydf['lengde'].sum()
+    # Sikrer at vi kun har fase = v
+    mydf = mydf[ mydf['fase'] == 'V']
+
+    return mydf
 
 
 
