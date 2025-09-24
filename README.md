@@ -1,13 +1,14 @@
- # Jobb interaktivt mot NVDB api V3
+ # Jobb interaktivt mot NVDB api V3 #UTDATERT bruk V4 
+ 
+Jobb interaktivt og objektorientert mot NVDB api V3! vil ikke lenger fungere ettersom versjon 3 av LES sklal avvikles og er kun tilgjengelig etter søknad for forhåndsgodkjente klienter, se 
 
-Jobb interaktivt og objektorientert mot NVDB api V3! 
+Les først gjennom [Dokumentasjon V3 tilgang https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/](https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/)
 
-Les først gjennom [https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/](https://nvdbapiles-v3.atlas.vegvesen.no/dokumentasjon/)
-for nyttige tips og innblikk i logikken. 
 
-Rutinene håndterer all kommunikasjon mot NVDB API, inklusive paginering (d.v.s. vi henter passe
-store "bøtter" med data av gangen) Du føyer til dine egne søkefiltere, og du kan sjekke antall 
-treff før du laster ned data. 
+# LES v4-versjon av dette repoet
+
+[Denne koden oppgrader til LES v4 finner du her] (https://github.com/LtGlahn/nvdbapiv4)
+
 
 Vi oppforder alle til å gi oss relevant kontaktinfo i form av http headere 
 X-Client og X-Kontaktperson. Dermed har vi bedre statistikk over hvem som bruker API'et til hva, 

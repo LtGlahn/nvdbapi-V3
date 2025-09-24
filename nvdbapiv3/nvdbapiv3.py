@@ -11,7 +11,6 @@ Har disse hjelpefunksjonene:
     - egenskaper2records: Oversetter liste med egenskapverdier til dictionary 
     - vegrefpunkt: Slår opp på et punkt på vegnettet
 
-Sjekk README.md for detaljer, og https://github.com/LtGlahn/nvdbapi-V3/issues for kjente feil og mangler. 
 
 """
 
