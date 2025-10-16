@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Kommunikasjon mot, og skriving til NVDB skriveapi https://apiskriv.vegdata.no/ 
+Kommunikasjon mot, og skriving til NVDB skriveapi https://nvdbno/ 
 
-Det anbefales STERKT at utvikling foregår mot docker-instans av skriveapi. 
-https://www.vegdata.no/2016/03/09/utviklerutgave-av-skrive-apiet-tilgjengelig-pa-docker-hub/
 
 
 apiskrivforbindelse - Klasse som håndterer alt det praktiske med 
@@ -36,8 +34,6 @@ alternativt
     e1.endringssett()
     e1.data = <dine skriveklare data>
 
-Eksempler på endringssett finner du i /generator/ - endepunktet i docker-instans, 
-evt https://www.vegvesen.no/nvdb/apiskriv/generator/
 
 
 EKSEMPEL, fullstending løype
@@ -66,7 +62,7 @@ import getpass
 import pdb 
 # from copy import deepcopy 
 
-from nvdbapiv3 import apiforbindelse
+from nvdbapiv4 import apiforbindelse
         
 #         """Leser data fra NVDB api"""
 #         return self.requestsession.get( url=url, 
